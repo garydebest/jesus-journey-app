@@ -182,7 +182,7 @@ export const PATHWAYS: PathwayDef[] = [
   {
     num: 9,
     name: "Expressing God's Love",
-    goal: "Expressing Jesus",
+    goal: "Reflecting Jesus",
     tagline: "How able are others to see God's love in the way I act toward them?",
     scripture: "John 13:34-35",
     items: ["B8", "K8", "T3", "L9", "P8"],
@@ -195,7 +195,7 @@ export const PATHWAYS: PathwayDef[] = [
   {
     num: 10,
     name: "Practicing my Faith",
-    goal: "Expressing Jesus",
+    goal: "Reflecting Jesus",
     tagline: "Is my day-to-day life one where my choices are aligned with God's will?",
     scripture: "Ephesians 4:32",
     items: ["A1", "A3", "L7", "P1", "P4"],
@@ -208,7 +208,7 @@ export const PATHWAYS: PathwayDef[] = [
   {
     num: 11,
     name: "Journeying with Others",
-    goal: "Expressing Jesus",
+    goal: "Reflecting Jesus",
     tagline: "Am I connected with and connecting others on my journey with God?",
     scripture: "Hebrews 10:24-25",
     items: ["A7", "A8", "A9", "P5"],
@@ -221,7 +221,7 @@ export const PATHWAYS: PathwayDef[] = [
   {
     num: 12,
     name: "Reconciling",
-    goal: "Expressing Jesus",
+    goal: "Reflecting Jesus",
     tagline: "How able am I to be a forgiving and reconciling person?",
     scripture: "Colossians 3:13",
     items: ["A4", "L2", "L3"],
@@ -285,4 +285,4 @@ export const PATHWAYS: PathwayDef[] = [
   },
 ];
 
-export const GOALS = ["Trusting Jesus", "Experiencing Jesus", "Expressing Jesus", "Serving Jesus"];
+export const GOALS = ["Trusting Jesus", "Experiencing Jesus", "Reflecting Jesus", "Serving Jesus"];

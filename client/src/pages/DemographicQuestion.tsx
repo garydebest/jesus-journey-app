@@ -11,6 +11,7 @@ export function DemographicQuestion({
   onNext,
   onBack,
   progress,
+  showIntroNote,
 }: {
   demo: Demographic;
   value?: string | string[];
@@ -18,6 +19,7 @@ export function DemographicQuestion({
   onNext: () => void;
   onBack: () => void;
   progress: number;
+  showIntroNote?: boolean;
 }) {
   const isAnswered = demo.type === "multi" ? Array.isArray(value) && value.length > 0 : typeof value === "string";
 
@@ -41,6 +43,16 @@ export function DemographicQuestion({
         </Button>
       }
     >
+      {showIntroNote && (
+        <p
+          className="text-sm text-muted-foreground leading-relaxed rounded-lg bg-muted border border-border p-4"
+          data-testid="text-demo-intro-note"
+        >
+          The following questions are optional for those taking the survey as an individual. If you
+          are participating in the survey as part of a larger group, these questions are essential
+          for fully understanding your faith community's journey.
+        </p>
+      )}
       <h2 className="text-lg font-semibold leading-snug" data-testid="text-demo-question">
         {demo.question}
       </h2>

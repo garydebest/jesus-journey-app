@@ -1,17 +1,30 @@
 export function JJLogo({ className = "h-8 w-8" }: { className?: string }) {
   return (
     <svg viewBox="0 0 48 48" fill="none" className={className} aria-label="Jesus Journey logo">
+      {/* Folded map, three panels */}
       <path
-        d="M24 4C14.06 4 6 12.06 6 22c0 13.5 15.5 20.6 17.1 21.3.57.25 1.23.25 1.8 0C26.5 42.6 42 35.5 42 22 42 12.06 33.94 4 24 4z"
-        fill="hsl(174 30% 38%)"
+        d="M6 11l11-4 14 4 11-4v29l-11 4-14-4-11 4z"
+        fill="hsl(41 28% 92%)"
+        stroke="hsl(174 30% 30%)"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
       />
-      <circle cx="24" cy="21" r="8" fill="hsl(41 28% 92%)" />
+      <path d="M17 7v29M31 11v29" stroke="hsl(174 30% 30%)" strokeWidth="1.4" />
+      {/* Dashed route */}
       <path
-        d="M24 15v12M19 21h10"
-        stroke="hsl(1 68% 61%)"
-        strokeWidth="2.4"
+        d="M11 30c3-4 6-2 8-6s2-8 6-10"
+        stroke="hsl(174 30% 38%)"
+        strokeWidth="1.6"
         strokeLinecap="round"
+        strokeDasharray="1 4"
+        fill="none"
       />
+      {/* Location pin dropped on the map */}
+      <path
+        d="M33 16c-3.3 0-6 2.7-6 6 0 4.5 6 11 6 11s6-6.5 6-11c0-3.3-2.7-6-6-6z"
+        fill="hsl(1 68% 61%)"
+      />
+      <circle cx="33" cy="22" r="2.2" fill="hsl(41 28% 96%)" />
     </svg>
   );
 }

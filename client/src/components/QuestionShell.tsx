@@ -18,7 +18,7 @@ export function QuestionShell({
   footer?: ReactNode;
 }) {
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-dvh flex flex-col bg-background">
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
         <div className="max-w-2xl mx-auto w-full px-4 py-3 flex items-center gap-3">
           <JJLogo className="h-6 w-6 shrink-0" />
@@ -28,8 +28,8 @@ export function QuestionShell({
           </span>
         </div>
       </header>
-      <main className="flex-1 flex items-center justify-center px-4 py-10">
-        <div className="max-w-2xl w-full space-y-6">
+      <main className="flex-1 px-4 py-10">
+        <div className="max-w-2xl mx-auto w-full space-y-6">
           {showBack && onBack && (
             <button
               onClick={onBack}
@@ -43,7 +43,7 @@ export function QuestionShell({
         </div>
       </main>
       {footer && (
-        <footer className="border-t border-border">
+        <footer className="sticky bottom-0 bg-background/95 backdrop-blur border-t border-border">
           <div className="max-w-2xl mx-auto w-full px-4 py-4 flex justify-end gap-3">{footer}</div>
         </footer>
       )}

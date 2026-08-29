@@ -66,6 +66,7 @@ export function SurveyFlow() {
     const item = SURVEY_ITEMS[idx];
     return (
       <ItemQuestion
+        key={item.code}
         text={item.text}
         value={state.items[item.code]}
         onChange={(v) => setState((s) => ({ ...s, items: { ...s.items, [item.code]: v } }))}
@@ -117,6 +118,7 @@ export function SurveyFlow() {
     const demo = DEMOGRAPHICS[idx];
     return (
       <DemographicQuestion
+        key={demo.id}
         demo={demo}
         value={state.demographics[demo.id]}
         onChange={(v) => setState((s) => ({ ...s, demographics: { ...s.demographics, [demo.id]: v } }))}
@@ -129,6 +131,7 @@ export function SurveyFlow() {
           else setScreen(`demo-${idx - 1}`);
         }}
         progress={progressFor(screen)}
+        showIntroNote={idx === 0}
       />
     );
   }
