@@ -15,15 +15,15 @@ import {
   Cell,
 } from "recharts";
 
-// Four-goal palette — deliberately avoids red. Each hue carries a light
-// association with its Goal: Trusting = steady teal, Experiencing = warm
-// gold (presence/light), Reflecting = dusty sky blue (mirroring outward),
-// Serving = green (growth/action).
+// Four-goal palette — deliberately avoids red, and each hue is spaced well
+// apart on the color wheel so no two goals read as the same color. Trusting
+// = steel blue, Experiencing = warm gold (presence/light), Reflecting =
+// violet (mirroring outward), Serving = green (growth/action).
 const GOAL_COLORS: Record<string, string> = {
-  "Trusting Jesus": "hsl(174 30% 38%)",
+  "Trusting Jesus": "hsl(200 45% 42%)",
   "Experiencing Jesus": "hsl(38 62% 50%)",
-  "Reflecting Jesus": "hsl(205 40% 48%)",
-  "Serving Jesus": "hsl(150 30% 40%)",
+  "Reflecting Jesus": "hsl(265 30% 52%)",
+  "Serving Jesus": "hsl(140 35% 38%)",
 };
 
 // Band colors: Strength = green, Developing = amber, Growth opportunity =
@@ -135,10 +135,6 @@ export function Report({
             simply to serve and encourage you toward Jesus' never ending invitation to live your life
             really and fully!
           </p>
-        </section>
-
-        {/* Chart intro copy */}
-        <section className="space-y-2">
           <p className="text-sm text-muted-foreground leading-relaxed" data-testid="text-report-intro">
             For each Goal, we measure progress along four Pathways. Pathways are means through which
             your Journey of Faith can be helped to move forward. Below you'll see a chart with your
