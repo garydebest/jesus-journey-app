@@ -1,14 +1,18 @@
 import { spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolveModuleDir } from "./paths";
 import { ITEM_CODES, type ResponseRow } from "@shared/schema";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// See server/paths.ts for why this can't just be `fileURLToPath(import.meta.url)`
+// (breaks once script/build.ts bundles this file to CommonJS for production).
+const moduleDir = resolveModuleDir(
+  typeof import.meta !== "undefined" ? import.meta.url : undefined,
+  typeof __dirname !== "undefined" ? __dirname : undefined,
+);
 
-const REPORT_ENGINE_DIR = path.resolve(__dirname, "report-engine");
-const REPORTS_DIR = path.resolve(__dirname, "..", "generated-reports");
+const REPORT_ENGINE_DIR = path.resolve(moduleDir, "report-engine");
+const REPORTS_DIR = path.resolve(moduleDir, "..", "generated-reports");
 
 function parseChildren(raw: string | null): string[] {
   if (!raw) return [];

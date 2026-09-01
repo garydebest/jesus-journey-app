@@ -62,7 +62,7 @@ async function buildAll() {
   console.log("copying report engine (python) assets...");
   await cp("server/report-engine", "dist/report-engine", {
     recursive: true,
-    filter: (src) => path.basename(src) !== "tests",
+    filter: (src) => path.basename(src) !== "tests" && path.basename(src) !== "__pycache__",
   });
   await mkdir("dist/generated-reports", { recursive: true });
 }
