@@ -63,3 +63,41 @@ export function JJLogoLockup({ className = "h-14" }: { className?: string }) {
     </svg>
   );
 }
+
+// Text brand lockup used in the church dashboard/portal header and footer:
+// mark + "my" script flourish + "Jesus Journey" wordmark + "Survey" sub-line.
+// `variant="full"` (header) includes the cursive "my"; `variant="plain"`
+// (footer) also includes it now, for brand consistency across header/footer.
+export function JJBrandLockup({
+  variant = "full",
+  className = "",
+  logoClassName = "h-8 w-12",
+}: {
+  variant?: "full" | "plain";
+  className?: string;
+  logoClassName?: string;
+}) {
+  return (
+    <span className={`inline-flex items-center gap-2 ${className}`}>
+      <JJLogo className={logoClassName} />
+      <span className="inline-flex items-baseline gap-1">
+        <em
+          className="not-italic font-script text-muted-foreground"
+          style={{ fontSize: "1.05em", transform: "rotate(-3deg)", display: "inline-block" }}
+        >
+          my
+        </em>
+        <span className="inline-flex flex-col leading-none">
+          <span className={variant === "full" ? "font-sans font-bold tracking-tight text-sm" : "font-sans font-semibold text-sm"}>
+            Jesus Journey
+          </span>
+          {variant === "full" && (
+            <span className="font-sans font-medium text-[0.6rem] uppercase tracking-widest text-muted-foreground">
+              Survey
+            </span>
+          )}
+        </span>
+      </span>
+    </span>
+  );
+}

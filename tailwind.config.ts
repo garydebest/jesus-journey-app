@@ -102,6 +102,7 @@ export default {
       fontFamily: {
         sans: ["var(--font-sans)"],
         serif: ["var(--font-serif)"],
+        script: ["var(--font-script)"],
         mono: ["var(--font-mono)"],
       },
       keyframes: {

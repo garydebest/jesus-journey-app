@@ -44,7 +44,8 @@
   --chart-4: 159 31% 60%;
   --chart-5: 0 0% 40%;
   --font-sans: 'Source Sans 3', sans-serif;
-  --font-serif: 'Lora', Georgia, serif;
+  --font-serif: 'Fraunces', Georgia, serif;
+  --font-script: 'Allura', cursive;
   --font-mono: Menlo, monospace;
   --radius: 0.5rem;
   --shadow-2xs: 0px 2px 0px 0px hsl(0 0% 0% / 0);
