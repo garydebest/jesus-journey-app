@@ -146,14 +146,25 @@ export function ChurchAuth() {
           </CardContent>
         </Card>
 
-        <div className="mt-6 text-center">
-          <button
-            className="text-sm text-muted-foreground underline underline-offset-2"
-            onClick={() => setLocation("/")}
-            data-testid="link-back-individual"
-          >
-            Just taking the survey for yourself? Start here
-          </button>
+        <div className="mt-6 text-center space-y-2">
+          <div>
+            <button
+              className="text-sm text-muted-foreground underline underline-offset-2"
+              onClick={() => setLocation("/")}
+              data-testid="link-back-individual"
+            >
+              Just taking the survey for yourself? Start here
+            </button>
+          </div>
+          <div>
+            <a
+              href="https://jesusjourney.life"
+              className="text-sm text-muted-foreground underline underline-offset-2"
+              data-testid="link-back-info-site"
+            >
+              ← Back to jesusjourney.life
+            </a>
+          </div>
         </div>
       </div>
     </div>

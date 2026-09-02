@@ -1,6 +1,6 @@
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import * as schema from "@shared/schema";
 import {
@@ -297,7 +297,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getWavesByChurch(churchId: string): Promise<SurveyWave[]> {
-    return db.select().from(surveyWaves).where(eq(surveyWaves.churchId, churchId));
+    // Order newest-first so the dashboard's "current wave" workflow card
+    // (start / monitor / close buttons) always reflects the most recently
+    // created wave, not an arbitrary DB row order that could resurface an
+    // old closed survey ahead of a brand-new live one.
+    return db
+      .select()
+      .from(surveyWaves)
+      .where(eq(surveyWaves.churchId, churchId))
+      .orderBy(desc(surveyWaves.createdAt));
   }
 
   async getAllWaves(): Promise<SurveyWave[]> {
