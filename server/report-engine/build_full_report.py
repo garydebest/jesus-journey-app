@@ -642,27 +642,21 @@ def pad_to_square(path):
 # ============================================================
 
 def _draw_labeled_donut(path, labels, values, colors, center_stat, center_sub,
-                         inside_threshold=15, small_threshold=8):
+                         small_threshold=5):
     """Shared donut-chart renderer for the maturity and change-profile charts.
 
-    Two-pass rendering — no guessed margins, no post-processing:
-      Pass 1: draw everything (wedges, all text, all leader lines) using a
-      generous provisional SYMMETRIC extent, then ask the renderer for the
-      actual pixel bounding box of every artist just drawn. This measures
-      real text/line extents instead of estimating them from character
-      counts or font tables, which is what caused clipping before.
-      Pass 2: convert that measured bbox back into data coordinates, take
-      the largest distance from the origin on ANY side, and use that single
-      number as the extent on ALL four sides. Because it's the same number
-      on every side, the saved PNG is always a true square/circle AND
-      nothing drawn can ever be clipped, regardless of label text length,
-      font metrics, or slice angle.
-    No cropping or re-padding is used anywhere in this function.
+    Fixed-geometry layout matching the original 2017 design (see
+    Church-Report-Visual-Redesign-Mockup): every normal slice gets its
+    percent centered in the ring band and its category name just outside
+    the ring at the same angle. Only genuinely tiny slices (below
+    `small_threshold`) are pulled out, with a simple straight leader line
+    to a label stacked in a horizontal row above the donut — never a
+    vertical side column, so it can never collide with in-ring labels on
+    the same side. No iterative bbox measurement, no dynamic text
+    shrinking: geometry is fixed up front, exactly like the original.
     """
     total = sum(values) or 1
 
-    # Precompute each wedge's mid-angle and category (inside/medium/small)
-    # before drawing anything.
     angle = 90
     entries = []
     for val, lab, col in zip(values, labels, colors):
@@ -670,233 +664,95 @@ def _draw_labeled_donut(path, labels, values, colors, center_stat, center_sub,
         angle -= (val / total) * 360
         rad = np.deg2rad(theta)
         x, y = np.cos(rad), np.sin(rad)
-        if val >= inside_threshold:
-            kind = "inside"
-        elif val >= small_threshold:
-            kind = "medium"
-        else:
-            kind = "small"
-        half_span = (val / total) * 360 / 2
-        entries.append(dict(val=val, lab=lab, col=col, x=x, y=y, kind=kind, theta=theta,
-                             half_span=half_span))
+        kind = "small" if val < small_threshold else "normal"
+        entries.append(dict(val=val, lab=lab, col=col, x=x, y=y, kind=kind))
 
     small_entries = [e for e in entries if e["kind"] == "small"]
     n_small = len(small_entries)
-    provisional_extent = 1.75 + 0.5 * n_small + 1.5
 
-    def render(ax, extent, center_text_scale=1.0, name_push=None):
-        """Draw the full chart onto `ax` using symmetric limits of `extent`.
-        Returns the list of artists that were added, for bbox measurement.
-
-        `center_text_scale` shrinks ONLY the center_stat/center_sub text
-        (never the in-ring percent labels or outer names) when a wide,
-        near-horizontal slice's percent label would otherwise collide with
-        the center text — detected and resolved by measured bboxes below,
-        never by guessed angles or radii.
-
-        `name_push` is a dict {entry_index: extra_y_offset} that adds extra
-        upward clearance to a near-equator outer category-name label when it
-        would otherwise collide with the small-slice callout stack on the
-        same side — detected and resolved by measured bboxes below.
-        """
-        name_push = name_push or {}
-        artists = []
-        center_artists = []
-        pct_artists = []
-        name_artists = {}
-        callout_artists = []
+    def render(ax, extent):
         wedges, _ = ax.pie(values, colors=colors, startangle=90, counterclock=False,
                             wedgeprops=dict(width=0.42, edgecolor="white", linewidth=2.5))
         for w in wedges:
             w.set_zorder(3)
-        artists.extend(wedges)
 
-        t_stat = ax.text(0, 0.06, center_stat, ha="center", va="center",
-                          fontsize=27 * center_text_scale, fontweight="bold",
-                          color=MPL_TEAL_DARK, family="DM Sans", zorder=6)
-        t_sub = ax.text(0, -0.16, center_sub, ha="center", va="center",
-                         fontsize=10.5 * center_text_scale, color=MPL_INK_MUTED,
-                         family="Inter", zorder=6)
-        artists.append(t_stat)
-        artists.append(t_sub)
-        center_artists.append(t_stat)
-        center_artists.append(t_sub)
+        ax.text(0, 0.06, center_stat, ha="center", va="center",
+                 fontsize=27, fontweight="bold", color=MPL_TEAL_DARK,
+                 family="DM Sans", zorder=6)
+        ax.text(0, -0.16, center_sub, ha="center", va="center",
+                 fontsize=10.5, color=MPL_INK_MUTED, family="Inter", zorder=6)
 
-        # Fixed offset from the ring, NOT derived from `extent`. The callout
-        # column's position must be identical between pass 1 (measurement)
-        # and pass 2 (final draw at the measured extent) — if it scaled with
-        # `extent`, growing the extent to fit pass 1's measurement would push
-        # the column even further out in pass 2, a moving target that never
-        # converges.
-        col_x = 1.95
-        top_y = 0.55 * (n_small - 1) / 2 if n_small > 1 else 0
-        small_i = 0
+        # Pulled-out callouts for tiny slices: a single horizontal row just
+        # above the ring, each with its own short straight leader line back
+        # to its wedge — the mockup's "2.4%  1.5%" stacked-label pattern.
+        callout_y = 1.28
+        n = n_small
+        name_labels = []
+        for i, e in enumerate(small_entries):
+            cx = (i - (n - 1) / 2) * 0.5
+            lx, ly = e["x"] * 1.02, e["y"] * 1.02
+            ax.plot([lx, cx], [ly, callout_y - 0.05], color="#9AA6A5",
+                     linewidth=0.8, zorder=1)
+            ax.text(cx, callout_y, f"{e['val']:.1f}%", ha="center", va="bottom",
+                     fontsize=10.5, fontweight="bold", color=MPL_TEAL_DARK,
+                     family="DM Sans", zorder=6)
 
-        for idx, e in enumerate(entries):
+        for e in entries:
             val, lab, col, x, y, kind = e["val"], e["lab"], e["col"], e["x"], e["y"], e["kind"]
-            theta, half_span = e["theta"], e["half_span"]
+            if kind == "small":
+                continue
             pct_text = f"{val:.1f}%"
             slice_label_color = label_color_for_bg(col)
             clean_lab = lab.replace("\n", " ")
-            if kind in ("inside", "medium"):
-                # Percent label: fixed radius centered in the ring band
-                # (inner 0.58 / outer 1.0 -> mid ~0.79). Purely radial, so it
-                # can never drift toward the center hole regardless of angle,
-                # and it always lands inside the wedge's own fill (unlike a
-                # larger radius, which can push wide text past the wedge's
-                # curved outer edge onto the background for wide slices).
-                #
-                lx, ly = x * 0.79, y * 0.79
-                t_pct = ax.text(lx, ly, pct_text, ha="center", va="center", fontsize=12,
-                                 fontweight="bold", color=slice_label_color,
-                                 family="DM Sans", zorder=6)
-                artists.append(t_pct)
-                pct_artists.append(t_pct)
-                # Category name: always OUTSIDE the ring, along the same
-                # angle, so it sits next to its own slice and never overlaps
-                # the donut hole or the percent label. Near-equatorial slices
-                # get extra radius so the name clears the percent label.
-                near_equator = abs(y) < 0.25
-                label_radius = 1.32
-                ox = x * label_radius
-                oy = y * label_radius
-                if near_equator:
-                    # Push straight UP away from the horizontal midline
-                    # (never down) so this name label can never land in the
-                    # same vertical band as the small-slice callout stack,
-                    # which is centered on that same midline. Base amount
-                    # clears the top callout row (top_y) plus half a row of
-                    # breathing room; `name_push` adds further clearance
-                    # when this specific label still collides with the
-                    # callout stack on its side (measured, not guessed).
-                    oy += top_y + 0.55 + name_push.get(idx, 0.0)
-                ha = "left" if x >= 0.15 else ("right" if x <= -0.15 else "center")
-                va = "bottom" if y >= 0.15 else ("top" if y <= -0.15 else "center")
-                t_name = ax.text(ox, oy, clean_lab, ha=ha, va=va, fontsize=8.6,
-                                  fontweight="bold", color=MPL_TEAL_DARK,
-                                  family="DM Sans", zorder=6)
-                artists.append(t_name)
-                if near_equator:
-                    name_artists[idx] = t_name
-            else:
-                ty = top_y - small_i * 0.55
-                lx, ly = x * 1.12, y * 1.12
-                artists.append(ax.plot([lx, col_x - 0.08], [ly, ty], color="#9AA6A5",
-                                        linewidth=0.8, zorder=1)[0])
-                t_callout = ax.text(col_x, ty, f"{clean_lab}: {pct_text}", ha="left", va="center",
-                                     fontsize=8.6, fontweight="bold", color=MPL_TEAL_DARK,
-                                     family="DM Sans", zorder=5)
-                artists.append(t_callout)
-                callout_artists.append(t_callout)
-                small_i += 1
+
+            # Percent label centered in the ring band, purely radial so it
+            # always lands inside the wedge's own fill.
+            lx, ly = x * 0.79, y * 0.79
+            ax.text(lx, ly, pct_text, ha="center", va="center", fontsize=13,
+                     fontweight="bold", color=slice_label_color,
+                     family="DM Sans", zorder=6)
+
+            # Category name outside the ring, along the same angle.
+            ox, oy = x * 1.32, y * 1.32
+            ha = "left" if x >= 0.15 else ("right" if x <= -0.15 else "center")
+            va = "bottom" if y >= 0.15 else ("top" if y <= -0.15 else "center")
+            t_name = ax.text(ox, oy, clean_lab, ha=ha, va=va, fontsize=9,
+                              fontweight="bold", color=MPL_TEAL_DARK,
+                              family="DM Sans", zorder=6)
+            name_labels.append(t_name)
 
         ax.set_xlim(-extent, extent)
         ax.set_ylim(-extent, extent)
         ax.set_aspect("equal", adjustable="box")
         ax.axis("off")
-        return artists, center_artists, pct_artists, name_artists, callout_artists
+        return name_labels
 
-    def measure_bbox_data(art, renderer, inv):
-        """Actual rendered bbox of one artist, converted to data coords, as
-        (x0, x1, y0, y1). Returns None if the artist can't be measured."""
-        try:
-            bbox = art.get_window_extent(renderer)
-        except Exception:
-            return None
-        x0, y0 = inv.transform((bbox.x0, bbox.y0))
-        x1, y1 = inv.transform((bbox.x1, bbox.y1))
-        return (min(x0, x1), max(x0, x1), min(y0, y1), max(y0, y1))
-
-    def rects_overlap(a, b):
-        return a[0] <= b[1] and b[0] <= a[1] and a[2] <= b[3] and b[2] <= a[3]
-
-    def measure_all(extent, center_text_scale, name_push=None):
-        """Render once at `extent`/`center_text_scale`/`name_push`, return
-        (max_abs_data_x, max_abs_data_y, center_bboxes, pct_bboxes,
-        name_bboxes, callout_bboxes). `name_bboxes` is a dict keyed by the
-        same entry index as `name_push` so a specific colliding label can be
-        targeted for further push."""
-        fig = plt.figure(figsize=(7.2, 7.2), dpi=300)
-        ax = fig.add_axes([0, 0, 1, 1])
-        artists, center_artists, pct_artists, name_artists, callout_artists = render(
-            ax, extent, center_text_scale, name_push)
-        fig.canvas.draw()
-        renderer = fig.canvas.get_renderer()
-        inv = ax.transData.inverted()
-
-        max_x = max_y = 0.0
-        for art in artists:
-            b = measure_bbox_data(art, renderer, inv)
-            if b is None:
-                continue
-            max_x = max(max_x, abs(b[0]), abs(b[1]))
-            max_y = max(max_y, abs(b[2]), abs(b[3]))
-        center_bboxes = [measure_bbox_data(a, renderer, inv) for a in center_artists]
-        pct_bboxes = [measure_bbox_data(a, renderer, inv) for a in pct_artists]
-        name_bboxes = {i: measure_bbox_data(a, renderer, inv) for i, a in name_artists.items()}
-        callout_bboxes = [measure_bbox_data(a, renderer, inv) for a in callout_artists]
-        plt.close(fig)
-        return (max_x, max_y, [b for b in center_bboxes if b], [b for b in pct_bboxes if b],
-                {i: b for i, b in name_bboxes.items() if b}, [b for b in callout_bboxes if b])
-
-    # Pass 1: draw at a generous provisional extent, purely to measure the
-    # overall reach (for the extent) — center_text_scale=1.0 (full size).
-    max_abs_data_x, max_abs_data_y, _, _, _, _ = measure_all(provisional_extent, 1.0)
-
-    # The real extent is the largest reach on any side, plus a small fixed
-    # margin so text edges aren't flush against the canvas border. Using ONE
-    # number for all four sides keeps the circle perfectly centered and
-    # perfectly round, while guaranteeing nothing measured above is clipped.
-    extent = max(max_abs_data_x, max_abs_data_y) + 0.12
-
-    # Pass 2: at the real extent, check whether any in-ring percent label's
-    # ACTUAL measured bbox collides with the center_stat/center_sub text's
-    # ACTUAL measured bbox (this happens for wide, near-horizontal slices,
-    # where the percent label lands close to the center block). If so,
-    # shrink ONLY the center text incrementally and re-measure — a real
-    # collision check against real geometry, not a guessed angle or radius
-    # nudge — until every percent label clears the center text, or a floor
-    # is hit.
-    center_text_scale = 1.0
-    name_push = {}
-    for _ in range(12):
-        _, _, center_bboxes, pct_bboxes, _, _ = measure_all(extent, center_text_scale, name_push)
-        collision = any(rects_overlap(c, p) for c in center_bboxes for p in pct_bboxes)
-        if not collision:
-            break
-        center_text_scale -= 0.06
-        if center_text_scale < 0.6:
-            center_text_scale = 0.6
-            break
-
-    # Pass 3: check whether any near-equator outer category-name label
-    # collides with the small-slice callout stack on the same side (this
-    # happens when a large near-equator slice's name label and the callout
-    # column both land on the same side and the base vertical offset isn't
-    # enough to clear the full callout stack). If so, push ONLY that
-    # specific colliding name label further up and re-measure — real
-    # bbox collision, not a guessed offset — until clear or a cap is hit.
-    for _ in range(12):
-        _, _, _, _, name_bboxes, callout_bboxes = measure_all(extent, center_text_scale, name_push)
-        collided = [i for i, nb in name_bboxes.items()
-                    if any(rects_overlap(nb, cb) for cb in callout_bboxes)]
-        if not collided:
-            break
-        for i in collided:
-            name_push[i] = name_push.get(i, 0.0) + 0.22
-        if all(name_push.get(i, 0.0) >= 1.5 for i in collided):
-            break
-
-    # Re-measure the overall reach after any name_push nudges — pushing a
-    # label up can move it past the extent fixed in Pass 1, which would
-    # clip it. Grow (never shrink) the extent to re-fit everything.
-    if name_push:
-        max_x2, max_y2, _, _, _, _ = measure_all(extent, center_text_scale, name_push)
-        extent = max(extent, max_x2 + 0.12, max_y2 + 0.12)
+    # Base extent covers the ring plus the small-slice callout row (fixed,
+    # since that row's layout never depends on text metrics). Then measure
+    # once — a single render + bbox read, not an iterative solver — how far
+    # the actual outer name labels reach at that extent, and grow the
+    # extent (never shrink) if a label's real rendered width needs more
+    # room. This is a one-shot correction for real text metrics, matching
+    # the "measure real extents instead of guessing" principle without the
+    # old multi-pass collision-avoidance machinery.
+    base_extent = 1.55 + (0.18 if n_small else 0)
+    fig = plt.figure(figsize=(7.2, 7.2), dpi=300)
+    ax = fig.add_axes([0, 0, 1, 1])
+    name_labels = render(ax, base_extent)
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    inv = ax.transData.inverted()
+    max_reach = base_extent
+    for t in name_labels:
+        bbox = t.get_window_extent(renderer)
+        (x0, y0), (x1, y1) = inv.transform((bbox.x0, bbox.y0)), inv.transform((bbox.x1, bbox.y1))
+        max_reach = max(max_reach, abs(x0), abs(x1), abs(y0), abs(y1))
+    plt.close(fig)
+    extent = max_reach + 0.16
 
     fig, ax = plt.subplots(figsize=(7.2, 7.2), dpi=300)
     ax.set_position([0, 0, 1, 1])
-    render(ax, extent, center_text_scale, name_push)
+    render(ax, extent)
     plt.savefig(path, transparent=True, pad_inches=0)
     plt.close()
 
@@ -1112,12 +968,11 @@ def make_donut_chart(path):
     labels = ["Growing\nsignificantly", "Growing\na little", "About\nthe same", "Fading\nsomewhat", "Fading\na lot"]
     values = REPORT_DATA.change_donut_values
     colors = [MPL_TEAL_DARK, MPL_TEAL, MPL_TEAL_LIGHT, MPL_SAND, MPL_CORAL]
-    # inside_threshold=8 means there is no "medium" tier here: any slice >= 8%
-    # gets its percentage labeled directly inside the wedge, and anything
-    # smaller is pulled into the stacked side-callout column.
+    # Any slice below 8% is pulled out into the horizontal callout row
+    # above the ring (matches the mockup: the 2.4% and 1.5% slices).
     _draw_labeled_donut(path, labels, values, colors,
                          REPORT_DATA.change_donut_combined_stat, "reported growth",
-                         inside_threshold=8, small_threshold=8)
+                         small_threshold=8)
 
 
 def page_change_profile(c):
