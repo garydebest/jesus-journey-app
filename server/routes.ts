@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { insertChurchSchema, insertWaveSchema, updateChurchContactSchema, ITEM_CODES } from "@shared/schema";
 import { computeWaveAggregate } from "@shared/aggregate";
 import { generateChurchReportPdf } from "./pdfReport";
+import { fetchReportPdf } from "./reportStorage";
 import {
   createSession,
   destroySession,
@@ -256,7 +257,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       churchId: wave.churchId,
       respondentCount: summary.respondentCount,
       summaryJson: JSON.stringify(summary),
-      reportPdfPath: pdfResult.ok ? pdfResult.outPath ?? null : null,
+      reportPdfPath: pdfResult.ok ? pdfResult.storageKey ?? null : null,
     });
     await storage.purgeResponsesByWave(wave.id);
     await storage.markWaveReportGenerated(wave.id);
@@ -349,7 +350,13 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     if (!snapshot?.reportPdfPath) {
       return res.status(404).json({ message: "Full PDF report is not available for this wave" });
     }
-    res.download(snapshot.reportPdfPath, "Our-Journey-with-Jesus-Report.pdf");
+    const pdfBuffer = await fetchReportPdf(snapshot.reportPdfPath);
+    if (!pdfBuffer) {
+      return res.status(404).json({ message: "Full PDF report is not available for this wave" });
+    }
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", 'attachment; filename="Our-Journey-with-Jesus-Report.pdf"');
+    res.send(pdfBuffer);
   });
 
   // -------------------------------------------------------------------
@@ -446,7 +453,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       churchId: wave.churchId,
       respondentCount: summary.respondentCount,
       summaryJson: JSON.stringify(summary),
-      reportPdfPath: pdfResult.ok ? pdfResult.outPath ?? null : null,
+      reportPdfPath: pdfResult.ok ? pdfResult.storageKey ?? null : null,
     });
     await storage.purgeResponsesByWave(wave.id);
     await storage.markWaveReportGenerated(wave.id);
@@ -465,7 +472,13 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     if (!snapshot?.reportPdfPath) {
       return res.status(404).json({ message: "Full PDF report is not available for this wave" });
     }
-    res.download(snapshot.reportPdfPath, "Our-Journey-with-Jesus-Report.pdf");
+    const pdfBuffer = await fetchReportPdf(snapshot.reportPdfPath);
+    if (!pdfBuffer) {
+      return res.status(404).json({ message: "Full PDF report is not available for this wave" });
+    }
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", 'attachment; filename="Our-Journey-with-Jesus-Report.pdf"');
+    res.send(pdfBuffer);
   });
 
   // -------------------------------------------------------------------

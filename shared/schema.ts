@@ -151,7 +151,7 @@ export const aggregateSnapshots = pgTable("aggregate_snapshots", {
   churchId: text("church_id").notNull().references(() => churches.id),
   respondentCount: integer("respondent_count").notNull(),
   summaryJson: text("summary_json").notNull(), // pathway/goal averages, maturity distribution, demographics
-  reportPdfPath: text("report_pdf_path"), // path/URL to generated PDF, if stored
+  reportPdfPath: text("report_pdf_path"), // Supabase Storage object key in the "church-reports" bucket (e.g. "<waveId>.pdf"), if generated
   generatedAt: timestamp("generated_at", { withTimezone: true }).notNull().default(sql`now()`),
 });
 

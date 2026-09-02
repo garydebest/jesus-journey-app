@@ -3,6 +3,7 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { resolveModuleDir } from "./paths";
 import { ITEM_CODES, type ResponseRow } from "@shared/schema";
+import { persistReportPdf } from "./reportStorage";
 
 // See server/paths.ts for why this can't just be `fileURLToPath(import.meta.url)`
 // (breaks once script/build.ts bundles this file to CommonJS for production).
@@ -61,13 +62,16 @@ export interface GenerateReportParams {
 
 export interface GenerateReportResult {
   ok: boolean;
-  outPath?: string;
+  /** Durable Supabase Storage object key (e.g. "<waveId>.pdf"), set only when persistence succeeded. */
+  storageKey?: string;
   error?: string;
 }
 
 /**
- * Invokes the Python "Our Journey with Jesus" report engine as a subprocess.
- * Must be called with the raw response rows BEFORE they are purged from the
+ * Invokes the Python "Our Journey with Jesus" report engine as a subprocess,
+ * then uploads the resulting PDF to Supabase Storage so it survives future
+ * deploys (the local disk it's written to is ephemeral on Render). Must be
+ * called with the raw response rows BEFORE they are purged from the
  * database, since this is the only remaining opportunity to render the
  * 38-page full church PDF report.
  */
@@ -96,7 +100,7 @@ export function generateChurchReportPdf(params: GenerateReportParams): Promise<G
     proc.stdout.on("data", (d) => (stdout += d.toString()));
     proc.stderr.on("data", (d) => (stderr += d.toString()));
 
-    proc.on("close", (code) => {
+    proc.on("close", async (code) => {
       if (code !== 0) {
         resolve({ ok: false, error: stderr || stdout || `Python process exited with code ${code}` });
         return;
@@ -104,11 +108,17 @@ export function generateChurchReportPdf(params: GenerateReportParams): Promise<G
       const lastLine = stdout.trim().split("\n").pop() ?? "";
       try {
         const parsed = JSON.parse(lastLine);
-        if (parsed.ok) {
-          resolve({ ok: true, outPath: parsed.out_path });
-        } else {
+        if (!parsed.ok) {
           resolve({ ok: false, error: parsed.error || "Unknown report generation error" });
+          return;
         }
+        const uploaded = await persistReportPdf(params.waveId, parsed.out_path);
+        if (!uploaded.ok) {
+          console.error("Report PDF generated but failed to persist to storage for wave", params.waveId, uploaded.error);
+          resolve({ ok: false, error: uploaded.error });
+          return;
+        }
+        resolve({ ok: true, storageKey: uploaded.storageKey });
       } catch {
         resolve({ ok: false, error: `Could not parse report generator output: ${stdout} ${stderr}` });
       }
