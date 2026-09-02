@@ -101,16 +101,22 @@ AGE_3BAND_MAP = {
 AGE_3BAND_ORDER = ["16-29", "30-49", "50+"]
 
 TENURE_BANDS = ["Less than 1 year", "1-2 years", "3-5 years", "6-10 years", "11 or more years"]
-FREQUENCY_BANDS = ["Every week", "Few times per month", "Monthly", "Every few months", "Infrequently or never"]
+# NOTE: these category lists must match the exact option strings the live
+# survey form saves (shared/questions.ts) -- they are matched verbatim, not
+# fuzzy-matched, and any value not present here is silently dropped from
+# that chart (see _rows_from_breakdown in report_builder.py). Fixed 2026-09-02
+# after finding the previous plural/wording mismatches were causing several
+# demographic categories to always read 0%.
+FREQUENCY_BANDS = ["Every week", "A few times/month", "Monthly", "Every few months", "Infrequently or never"]
 RELATIONSHIP_STATUS_CATEGORIES = [
-    "Independent singles", "Singles in relationships", "Married",
+    "Independent single", "Single in relationship", "Married",
     "Married but separated", "Divorced", "Civil legal partnership",
 ]
 RACE_ETHNICITY_CATEGORIES = [
-    "White", "Black/African descent", "Native People/First Nations",
-    "Asian descent", "East Indian descent", "Hispanic descent", "Multiple races",
+    "White/Caucasian", "Black/African descent", "Native People/First Nations",
+    "Asian descent", "East Indian descent", "Hispanic descent", "From multiple races",
 ]
-CHILDREN_BANDS = ["None", "0-2", "3-5", "6-10", "11-18", "19+"]
+CHILDREN_BANDS = ["None", "0-2 year old(s)", "3-5 year old(s)", "6-10 year old(s)", "11-18 year old(s)", "19 or older"]
 
 # The 7 dimensions cross-tabbed against maturity (church-report-extended-
 # design.md section 2). relationship_status and race_ethnicity deliberately
@@ -527,19 +533,19 @@ def run_self_test():
     rows = [
         {"journey_post": "4", "spiritual_change": "1", "gender": "Female", "age_group": "30-39",
          "tenure": "6-10 years", "attendance_frequency": "Every week", "small_group_frequency": "Every week",
-         "volunteer_frequency": "Few times per month", "relationship_status": "Married",
-         "race_ethnicity": "White", "children_in_household": "0-2|3-5", "comment_text": "Grateful for this church."},
+         "volunteer_frequency": "A few times/month", "relationship_status": "Married",
+         "race_ethnicity": "White/Caucasian", "children_in_household": "0-2 year old(s)|3-5 year old(s)", "comment_text": "Grateful for this church."},
         {"journey_post": "4", "spiritual_change": "2", "gender": "Male", "age_group": "40-49",
          "tenure": "11 or more years", "attendance_frequency": "Every week", "small_group_frequency": "Monthly",
          "volunteer_frequency": "Every week", "relationship_status": "Married",
-         "race_ethnicity": "White", "children_in_household": "None", "comment_text": ""},
+         "race_ethnicity": "White/Caucasian", "children_in_household": "None", "comment_text": ""},
         {"journey_post": "5", "spiritual_change": "1", "gender": "Female", "age_group": "50-59",
-         "tenure": "3-5 years", "attendance_frequency": "Few times per month", "small_group_frequency": "Every week",
+         "tenure": "3-5 years", "attendance_frequency": "A few times/month", "small_group_frequency": "Every week",
          "volunteer_frequency": "Monthly", "relationship_status": "Divorced",
-         "race_ethnicity": "Multiple races", "children_in_household": "None", "comment_text": "More prayer nights please."},
+         "race_ethnicity": "From multiple races", "children_in_household": "None", "comment_text": "More prayer nights please."},
         {"journey_post": "2", "spiritual_change": "3", "gender": "Male", "age_group": "20-29",
          "tenure": "Less than 1 year", "attendance_frequency": "Monthly", "small_group_frequency": "Infrequently or never",
-         "volunteer_frequency": "Infrequently or never", "relationship_status": "Independent singles",
+         "volunteer_frequency": "Infrequently or never", "relationship_status": "Independent single",
          "race_ethnicity": "Asian descent", "children_in_household": "", "comment_text": ""},
     ]
 

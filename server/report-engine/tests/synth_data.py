@@ -10,11 +10,11 @@ for prefix in ["B", "K", "A", "L", "P", "C", "T"]:
         ITEM_CODES.append(f"{prefix}{i}")
 
 AGE_GROUPS = ["16-19", "20-29", "30-39", "40-49", "50-59", "60 and older"]
-RELATIONSHIP = ["Independent singles", "Singles in relationships", "Married", "Married but separated", "Divorced", "Civil legal partnership"]
-FREQUENCY = ["Every week", "Few times per month", "Monthly", "Every few months", "Infrequently or never"]
+RELATIONSHIP = ["Independent single", "Single in relationship", "Married", "Married but separated", "Divorced", "Civil legal partnership"]
+FREQUENCY = ["Every week", "A few times/month", "Monthly", "Every few months", "Infrequently or never"]
 TENURE = ["Less than 1 year", "1-2 years", "3-5 years", "6-10 years", "11 or more years"]
-RACE = ["White", "Black/African descent", "Native People/First Nations", "Asian descent", "East Indian descent", "Hispanic descent", "Multiple races"]
-CHILDREN_OPTIONS = ["None", "0-2", "3-5", "6-10", "11-18", "19+"]
+RACE = ["White/Caucasian", "Black/African descent", "Native People/First Nations", "Asian descent", "East Indian descent", "Hispanic descent", "From multiple races"]
+CHILDREN_OPTIONS = ["None", "0-2 year old(s)", "3-5 year old(s)", "6-10 year old(s)", "11-18 year old(s)", "19 or older"]
 
 
 def make_row(i):

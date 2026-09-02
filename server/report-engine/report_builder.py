@@ -57,7 +57,7 @@ TENURE_DISPLAY = {
     "11 or more years": "11 or more years",
 }
 FREQUENCY_DISPLAY = {
-    "Every week": "Every week", "Few times per month": "Few times per month",
+    "Every week": "Every week", "A few times/month": "A few times/month",
     "Monthly": "Monthly", "Every few months": "Every few months",
     "Infrequently or never": "Infrequently or never",
 }
@@ -66,26 +66,26 @@ FREQUENCY_DISPLAY = {
 # the same shortened wording there, but the full wording for demographics'
 # attendance row. Both are cosmetic aliases of the same FREQUENCY category.
 FREQUENCY_DISPLAY_SHORT = {
-    "Every week": "Every week", "Few times per month": "Few times/month",
+    "Every week": "Every week", "A few times/month": "Few times/month",
     "Monthly": "Monthly", "Every few months": "Every few months",
     "Infrequently or never": "Infrequent/never",
 }
 RACE_DISPLAY = {
-    "White": "White",
+    "White/Caucasian": "White / Caucasian",
     "Black/African descent": "Black / African descent",
     "Native People/First Nations": "Native People / First Nations",
     "Asian descent": "Asian descent",
     "East Indian descent": "East Indian descent",
     "Hispanic descent": "Hispanic descent",
-    "Multiple races": "Multiple races",
+    "From multiple races": "Multiple races",
 }
 CHILDREN_DISPLAY = {
-    "None": "None", "0-2": "0\u20132 year old(s)", "3-5": "3\u20135 year old(s)",
-    "6-10": "6\u201310 year old(s)", "11-18": "11\u201318 year old(s)", "19+": "19 or older",
+    "None": "None", "0-2 year old(s)": "0\u20132 year old(s)", "3-5 year old(s)": "3\u20135 year old(s)",
+    "6-10 year old(s)": "6\u201310 year old(s)", "11-18 year old(s)": "11\u201318 year old(s)", "19 or older": "19 or older",
 }
 RELATIONSHIP_DISPLAY = {
-    "Independent singles": "Independent singles",
-    "Singles in relationships": "Singles in relationships",
+    "Independent single": "Independent singles",
+    "Single in relationship": "Singles in relationships",
     "Married": "Married",
     "Married but separated": "Married but separated",
     "Civil legal partnership": "Civil legal partnership",
@@ -94,7 +94,7 @@ RELATIONSHIP_DISPLAY = {
 # Canonical row order for the two categories whose category_order argument
 # to _pct_breakdown differs from the template's own display order.
 RELATIONSHIP_ORDER = [
-    "Independent singles", "Singles in relationships", "Married",
+    "Independent single", "Single in relationship", "Married",
     "Married but separated", "Civil legal partnership", "Divorced",
 ]
 AGE_3BAND_DISPLAY = {"16-29": "16\u201329", "30-49": "30\u201349", "50+": "50 and older"}
@@ -169,12 +169,12 @@ def build_from_aggregates(
         demographics["relationship_status"], RELATIONSHIP_ORDER, RELATIONSHIP_DISPLAY
     )
 
-    children_order = ["None", "0-2", "3-5", "6-10", "11-18", "19+"]
+    children_order = ["None", "0-2 year old(s)", "3-5 year old(s)", "6-10 year old(s)", "11-18 year old(s)", "19 or older"]
     children_rows = _rows_from_breakdown(demographics["children_in_household"], children_order, CHILDREN_DISPLAY)
 
     race_order = [
-        "White", "Black/African descent", "Native People/First Nations",
-        "Asian descent", "East Indian descent", "Hispanic descent", "Multiple races",
+        "White/Caucasian", "Black/African descent", "Native People/First Nations",
+        "Asian descent", "East Indian descent", "Hispanic descent", "From multiple races",
     ]
     race_rows = _rows_from_breakdown(demographics["race_ethnicity"], race_order, RACE_DISPLAY)
 
@@ -182,7 +182,7 @@ def build_from_aggregates(
     tenure_order = ["Less than 1 year", "1-2 years", "3-5 years", "6-10 years", "11 or more years"]
     tenure_rows = _rows_from_breakdown(demographics["tenure"], tenure_order, TENURE_DISPLAY)
 
-    freq_order = ["Every week", "Few times per month", "Monthly", "Every few months", "Infrequently or never"]
+    freq_order = ["Every week", "A few times/month", "Monthly", "Every few months", "Infrequently or never"]
     attendance_rows = _rows_from_breakdown(demographics["attendance_frequency"], freq_order, FREQUENCY_DISPLAY)
     small_group_rows = _rows_from_breakdown(demographics["small_group_frequency"], freq_order, FREQUENCY_DISPLAY_SHORT)
     volunteer_rows = _rows_from_breakdown(demographics["volunteer_frequency"], freq_order, FREQUENCY_DISPLAY_SHORT)
@@ -222,7 +222,7 @@ def build_from_aggregates(
     maturity_crosstab_2 = [
         ("FREQUENCY OF ATTENDING CHURCH GATHERINGS", None),
         ("Every week", mat_dim("attendance_frequency", "Every week")),
-        ("Few times per month", mat_dim("attendance_frequency", "Few times per month")),
+        ("Few times per month", mat_dim("attendance_frequency", "A few times/month")),
         ("Monthly or less", [
             round(sum(_pct(mat_xtab.get("attendance_frequency", {}).get(v, {}).get("breakdown", {}), lbl)
                       for v in ("Monthly", "Every few months", "Infrequently or never")) / 3)
@@ -232,13 +232,13 @@ def build_from_aggregates(
         ]),
         ("FREQUENCY OF SMALL GROUP INVOLVEMENT", None),
         ("Every week", mat_dim("small_group_frequency", "Every week")),
-        ("Few times per month", mat_dim("small_group_frequency", "Few times per month")),
+        ("Few times per month", mat_dim("small_group_frequency", "A few times/month")),
         ("Monthly", mat_dim("small_group_frequency", "Monthly")),
         ("Every few months", mat_dim("small_group_frequency", "Every few months")),
         ("Infrequently or never", mat_dim("small_group_frequency", "Infrequently or never")),
         ("FREQUENCY OF VOLUNTEERING", None),
         ("Every week", mat_dim("volunteer_frequency", "Every week")),
-        ("Few times per month", mat_dim("volunteer_frequency", "Few times per month")),
+        ("Few times per month", mat_dim("volunteer_frequency", "A few times/month")),
         ("Monthly", mat_dim("volunteer_frequency", "Monthly")),
         ("Every few months", mat_dim("volunteer_frequency", "Every few months")),
         ("Infrequently or never", mat_dim("volunteer_frequency", "Infrequently or never")),
