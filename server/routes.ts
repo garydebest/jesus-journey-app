@@ -2,7 +2,7 @@ import type { Express, Request } from "express";
 import type { Server } from "node:http";
 import bcrypt from "bcryptjs";
 import { storage } from "./storage";
-import { insertChurchSchema, insertWaveSchema, updateChurchContactSchema, ITEM_CODES } from "@shared/schema";
+import { insertChurchSchema, insertWaveSchema, updateChurchContactSchema, ITEM_CODES, requiredResponsesForClose } from "@shared/schema";
 import { computeWaveAggregate } from "@shared/aggregate";
 import { generateChurchReportPdf } from "./pdfReport";
 import { fetchReportPdf } from "./reportStorage";
@@ -239,9 +239,10 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       return res.status(409).json({ message: "This survey wave is already closed" });
     }
     const rows = await storage.getResponsesByWave(wave.id);
-    if (rows.length < wave.minSampleSize) {
+    const requiredResponses = requiredResponsesForClose(wave.minSampleSize);
+    if (rows.length < requiredResponses) {
       return res.status(400).json({
-        message: `At least ${wave.minSampleSize} responses are needed before closing (currently ${rows.length}).`,
+        message: `This survey needs at least ${requiredResponses} responses (50% of your declared total of ${wave.minSampleSize}) before it can be closed. You currently have ${rows.length}.`,
       });
     }
     const summary = computeWaveAggregate(rows);

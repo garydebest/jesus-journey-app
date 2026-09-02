@@ -47,7 +47,7 @@ export function ChurchDashboard() {
   const [activeTab, setActiveTab] = useState<string>("your-surveys");
 
   const [label, setLabel] = useState("");
-  const [minSample, setMinSample] = useState("10");
+  const [minSample, setMinSample] = useState("16");
   const [opensAt, setOpensAt] = useState("");
   const [closesAt, setClosesAt] = useState("");
   const [sizeTier, setSizeTier] = useState<SizeTier | "">("");
@@ -128,19 +128,23 @@ export function ChurchDashboard() {
       setError("Please select a church size to continue.");
       return;
     }
+    if (!minSample || Number(minSample) < 16) {
+      setError("Please enter your expected total (16 or more) before continuing.");
+      return;
+    }
     setCreating(true);
     setError(null);
     try {
       const res = await churchApiRequest(token, "POST", "/api/waves", {
         label,
-        minSampleSize: Number(minSample) || 10,
+        minSampleSize: Number(minSample) || 16,
         opensAt: opensAt || undefined,
         closesAt: closesAt || undefined,
         sizeTier,
       });
       const json = await res.json();
       setLabel("");
-      setMinSample("10");
+      setMinSample("16");
       setOpensAt("");
       setClosesAt("");
       setSizeTier("");
@@ -253,8 +257,12 @@ export function ChurchDashboard() {
                     <Input id="wave-label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Fall 2026 Survey" required data-testid="input-wave-label" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="min-sample">Minimum responses before closing</Label>
-                    <Input id="min-sample" type="number" min={1} value={minSample} onChange={(e) => setMinSample(e.target.value)} data-testid="input-min-sample" />
+                    <Label htmlFor="min-sample">How many people do you expect to take this survey?</Label>
+                    <Input id="min-sample" type="number" min={16} value={minSample} onChange={(e) => setMinSample(e.target.value)} data-testid="input-min-sample" />
+                    <p className="text-xs text-muted-foreground">
+                      Enter your best estimate of your total congregation or group size (16 minimum). You'll need
+                      responses from at least half this number before you can close the survey and generate reports.
+                    </p>
                   </div>
                   <div className="space-y-1.5">
                     <Label>Church size</Label>

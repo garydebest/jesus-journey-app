@@ -101,7 +101,9 @@ export function PanelYourSurveys({
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground leading-relaxed">
                 Each survey is a one-time purchase for your church — there's no subscription. When you're ready, you'll
-                choose a start and end date, set your minimum response goal, and complete checkout before the survey opens.
+                choose a start and end date, declare your expected total number of respondents, and complete checkout
+                before the survey opens. You'll need responses from at least half that total before you can close the
+                survey and generate reports.
               </p>
               <Button onClick={onStartNew} data-testid="button-start-new-survey">Start a new survey</Button>
             </CardContent>
@@ -167,43 +169,54 @@ export function PanelYourSurveys({
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div>
-                  <div className="font-serif text-2xl font-semibold tabular-nums" data-testid="text-response-count">
-                    {current.responseCount ?? 0}
-                  </div>
-                  <div className="text-xs text-muted-foreground">Responses</div>
-                </div>
-                <div>
-                  <div className="font-serif text-2xl font-semibold tabular-nums">{current.minSampleSize}</div>
-                  <div className="text-xs text-muted-foreground">Minimum needed</div>
-                </div>
-                <div>
-                  <div className="font-serif text-2xl font-semibold tabular-nums">
-                    {Math.min(100, Math.round(((current.responseCount ?? 0) / Math.max(1, current.minSampleSize)) * 100))}%
-                  </div>
-                  <div className="text-xs text-muted-foreground">Of minimum</div>
-                </div>
-              </div>
-              <Progress value={Math.min(100, ((current.responseCount ?? 0) / Math.max(1, current.minSampleSize)) * 100)} />
-              <p className="text-xs text-muted-foreground">
-                {(current.responseCount ?? 0) >= current.minSampleSize
-                  ? "You've reached your minimum — the survey can be closed whenever you're ready, or left open to reach more of the congregation."
-                  : `${current.minSampleSize - (current.responseCount ?? 0)} more response${current.minSampleSize - (current.responseCount ?? 0) === 1 ? "" : "s"} needed before you can close and generate reports.`}
-              </p>
-              <div className="flex flex-wrap gap-2 pt-1">
-                <Button variant="outline" size="sm" disabled title="Coming soon">
-                  <Send className="mr-1.5 h-3.5 w-3.5" /> Send reminder
-                </Button>
-                <Button
-                  size="sm"
-                  disabled={(current.responseCount ?? 0) < current.minSampleSize || closingId === current.id}
-                  onClick={() => onClose(current.id)}
-                  data-testid="button-close-survey"
-                >
-                  {closingId === current.id ? "Closing..." : "Close survey & run reports"}
-                </Button>
-              </div>
+              {(() => {
+                const responseCount = current.responseCount ?? 0;
+                const declaredTotal = current.minSampleSize;
+                const requiredResponses = Math.ceil(declaredTotal * 0.5);
+                const pctOfDeclared = Math.min(100, Math.round((responseCount / Math.max(1, declaredTotal)) * 100));
+                const pctOfRequired = Math.min(100, Math.round((responseCount / Math.max(1, requiredResponses)) * 100));
+                const reachedThreshold = responseCount >= requiredResponses;
+                const remaining = requiredResponses - responseCount;
+                return (
+                  <>
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                      <div>
+                        <div className="font-serif text-2xl font-semibold tabular-nums" data-testid="text-response-count">
+                          {responseCount}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Responses</div>
+                      </div>
+                      <div>
+                        <div className="font-serif text-2xl font-semibold tabular-nums">{requiredResponses}</div>
+                        <div className="text-xs text-muted-foreground">Needed to close (50% of {declaredTotal})</div>
+                      </div>
+                      <div>
+                        <div className="font-serif text-2xl font-semibold tabular-nums">{pctOfRequired}%</div>
+                        <div className="text-xs text-muted-foreground">Of 50% goal</div>
+                      </div>
+                    </div>
+                    <Progress value={pctOfRequired} />
+                    <p className="text-xs text-muted-foreground">
+                      {reachedThreshold
+                        ? "You've reached 50% of your declared total — the survey can be closed whenever you're ready, or left open to reach more of the congregation."
+                        : `${remaining} more response${remaining === 1 ? "" : "s"} needed to reach 50% of your declared total (${declaredTotal}) before you can close and generate reports. You're at ${pctOfDeclared}% of the full declared total so far.`}
+                    </p>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <Button variant="outline" size="sm" disabled title="Coming soon">
+                        <Send className="mr-1.5 h-3.5 w-3.5" /> Send reminder
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={!reachedThreshold || closingId === current.id}
+                        onClick={() => onClose(current.id)}
+                        data-testid="button-close-survey"
+                      >
+                        {closingId === current.id ? "Closing..." : "Close survey & run reports"}
+                      </Button>
+                    </div>
+                  </>
+                );
+              })()}
             </CardContent>
           </Card>
           <div className="space-y-4">

@@ -242,7 +242,7 @@ export class DatabaseStorage implements IStorage {
         label: data.label,
         opensAt: data.opensAt ?? null,
         closesAt: data.closesAt ?? null,
-        minSampleSize: data.minSampleSize ?? 10,
+        minSampleSize: data.minSampleSize ?? 16,
         joinCode,
         status: "pending_payment",
         sizeTier: data.sizeTier,
