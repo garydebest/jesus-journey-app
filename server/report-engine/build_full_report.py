@@ -592,6 +592,31 @@ def page_engagement(c):
         hbar_list(c, cx, yy, col_w, rows, shared_max_2col, color)
 
 
+def crop_to_content(path, margin_px=40):
+    """Crop away fully-transparent margins around the drawn content.
+
+    The chart is rendered with generous axis limits so labels never clip,
+    but that leaves large transparent margins when the actual content
+    (circle + labels) doesn't use the full plotted extent. Cropping to the
+    alpha channel's bounding box (plus a small margin) removes that dead
+    space before pad_to_square re-squares the image, so the donut fills
+    its frame instead of floating in a mostly-empty box.
+    """
+    im = Image.open(path)
+    if im.mode != "RGBA":
+        return
+    alpha = im.split()[-1]
+    bbox = alpha.getbbox()
+    if bbox is None:
+        return
+    left, top, right, bottom = bbox
+    left = max(0, left - margin_px)
+    top = max(0, top - margin_px)
+    right = min(im.width, right + margin_px)
+    bottom = min(im.height, bottom + margin_px)
+    im.crop((left, top, right, bottom)).save(path)
+
+
 def pad_to_square(path):
     """Pad a saved PNG with transparent margin so width == height.
 
@@ -677,17 +702,25 @@ def make_maturity_donut(path):
             ax.text(col_x, ty, f"{lab.replace(chr(10), ' ')}: {pct_text}", ha="left", va="center",
                     fontsize=8.6, fontweight="bold", color=MPL_TEAL_DARK, family="DM Sans", zorder=5)
 
-    # Fixed, symmetric axis limits (not bbox_inches="tight") guarantee a perfectly
-    # square saved image regardless of callout/medium-label content, so the donut
-    # always renders as a true circle instead of being stretched into an ellipse by
-    # PDF viewers that don't preserve source-image aspect ratio (notably iOS).
-    extent = 2.45 if small_entries else (2.2 if has_medium else 2.0)
-    ax.set_xlim(-extent, extent)
-    ax.set_ylim(-extent, extent)
+    # Tight axis limits sized to the actual drawn content (donut radius 1.0 plus
+    # a small margin for percent labels), not an oversized fixed box — an
+    # over-wide extent leaves large blank margins around the visible circle.
+    # bbox_inches="tight" is still avoided (it can crop asymmetrically and
+    # produce a non-square image); instead we crop losslessly with PIL below,
+    # then pad_to_square re-centers via transparent padding, not stretching.
+    if small_entries:
+        extent_right = 1.7 + 0.34 * len(small_entries)
+    elif has_medium:
+        extent_right = 1.5
+    else:
+        extent_right = 1.15
+    ax.set_xlim(-1.15, extent_right)
+    ax.set_ylim(-1.15, 1.15)
     ax.set_aspect("equal", adjustable="box")
     ax.axis("off")
     plt.savefig(path, transparent=True, pad_inches=0)
     plt.close()
+    crop_to_content(path)
     pad_to_square(path)
 
 
@@ -734,12 +767,41 @@ def page_maturity_donut(c):
 
     chart_path = f"{ASSET_DIR}/maturity_donut.png"
     make_maturity_donut(chart_path)
+
     footer_top = 0.62 * inch
-    available_bottom = footer_top + 0.3 * inch
+    available_bottom = footer_top + 0.55 * inch
     available_top = y - 0.15 * inch
-    chart_size = min(4.5 * inch, available_top - available_bottom)
-    chart_y = available_bottom
+    available_h = available_top - available_bottom
+
+    # Match the change-profile page (14): a chart sized to fill most of the
+    # remaining space, plus a callout card directly beneath it, both
+    # centered as one block. This avoids the large dead gap that appeared
+    # when the chart alone was anchored to the bottom of a tall empty area.
+    callout_h = 0.62 * inch
+    gap = 0.3 * inch
+    chart_size = min(4.9 * inch, available_h - gap - callout_h)
+    block_h = chart_size + gap + callout_h
+    block_top = available_bottom + available_h / 2 + block_h / 2
+
+    chart_y = block_top - chart_size
     c.drawImage(chart_path, (PAGE_W - chart_size) / 2, chart_y, width=chart_size, height=chart_size, mask="auto")
+
+    callout_y = chart_y - gap - callout_h
+    card_w = 5.1 * inch
+    card_x = (PAGE_W - card_w) / 2
+    c.setFillColor(SURFACE)
+    c.roundRect(card_x, callout_y, card_w, callout_h, 6, fill=1, stroke=0)
+    c.setStrokeColor(TEAL)
+    c.setLineWidth(2.4)
+    c.line(card_x, callout_y, card_x, callout_y + callout_h)
+    c.setFont("Inter-SemiBold", 10)
+    c.setFillColor(INK)
+    c.drawString(card_x + 0.22 * inch, callout_y + callout_h - 0.24 * inch,
+                 f"{REPORT_DATA.maturity_combined_stat} of your church is Trusting Jesus or Jesus Centered.")
+    c.setFont("Inter", 9)
+    c.setFillColor(INK_MUTED)
+    c.drawString(card_x + 0.22 * inch, callout_y + 0.14 * inch,
+                 "Note: if a category is missing, it indicates zero percent of respondents.")
 
 
 def cross_tab_page(c, page_num, subtitle, col_labels, col_colors, sections, note=True, max_value=100):
@@ -905,18 +967,21 @@ def make_donut_chart(path):
             ax.text(col_x, ty, f"{lab.replace(chr(10), ' ')}: {pct_text}", ha="left", va="center",
                     fontsize=8.6, fontweight="bold", color=MPL_TEAL_DARK, family="DM Sans", zorder=5)
 
-    # Fixed, symmetric axis limits (not bbox_inches="tight") guarantee a perfectly
-    # square saved image regardless of callout content, so the donut always renders
-    # as a true circle rather than being stretched into an ellipse by PDF viewers
-    # that do not preserve source-image aspect ratio (notably iOS). Extent widens
-    # only when callouts are present, so the donut doesn't shrink needlessly.
-    extent = 2.35 if small_entries else 1.9
-    ax.set_xlim(-extent, extent)
-    ax.set_ylim(-extent, extent)
+    # Tight axis limits sized to the actual drawn content (donut radius 1.0 plus
+    # a small margin for percent labels), not an oversized fixed box — an
+    # over-wide extent leaves large blank margins around the visible circle.
+    # bbox_inches="tight" is still avoided (it can crop asymmetrically and
+    # produce a non-square image); instead we crop losslessly with PIL below,
+    # then pad_to_square re-centers via transparent padding, not stretching.
+    extent_right = 1.7 + 0.34 * len(small_entries) if small_entries else 1.15
+    extent = max(extent_right, 1.15)
+    ax.set_xlim(-1.15, extent)
+    ax.set_ylim(-1.15, 1.15)
     ax.set_aspect("equal", adjustable="box")
     ax.axis("off")
     plt.savefig(path, transparent=True, pad_inches=0)
     plt.close()
+    crop_to_content(path)
     pad_to_square(path)
 
 
@@ -951,9 +1016,13 @@ def page_change_profile(c):
     available_top = ly - 0.35 * inch
     available_h = available_top - available_bottom
 
-    chart_size = 4.9 * inch
     callout_h = 0.62 * inch
-    block_h = chart_size + 0.3 * inch + callout_h
+    gap = 0.3 * inch
+    # Size the chart to fill most of the available space (capped at 4.9in)
+    # rather than always using a fixed size — avoids a large dead gap above
+    # and below the chart+callout block on pages with lots of vertical room.
+    chart_size = min(4.9 * inch, available_h - gap - callout_h)
+    block_h = chart_size + gap + callout_h
     block_top = available_bottom + available_h / 2 + block_h / 2
 
     chart_y = block_top - chart_size
