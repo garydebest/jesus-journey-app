@@ -64,6 +64,8 @@ export interface GenerateReportResult {
   ok: boolean;
   /** Durable Supabase Storage object key (e.g. "<waveId>.pdf"), set only when persistence succeeded. */
   storageKey?: string;
+  /** Durable Supabase Storage object key for the separate Comments Report (e.g. "<waveId>-comments.pdf"), set only when the wave had written comments and persistence succeeded. */
+  commentsStorageKey?: string;
   error?: string;
 }
 
@@ -79,6 +81,7 @@ export function generateChurchReportPdf(params: GenerateReportParams): Promise<G
   return new Promise((resolve) => {
     mkdirSync(REPORTS_DIR, { recursive: true });
     const outPath = path.join(REPORTS_DIR, `${params.waveId}.pdf`);
+    const commentsOutPath = path.join(REPORTS_DIR, `${params.waveId}-comments.pdf`);
 
     const opened = new Date(params.waveCreatedAt);
     const now = new Date();
@@ -87,6 +90,7 @@ export function generateChurchReportPdf(params: GenerateReportParams): Promise<G
       report_date: formatDate(now),
       survey_period: `${formatDate(opened)} - ${formatDate(now)}`,
       out_path: outPath,
+      comments_out_path: commentsOutPath,
       rows: params.rows.map(toReportRow),
     };
 
@@ -118,7 +122,23 @@ export function generateChurchReportPdf(params: GenerateReportParams): Promise<G
           resolve({ ok: false, error: uploaded.error });
           return;
         }
-        resolve({ ok: true, storageKey: uploaded.storageKey });
+
+        let commentsStorageKey: string | undefined;
+        if (parsed.comments_out_path) {
+          const uploadedComments = await persistReportPdf(
+            params.waveId,
+            parsed.comments_out_path,
+            `${params.waveId}-comments.pdf`,
+          );
+          if (uploadedComments.ok) {
+            commentsStorageKey = uploadedComments.storageKey;
+          } else {
+            // Comments PDF is a bonus artifact — don't fail the whole close if only it fails to persist.
+            console.error("Comments report PDF generated but failed to persist to storage for wave", params.waveId, uploadedComments.error);
+          }
+        }
+
+        resolve({ ok: true, storageKey: uploaded.storageKey, commentsStorageKey });
       } catch {
         resolve({ ok: false, error: `Could not parse report generator output: ${stdout} ${stderr}` });
       }

@@ -153,6 +153,7 @@ export const aggregateSnapshots = pgTable("aggregate_snapshots", {
   respondentCount: integer("respondent_count").notNull(),
   summaryJson: text("summary_json").notNull(), // pathway/goal averages, maturity distribution, demographics
   reportPdfPath: text("report_pdf_path"), // Supabase Storage object key in the "church-reports" bucket (e.g. "<waveId>.pdf"), if generated
+  commentsReportPdfPath: text("comments_report_pdf_path"), // Supabase Storage object key for the separate Comments Report PDF (e.g. "<waveId>-comments.pdf"), null if the wave had no written comments
   generatedAt: timestamp("generated_at", { withTimezone: true }).notNull().default(sql`now()`),
 });
 

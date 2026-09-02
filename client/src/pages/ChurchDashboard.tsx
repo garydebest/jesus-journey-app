@@ -197,15 +197,23 @@ export function ChurchDashboard() {
   }
 
   async function handleDownloadFullReport(wave: WaveWithMeta) {
+    await downloadWavePdf(wave, `/api/waves/${wave.id}/report.pdf`, "Our-Journey-with-Jesus-Report.pdf", "This survey doesn't have a full PDF report (it may predate this feature).");
+  }
+
+  async function handleDownloadCommentsReport(wave: WaveWithMeta) {
+    await downloadWavePdf(wave, `/api/waves/${wave.id}/comments-report.pdf`, "Comments-Report.pdf", "This survey doesn't have a comments report (it may predate this feature, or had no written comments).");
+  }
+
+  async function downloadWavePdf(wave: WaveWithMeta, path: string, filename: string, notFoundMessage: string) {
     setDownloadError(null);
     setDownloadingId(wave.id);
     try {
-      const res = await churchApiRequest(token, "GET", `/api/waves/${wave.id}/report.pdf`);
+      const res = await churchApiRequest(token, "GET", path);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "Our-Journey-with-Jesus-Report.pdf";
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -213,7 +221,7 @@ export function ChurchDashboard() {
     } catch (err: any) {
       const msg = String(err?.message ?? err);
       if (msg.includes("404")) {
-        setDownloadError("This survey doesn't have a full PDF report (it may predate this feature).");
+        setDownloadError(notFoundMessage);
       } else {
         setDownloadError(`Couldn't download the report: ${msg.replace(/^\d+:\s*/, "")}`);
       }
@@ -358,6 +366,7 @@ export function ChurchDashboard() {
               onGoToPrepare={() => setActiveTab("prepare")}
               onClose={handleCloseWave}
               onDownloadReport={handleDownloadFullReport}
+              onDownloadCommentsReport={handleDownloadCommentsReport}
               onViewReport={handleViewReport}
               onAbandonPending={handleAbandonPending}
             />

@@ -16,7 +16,7 @@ export interface WaveWithMeta {
   closesAt: string | null;
   closedAt?: string | null;
   responseCount?: number;
-  snapshot?: { respondentCount: number; summaryJson: string; reportPdfPath?: string | null } | null;
+  snapshot?: { respondentCount: number; summaryJson: string; reportPdfPath?: string | null; commentsReportPdfPath?: string | null } | null;
 }
 
 function fmtDate(iso: string | null | undefined) {
@@ -40,15 +40,20 @@ interface Props {
   onGoToPrepare: () => void;
   onClose: (waveId: string) => void;
   onDownloadReport: (wave: WaveWithMeta) => void;
+  onDownloadCommentsReport?: (wave: WaveWithMeta) => void;
   onViewReport: (wave: WaveWithMeta) => void;
   onAbandonPending?: (waveId: string) => void;
 }
 
 export function PanelYourSurveys({
   waves, loading, error, closeError, downloadError, closingId, downloadingId,
-  onStartNew, onGoToPrepare, onClose, onDownloadReport, onViewReport, onAbandonPending,
+  onStartNew, onGoToPrepare, onClose, onDownloadReport, onDownloadCommentsReport, onViewReport, onAbandonPending,
 }: Props) {
+  // The most recent wave drives the "what should I do right now" workflow card
+  // (start new / finish payment / watch live responses). Every closed wave —
+  // not just the latest — is shown in the history list below regardless of state.
   const current = waves[0] ?? null;
+  const closedWaves = waves.filter((w) => w.status === "closed");
   const state: "none" | "pending_payment" | "live" | "closed" = !current
     ? "none"
     : current.status === "closed"
@@ -231,51 +236,19 @@ export function PanelYourSurveys({
         </div>
       ) : current ? (
         <div className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card data-testid="card-closed-wave">
-              <CardHeader className="pb-2">
-                <span className="text-primary"><CheckCircle2 className="h-5 w-5" /></span>
-                <CardTitle className="text-base font-serif mt-2">{current.label} — closed</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  {fmtDate(current.closedAt) ? `Closed ${fmtDate(current.closedAt)} · ` : ""}
-                  {current.snapshot?.respondentCount ?? current.responseCount ?? 0} responses
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Button size="sm" onClick={() => onViewReport(current)} data-testid="button-view-report">
-                    View report summary
-                  </Button>
-                  {current.snapshot?.reportPdfPath ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onDownloadReport(current)}
-                      disabled={downloadingId === current.id}
-                      data-testid="button-download-church-report"
-                    >
-                      {downloadingId === current.id ? "Preparing..." : "Download Church Report (PDF)"}
-                    </Button>
-                  ) : (
-                    <span className="text-xs italic text-muted-foreground">Full PDF not available for this survey</span>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-            <Card data-testid="card-make-sense">
-              <CardHeader className="pb-2">
-                <span className="text-primary"><Clock className="h-5 w-5" /></span>
-                <CardTitle className="text-base font-serif mt-2">Make sense of your results</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Head to the <strong className="text-foreground">Interpret</strong> and{" "}
-                  <strong className="text-foreground">Act</strong> tabs for guidance on reading your report and turning it
-                  into next steps with your leaders.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+          <Card data-testid="card-make-sense">
+            <CardHeader className="pb-2">
+              <span className="text-primary"><Clock className="h-5 w-5" /></span>
+              <CardTitle className="text-base font-serif mt-2">Make sense of your results</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Head to the <strong className="text-foreground">Interpret</strong> and{" "}
+                <strong className="text-foreground">Act</strong> tabs for guidance on reading your report and turning it
+                into next steps with your leaders.
+              </p>
+            </CardContent>
+          </Card>
           <p className="text-center text-xs text-muted-foreground">
             Ready to run this again? Each survey is a separate purchase —{" "}
             <button className="text-primary underline underline-offset-2" onClick={onStartNew} data-testid="button-start-again">
@@ -285,6 +258,64 @@ export function PanelYourSurveys({
           </p>
         </div>
       ) : null}
+
+      {!loading && closedWaves.length > 0 && (
+        <div className="space-y-3 pt-2">
+          <h2 className="font-serif text-lg font-semibold">Survey history</h2>
+          <p className="text-sm text-muted-foreground">
+            Every completed survey for your church, most recent first. Your reports stay available for download anytime.
+          </p>
+          <div className="space-y-3">
+            {closedWaves.map((wave) => (
+              <Card key={wave.id} data-testid={`card-history-${wave.id}`}>
+                <CardHeader className="pb-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-primary"><CheckCircle2 className="h-5 w-5" /></span>
+                      <CardTitle className="text-base font-serif">{wave.label}</CardTitle>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {fmtDate(wave.closedAt) ? `Closed ${fmtDate(wave.closedAt)} · ` : ""}
+                      {wave.snapshot?.respondentCount ?? wave.responseCount ?? 0} responses
+                    </span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" onClick={() => onViewReport(wave)} data-testid="button-view-report">
+                      View report summary
+                    </Button>
+                    {wave.snapshot?.reportPdfPath ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onDownloadReport(wave)}
+                        disabled={downloadingId === wave.id}
+                        data-testid="button-download-church-report"
+                      >
+                        {downloadingId === wave.id ? "Preparing..." : "Download Church Report (PDF)"}
+                      </Button>
+                    ) : (
+                      <span className="text-xs italic text-muted-foreground">Full PDF not available for this survey</span>
+                    )}
+                    {wave.snapshot?.commentsReportPdfPath && onDownloadCommentsReport ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onDownloadCommentsReport(wave)}
+                        disabled={downloadingId === wave.id}
+                        data-testid="button-download-comments-report"
+                      >
+                        {downloadingId === wave.id ? "Preparing..." : "Download Comments Report (PDF)"}
+                      </Button>
+                    ) : null}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

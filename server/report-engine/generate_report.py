@@ -9,6 +9,7 @@ Reads a single JSON object from stdin shaped like:
   "report_date": "8/29/2026",
   "survey_period": "8/1/2026 - 8/29/2026",
   "out_path": "/absolute/path/to/output.pdf",
+  "comments_out_path": "/absolute/path/to/comments.pdf",  # optional
   "rows": [ { "b1": 4, "k1": 3, ..., "journey_pre": 3, "journey_post": 4,
               "spiritual_change": 2, "gender": "Female", "age_group": "30-39",
               "relationship_status": "Married", "attendance_frequency": "Every week",
@@ -17,7 +18,10 @@ Reads a single JSON object from stdin shaped like:
               "race_ethnicity": "White", "comment_text": "" }, ... ]
 }
 
-Writes the rendered PDF to out_path and prints {"ok": true, "out_path": ...}
+Writes the rendered full-report PDF to out_path. If comments_out_path is
+provided and there is at least one written comment in rows, also renders the
+separate Comments Report PDF there. Prints
+{"ok": true, "out_path": ..., "comments_out_path": ... | null}
 as the last line of stdout on success. On failure prints
 {"ok": false, "error": "..."} to stdout and exits with code 1.
 """
@@ -47,12 +51,14 @@ def main():
     report_date = payload["report_date"]
     survey_period = payload["survey_period"]
     out_path = payload["out_path"]
+    comments_out_path = payload.get("comments_out_path")
     rows = payload["rows"]
 
     from church_report import aggregate_church, score_respondent
-    from church_profile_report import demographics_profile, maturity_profile, change_profile
+    from church_profile_report import demographics_profile, maturity_profile, change_profile, comments_report
     from report_builder import build_from_aggregates
     import build_full_report as tmpl
+    from build_comments_report import build_comments_report_pdf
 
     norm_rows = [normalize_row(r) for r in rows]
 
@@ -76,7 +82,15 @@ def main():
     tmpl.OUT_PATH = out_path
     tmpl.main()
 
-    print(json.dumps({"ok": True, "out_path": out_path}))
+    result = {"ok": True, "out_path": out_path, "comments_out_path": None}
+
+    if comments_out_path:
+        comments_data = comments_report(norm_rows)
+        wrote = build_comments_report_pdf(comments_out_path, church_name, report_date, comments_data)
+        if wrote:
+            result["comments_out_path"] = comments_out_path
+
+    print(json.dumps(result))
 
 
 if __name__ == "__main__":

@@ -262,6 +262,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       respondentCount: summary.respondentCount,
       summaryJson: JSON.stringify(summary),
       reportPdfPath: pdfResult.ok ? pdfResult.storageKey ?? null : null,
+      commentsReportPdfPath: pdfResult.ok ? pdfResult.commentsStorageKey ?? null : null,
     });
     await storage.purgeResponsesByWave(wave.id);
     await storage.markWaveReportGenerated(wave.id);
@@ -363,6 +364,24 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     res.send(pdfBuffer);
   });
 
+  app.get("/api/waves/:id/comments-report.pdf", requireChurchAuth, async (req: AuthedRequest, res) => {
+    const wave = await storage.getWaveById(String(req.params.id));
+    if (!wave || wave.churchId !== req.churchId) {
+      return res.status(404).json({ message: "Wave not found" });
+    }
+    const snapshot = await storage.getSnapshotByWave(wave.id);
+    if (!snapshot?.commentsReportPdfPath) {
+      return res.status(404).json({ message: "Comments report is not available for this wave" });
+    }
+    const pdfBuffer = await fetchReportPdf(snapshot.commentsReportPdfPath);
+    if (!pdfBuffer) {
+      return res.status(404).json({ message: "Comments report is not available for this wave" });
+    }
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", 'attachment; filename="Comments-Report.pdf"');
+    res.send(pdfBuffer);
+  });
+
   // -------------------------------------------------------------------
   // Admin (Gary) — separate login, session, and operator view
   // -------------------------------------------------------------------
@@ -395,6 +414,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
           responseCount: w.status === "closed" ? snapshot?.respondentCount ?? 0 : await storage.countResponsesByWave(w.id),
           hasReport: !!snapshot,
           hasReportPdf: !!snapshot?.reportPdfPath,
+          hasCommentsReportPdf: !!snapshot?.commentsReportPdfPath,
         };
       }),
     );
@@ -418,6 +438,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
                   responseCount: w.status === "closed" ? snapshot?.respondentCount ?? 0 : await storage.countResponsesByWave(w.id),
                   hasReport: !!snapshot,
                   hasReportPdf: !!snapshot?.reportPdfPath,
+                  hasCommentsReportPdf: !!snapshot?.commentsReportPdfPath,
                 };
               }),
           );
@@ -458,6 +479,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       respondentCount: summary.respondentCount,
       summaryJson: JSON.stringify(summary),
       reportPdfPath: pdfResult.ok ? pdfResult.storageKey ?? null : null,
+      commentsReportPdfPath: pdfResult.ok ? pdfResult.commentsStorageKey ?? null : null,
     });
     await storage.purgeResponsesByWave(wave.id);
     await storage.markWaveReportGenerated(wave.id);
@@ -482,6 +504,20 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     }
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", 'attachment; filename="Our-Journey-with-Jesus-Report.pdf"');
+    res.send(pdfBuffer);
+  });
+
+  app.get("/api/admin/waves/:id/comments-report.pdf", requireAdminAuth, async (req, res) => {
+    const snapshot = await storage.getSnapshotByWave(String(req.params.id));
+    if (!snapshot?.commentsReportPdfPath) {
+      return res.status(404).json({ message: "Comments report is not available for this wave" });
+    }
+    const pdfBuffer = await fetchReportPdf(snapshot.commentsReportPdfPath);
+    if (!pdfBuffer) {
+      return res.status(404).json({ message: "Comments report is not available for this wave" });
+    }
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", 'attachment; filename="Comments-Report.pdf"');
     res.send(pdfBuffer);
   });
 

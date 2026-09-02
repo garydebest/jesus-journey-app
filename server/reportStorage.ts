@@ -33,13 +33,16 @@ function getClient(): SupabaseClient | null {
  * is a scratch artifact from the Python subprocess and is deleted after a
  * successful upload — Storage is the durable copy from this point on.
  */
-export async function persistReportPdf(waveId: string, localPath: string): Promise<{ ok: true; storageKey: string } | { ok: false; error: string }> {
+export async function persistReportPdf(
+  waveId: string,
+  localPath: string,
+  storageKey: string = `${waveId}.pdf`,
+): Promise<{ ok: true; storageKey: string } | { ok: false; error: string }> {
   const client = getClient();
   if (!client) return { ok: false, error: "Report storage is not configured (missing SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY)" };
 
   try {
     const buf = await readFile(localPath);
-    const storageKey = `${waveId}.pdf`;
     const { error } = await client.storage.from(BUCKET).upload(storageKey, buf, {
       contentType: "application/pdf",
       upsert: true,
