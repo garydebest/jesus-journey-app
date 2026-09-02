@@ -39,7 +39,14 @@ export function InfoCardView({ card }: { card: InfoCard }) {
           </ol>
         )}
         {card.note && <p className="text-xs italic text-muted-foreground">{card.note}</p>}
-        {card.ctaLabel && (
+        {card.ctaLabel && card.ctaHref && (
+          <Button variant="outline" size="sm" asChild>
+            <a href={card.ctaHref} download target="_blank" rel="noopener noreferrer">
+              {card.ctaLabel}
+            </a>
+          </Button>
+        )}
+        {card.ctaLabel && !card.ctaHref && (
           <Button variant="outline" size="sm" disabled title="Resource download coming soon">
             {card.ctaLabel}
           </Button>

@@ -15,6 +15,7 @@ export interface InfoCard {
   highlight?: boolean;
   fullDocIndexes?: number[];
   ctaLabel?: string;
+  ctaHref?: string;
   note?: string;
 }
 
@@ -78,6 +79,7 @@ export const COLLECT_CARDS: InfoCard[] = [
     title: "Paper survey option",
     body: "For anyone who finds a screen difficult. Every question must be answered by hand, then entered online by a volunteer — blank answers can't be entered.",
     ctaLabel: "Download paper survey",
+    ctaHref: "/jesus-journey-paper-survey.pdf",
     fullDocIndexes: [6],
   },
 ];
