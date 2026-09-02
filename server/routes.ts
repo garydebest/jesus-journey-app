@@ -19,7 +19,7 @@ import {
 import { z } from "zod";
 import { PRICING_TIERS, priceCentsForTier, publicPricingList } from "./pricing";
 import { createCheckoutSession, retrieveCheckoutSession, verifyStripeWebhookSignature, isStripeConfigured } from "./stripe";
-import { currencyForRequest } from "./currency";
+import { currencyForRequest, countryFromRequest } from "./currency";
 
 function sanitizeChurch(church: { passwordHash?: string; [k: string]: any }) {
   const { passwordHash, ...rest } = church;
@@ -123,6 +123,11 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   app.get("/api/pricing", (req, res) => {
     const currency = currencyForRequest(req);
     res.json({ tiers: publicPricingList(currency), currency, stripeConfigured: isStripeConfigured() });
+  });
+
+  // TEMP DEBUG - remove after currency rollout verification
+  app.get("/api/debug/headers", (req, res) => {
+    res.json({ headers: req.headers, detectedCountry: countryFromRequest(req), detectedCurrency: currencyForRequest(req) });
   });
 
   // -------------------------------------------------------------------
