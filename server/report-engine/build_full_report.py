@@ -18,10 +18,21 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 from reportlab.lib.utils import ImageReader
 
+import os
+import tempfile
+
 from report_data import ReportData, CANYON_VIEW_2017
 
-FONT_DIR = "/home/user/workspace/report_mockup/fonts"
-ASSET_DIR = "/home/user/workspace/report_mockup"
+# Resolve paths relative to this script's own location so the report engine
+# works both in local dev and on a deployed host (Render, etc.) where the
+# original hardcoded sandbox path (/home/user/workspace/report_mockup) does
+# not exist. Fonts and the static logo/cover photo ship inside this
+# directory's checked-in `fonts/` and `assets/` subfolders; generated chart
+# PNGs are scratch files written to a temp dir at runtime.
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+FONT_DIR = os.path.join(_SCRIPT_DIR, "fonts")
+_STATIC_ASSET_DIR = os.path.join(_SCRIPT_DIR, "assets")
+ASSET_DIR = tempfile.mkdtemp(prefix="jj-report-assets-")
 
 # The data instance to render. main() may override this via set_report_data().
 REPORT_DATA: ReportData = CANYON_VIEW_2017
@@ -73,8 +84,8 @@ def set_report_data(data: ReportData):
     CHURCH_NAME = data.church_name
     REPORT_DATE = data.report_date
 
-LOGO_PATH = f"{ASSET_DIR}/jj_logo.png"
-COVER_PHOTO = f"{ASSET_DIR}/cover_map_photo.png"
+LOGO_PATH = f"{_STATIC_ASSET_DIR}/jj_logo.png"
+COVER_PHOTO = f"{_STATIC_ASSET_DIR}/cover_map_photo.png"
 
 
 # ============================================================
