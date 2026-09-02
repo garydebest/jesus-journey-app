@@ -774,14 +774,16 @@ def page_maturity_donut(c):
     available_h = available_top - available_bottom
 
     # Match the change-profile page (14): a chart sized to fill most of the
-    # remaining space, plus a callout card directly beneath it, both
-    # centered as one block. This avoids the large dead gap that appeared
-    # when the chart alone was anchored to the bottom of a tall empty area.
+    # remaining space, plus a callout card directly beneath it, anchored
+    # just below the intro text. Anchoring to the top (rather than
+    # centering in the full available region) avoids a dead gap appearing
+    # above the block on pages with a short intro and lots of vertical room.
     callout_h = 0.62 * inch
     gap = 0.3 * inch
-    chart_size = min(4.9 * inch, available_h - gap - callout_h)
-    block_h = chart_size + gap + callout_h
-    block_top = available_bottom + available_h / 2 + block_h / 2
+    # Cap at 5.6in tall, but never wider than the callout card below it
+    # (5.1in) so the block reads as one coherent, proportioned unit.
+    chart_size = min(5.6 * inch, 5.1 * inch, available_h - gap - callout_h)
+    block_top = available_top
 
     chart_y = block_top - chart_size
     c.drawImage(chart_path, (PAGE_W - chart_size) / 2, chart_y, width=chart_size, height=chart_size, mask="auto")
@@ -1018,12 +1020,13 @@ def page_change_profile(c):
 
     callout_h = 0.62 * inch
     gap = 0.3 * inch
-    # Size the chart to fill most of the available space (capped at 4.9in)
-    # rather than always using a fixed size — avoids a large dead gap above
-    # and below the chart+callout block on pages with lots of vertical room.
-    chart_size = min(4.9 * inch, available_h - gap - callout_h)
-    block_h = chart_size + gap + callout_h
-    block_top = available_bottom + available_h / 2 + block_h / 2
+    # Size the chart to fill most of the available space (capped at 5.6in
+    # tall, and never wider than the callout card below it at 5.1in). Anchor
+    # the block just below the legend rather than centering it in the full
+    # available region — centering split unused space evenly above AND below,
+    # which looked like the block was floating with a dead gap on top.
+    chart_size = min(5.6 * inch, 5.1 * inch, available_h - gap - callout_h)
+    block_top = available_top
 
     chart_y = block_top - chart_size
     c.drawImage(chart_path, (PAGE_W - chart_size) / 2, chart_y, width=chart_size, height=chart_size, mask="auto")
