@@ -36,6 +36,7 @@ interface AdminWaveEntry {
   responseCount: number;
   hasReport: boolean;
   hasReportPdf: boolean;
+  hasCommentsReportPdf: boolean;
 }
 
 interface AdminChurchGroup {
@@ -53,6 +54,7 @@ export function AdminOverview() {
   const [reportWaveEntry, setReportWaveEntry] = useState<AdminWaveEntry | null>(null);
   const [reportSummary, setReportSummary] = useState<WaveAggregateSummary | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [downloadingCommentsId, setDownloadingCommentsId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -117,6 +119,25 @@ export function AdminOverview() {
       setError(String(err?.message ?? "Full PDF report is not available."));
     } finally {
       setDownloadingId(null);
+    }
+  }
+
+  async function handleDownloadCommentsReport(entry: AdminWaveEntry) {
+    setDownloadingCommentsId(entry.wave.id);
+    try {
+      const blob = await adminApiRequestBlob(token, `/api/admin/waves/${entry.wave.id}/comments-report.pdf`);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "Comments-Report.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setError(String(err?.message ?? "Comments report is not available."));
+    } finally {
+      setDownloadingCommentsId(null);
     }
   }
 
@@ -218,6 +239,17 @@ export function AdminOverview() {
                                   data-testid={`button-admin-download-${entry.wave.id}`}
                                 >
                                   {downloadingId === entry.wave.id ? "Preparing..." : "Download PDF"}
+                                </Button>
+                              )}
+                              {entry.hasCommentsReportPdf && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDownloadCommentsReport(entry)}
+                                  disabled={downloadingCommentsId === entry.wave.id}
+                                  data-testid={`button-admin-download-comments-${entry.wave.id}`}
+                                >
+                                  {downloadingCommentsId === entry.wave.id ? "Preparing..." : "Comments PDF"}
                                 </Button>
                               )}
                             </>
