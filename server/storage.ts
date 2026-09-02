@@ -150,7 +150,7 @@ export interface IStorage {
   updateChurchContact(id: string, data: schema.UpdateChurchContact): Promise<Church | undefined>;
 
   // Waves
-  createWave(churchId: string, data: InsertWave, priceCents: number): Promise<SurveyWave>;
+  createWave(churchId: string, data: InsertWave, priceCents: number, currency: string): Promise<SurveyWave>;
   getWaveById(id: string): Promise<SurveyWave | undefined>;
   getWaveByJoinCode(code: string): Promise<SurveyWave | undefined>;
   getWavesByChurch(churchId: string): Promise<SurveyWave[]>;
@@ -227,7 +227,7 @@ export class DatabaseStorage implements IStorage {
     return rows[0];
   }
 
-  async createWave(churchId: string, data: InsertWave, priceCents: number): Promise<SurveyWave> {
+  async createWave(churchId: string, data: InsertWave, priceCents: number, currency: string): Promise<SurveyWave> {
     let joinCode = "";
     for (let attempts = 0; attempts < 10; attempts++) {
       joinCode = genCode(5);
@@ -248,6 +248,7 @@ export class DatabaseStorage implements IStorage {
         sizeTier: data.sizeTier,
         paymentStatus: "unpaid",
         priceCents,
+        currency,
       })
       .returning();
     return rows[0];

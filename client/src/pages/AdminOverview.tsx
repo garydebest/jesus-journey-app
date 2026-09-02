@@ -30,6 +30,7 @@ interface AdminWaveEntry {
     paymentStatus?: string;
     sizeTier?: string | null;
     priceCents?: number | null;
+    currency?: string | null;
     minSampleSize: number;
   };
   responseCount: number;
@@ -194,7 +195,9 @@ export function AdminOverview() {
                           {entry.wave.paymentStatus && (
                             <Badge variant={entry.wave.paymentStatus === "paid" ? "outline" : "destructive"} data-testid={`badge-payment-${entry.wave.id}`}>
                               {entry.wave.paymentStatus}
-                              {typeof entry.wave.priceCents === "number" ? ` · $${(entry.wave.priceCents / 100).toFixed(0)}` : ""}
+                              {typeof entry.wave.priceCents === "number"
+                                ? ` · ${(entry.wave.currency ?? "usd").toUpperCase()} ${(entry.wave.priceCents / 100).toFixed(0)}`
+                                : ""}
                             </Badge>
                           )}
                           {entry.hasReport ? (

@@ -19,6 +19,7 @@ import {
 import { z } from "zod";
 import { PRICING_TIERS, priceCentsForTier, publicPricingList } from "./pricing";
 import { createCheckoutSession, retrieveCheckoutSession, verifyStripeWebhookSignature, isStripeConfigured } from "./stripe";
+import { currencyForRequest } from "./currency";
 
 function sanitizeChurch(church: { passwordHash?: string; [k: string]: any }) {
   const { passwordHash, ...rest } = church;
@@ -119,8 +120,9 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   // -------------------------------------------------------------------
   // Pricing (public)
   // -------------------------------------------------------------------
-  app.get("/api/pricing", (_req, res) => {
-    res.json({ tiers: publicPricingList(), stripeConfigured: isStripeConfigured() });
+  app.get("/api/pricing", (req, res) => {
+    const currency = currencyForRequest(req);
+    res.json({ tiers: publicPricingList(currency), currency, stripeConfigured: isStripeConfigured() });
   });
 
   // -------------------------------------------------------------------
@@ -142,13 +144,15 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     if (!church) return res.status(404).json({ message: "Church not found" });
 
     const tier = parsed.data.sizeTier;
-    const priceCents = priceCentsForTier(tier);
-    const wave = await storage.createWave(req.churchId!, parsed.data, priceCents);
+    const currency = currencyForRequest(req);
+    const priceCents = priceCentsForTier(tier, currency);
+    const wave = await storage.createWave(req.churchId!, parsed.data, priceCents, currency);
 
     const origin = `${req.protocol}://${req.get("host")}`;
     try {
       const session = await createCheckoutSession({
         amountCents: priceCents,
+        currency,
         productName: `Jesus Journey Survey — ${PRICING_TIERS[tier].label}`,
         productDescription: `${wave.label} for ${church.name}`,
         successUrl: `${origin}/#/dashboard?checkout=success&wave=${wave.id}`,

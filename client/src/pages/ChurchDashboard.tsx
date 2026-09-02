@@ -20,6 +20,12 @@ import { PanelAct } from "@/components/dashboard/PanelAct";
 import { PanelResources } from "@/components/dashboard/PanelResources";
 import type { SizeTier } from "@shared/schema";
 
+const CURRENCY_SYMBOLS: Record<string, string> = { cad: "CA$", usd: "US$", gbp: "£", eur: "€" };
+function formatPrice(price: number, currency: string): string {
+  const symbol = CURRENCY_SYMBOLS[currency] ?? currency.toUpperCase() + " ";
+  return `${symbol}${price}`;
+}
+
 const TABS = [
   { value: "your-surveys", label: "Your Surveys", badge: "★" },
   { value: "prepare", label: "Prepare", badge: "1" },
@@ -50,7 +56,7 @@ export function ChurchDashboard() {
   const [closeError, setCloseError] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
-  const [pricingTiers, setPricingTiers] = useState<Array<{ tier: SizeTier; label: string; description: string; priceUsd: number }>>([]);
+  const [pricingTiers, setPricingTiers] = useState<Array<{ tier: SizeTier; label: string; description: string; price: number; currency: string }>>([]);
   const [checkoutBanner, setCheckoutBanner] = useState<{ kind: "success" | "cancelled" | "pending"; message: string } | null>(null);
 
   const loadWaves = useCallback(async () => {
@@ -258,7 +264,7 @@ export function ChurchDashboard() {
                               <div className="text-xs text-muted-foreground">{t.description}</div>
                             </div>
                           </div>
-                          <div className="text-sm font-semibold">${t.priceUsd}</div>
+                          <div className="text-sm font-semibold">{formatPrice(t.price, t.currency)}</div>
                         </label>
                       ))}
                     </RadioGroup>

@@ -65,6 +65,7 @@ export const surveyWaves = pgTable("survey_waves", {
   sizeTier: text("size_tier", { enum: SIZE_TIERS }),
   paymentStatus: text("payment_status", { enum: PAYMENT_STATUSES }).notNull().default("unpaid"),
   priceCents: integer("price_cents"), // snapshot of the tier price at purchase time
+  currency: text("currency").notNull().default("usd"), // ISO currency code the price/checkout was in (cad/usd/gbp/eur), snapshot at purchase time
   stripeCheckoutSessionId: text("stripe_checkout_session_id"),
   stripePaymentIntentId: text("stripe_payment_intent_id"),
   paidAt: text("paid_at"),

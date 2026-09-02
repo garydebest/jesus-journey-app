@@ -67,6 +67,7 @@ async function stripeRequest(path: string, params: Record<string, any>): Promise
 
 export interface CreateCheckoutSessionArgs {
   amountCents: number;
+  currency: string;
   productName: string;
   productDescription: string;
   successUrl: string;
@@ -85,7 +86,7 @@ export async function createCheckoutSession(args: CreateCheckoutSessionArgs) {
       {
         quantity: 1,
         price_data: {
-          currency: "usd",
+          currency: args.currency,
           unit_amount: args.amountCents,
           product_data: {
             name: args.productName,
