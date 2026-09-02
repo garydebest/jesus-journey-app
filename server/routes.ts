@@ -242,7 +242,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     const requiredResponses = requiredResponsesForClose(wave.minSampleSize);
     if (rows.length < requiredResponses) {
       return res.status(400).json({
-        message: `This survey needs at least ${requiredResponses} responses (50% of your declared total of ${wave.minSampleSize}) before it can be closed. You currently have ${rows.length}.`,
+        message: `This survey needs at least ${requiredResponses} responses (50% of your total adults of ${wave.minSampleSize}) before it can be closed. You currently have ${rows.length}.`,
       });
     }
     const summary = computeWaveAggregate(rows);

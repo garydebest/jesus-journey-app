@@ -208,7 +208,7 @@ export function AdminOverview() {
                         <div>
                           <div className="text-sm">{entry.wave.label}</div>
                           <div className="text-xs text-muted-foreground">
-                            code {entry.wave.joinCode} · {entry.responseCount} responses · needs {Math.ceil(entry.wave.minSampleSize * 0.5)} to close (50% of declared {entry.wave.minSampleSize})
+                            code {entry.wave.joinCode} · {entry.responseCount} responses · needs {Math.ceil(entry.wave.minSampleSize * 0.5)} to close (50% of {entry.wave.minSampleSize} total adults)
                           </div>
                         </div>
                         <div className="flex items-center gap-2">

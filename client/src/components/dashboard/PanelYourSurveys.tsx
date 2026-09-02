@@ -101,9 +101,9 @@ export function PanelYourSurveys({
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground leading-relaxed">
                 Each survey is a one-time purchase for your church — there's no subscription. When you're ready, you'll
-                choose a start and end date, declare your expected total number of respondents, and complete checkout
-                before the survey opens. You'll need responses from at least half that total before you can close the
-                survey and generate reports.
+                choose a start and end date, enter your total number of adults (16+), and complete checkout before the
+                survey opens. You'll need responses from at least half that total before you can close the survey and
+                generate reports.
               </p>
               <Button onClick={onStartNew} data-testid="button-start-new-survey">Start a new survey</Button>
             </CardContent>
@@ -198,8 +198,8 @@ export function PanelYourSurveys({
                     <Progress value={pctOfRequired} />
                     <p className="text-xs text-muted-foreground">
                       {reachedThreshold
-                        ? "You've reached 50% of your declared total — the survey can be closed whenever you're ready, or left open to reach more of the congregation."
-                        : `${remaining} more response${remaining === 1 ? "" : "s"} needed to reach 50% of your declared total (${declaredTotal}) before you can close and generate reports. You're at ${pctOfDeclared}% of the full declared total so far.`}
+                        ? "You've reached 50% of your total adults — the survey can be closed whenever you're ready, or left open to reach more of the congregation."
+                        : `${remaining} more response${remaining === 1 ? "" : "s"} needed to reach 50% of your total adults (${declaredTotal}) before you can close and generate reports. You're at ${pctOfDeclared}% of your total adults so far.`}
                     </p>
                     <div className="flex flex-wrap gap-2 pt-1">
                       <Button variant="outline" size="sm" disabled title="Coming soon">

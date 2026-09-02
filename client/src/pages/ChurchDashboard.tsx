@@ -129,7 +129,7 @@ export function ChurchDashboard() {
       return;
     }
     if (!minSample || Number(minSample) < 16) {
-      setError("Please enter your expected total (16 or more) before continuing.");
+      setError("Please enter your total number of adults, 16 or more, before continuing.");
       return;
     }
     setCreating(true);
@@ -257,10 +257,10 @@ export function ChurchDashboard() {
                     <Input id="wave-label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Fall 2026 Survey" required data-testid="input-wave-label" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="min-sample">How many people do you expect to take this survey?</Label>
+                    <Label htmlFor="min-sample">What is your total number of adults (16+)?</Label>
                     <Input id="min-sample" type="number" min={16} value={minSample} onChange={(e) => setMinSample(e.target.value)} data-testid="input-min-sample" />
                     <p className="text-xs text-muted-foreground">
-                      Enter your best estimate of your total congregation or group size (16 minimum). You'll need
+                      Enter the total number of adults in your congregation or group (16 minimum). You'll need
                       responses from at least half this number before you can close the survey and generate reports.
                     </p>
                   </div>

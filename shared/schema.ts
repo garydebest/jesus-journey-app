@@ -58,11 +58,11 @@ export const surveyWaves = pgTable("survey_waves", {
   joinCode: text("join_code").notNull().unique(), // short code respondents use to join, e.g. "4821"
   opensAt: text("opens_at"),
   closesAt: text("closes_at"),
-  // Church's declared expected total number of respondents (congregation/group size),
-  // set before the survey opens. The survey can only be closed and reports generated once
-  // actual responses reach 50% of this number (see requiredResponsesForClose in server/routes.ts).
+  // Church's total number of adults (16+) in their congregation/group, entered before the
+  // survey opens. The survey can only be closed and reports generated once actual responses
+  // reach 50% of this number (see requiredResponsesForClose in server/routes.ts).
   // Column name kept as min_sample_size to avoid a migration; semantics changed from "exact
-  // minimum responses" to "declared total used as the 50% gating base".
+  // minimum responses" to "total adult count used as the 50% gating base".
   minSampleSize: integer("min_sample_size").notNull().default(16),
   status: text("status", { enum: WAVE_STATUSES }).notNull().default("not_started"),
   closedAt: text("closed_at"),
@@ -79,7 +79,7 @@ export const surveyWaves = pgTable("survey_waves", {
 
 export const insertWaveSchema = createInsertSchema(surveyWaves, {
   sizeTier: z.enum(SIZE_TIERS),
-  minSampleSize: z.number().int().min(16, "Declared expected total must be at least 16."),
+  minSampleSize: z.number().int().min(16, "Total number of adults must be at least 16."),
 }).pick({
   label: true,
   minSampleSize: true,
@@ -89,7 +89,7 @@ export const insertWaveSchema = createInsertSchema(surveyWaves, {
 });
 
 // Actual response threshold required before a wave can be closed and reports generated:
-// 50% of the church's declared expected total, rounded up.
+// 50% of the church's total number of adults, rounded up.
 export function requiredResponsesForClose(declaredTotal: number): number {
   return Math.ceil(declaredTotal * 0.5);
 }
