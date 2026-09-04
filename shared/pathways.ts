@@ -137,7 +137,7 @@ export const PATHWAYS: PathwayDef[] = [
     narrative: {
       high: "You are responsive to the Holy Spirit guiding you to live your life in a way that pleases God. You actively look to God for direction and are careful to embrace it. The following statements reflect particular strengths in your sensitivity to God",
       medium: "Your relationship with God can be even more active and alive than you are experiencing at this time. The next step in your journey could involve a more intimate sensitivity to God's presence and direction. Explore how you can grow in these dimensions of your relationship with God",
-      low: "God is inviting you to discover just how much more active and alive your relationship with the God's Spirit can be. The next step in your journey could involve a more intimate sensitivity to God's presence and direction. Explore how you can grow in these dimensions of your relationship with God",
+      low: "God is inviting you to discover just how much more active and alive your relationship with God's Spirit can be. The next step in your journey could involve a more intimate sensitivity to God's presence and direction. Explore how you can grow in these dimensions of your relationship with God",
     },
   },
   {

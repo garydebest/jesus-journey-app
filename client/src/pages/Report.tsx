@@ -63,17 +63,48 @@ export function Report({
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border">
+      <header className="border-b border-border print:hidden">
         <div className="max-w-3xl mx-auto px-4 py-6 flex items-center gap-3">
           <JJLogo className="h-8 w-8" />
-          <div>
+          <div className="flex-1">
             <h1 className="text-lg font-semibold" data-testid="text-report-title">
-              My Faith Journey — Individual Report
+              Your Jesus Journey — Individual Report
             </h1>
-            <p className="text-xs text-muted-foreground">Prototype preview — sample data only</p>
+            <p className="text-xs text-muted-foreground">Personal &amp; anonymous — for your eyes only</p>
           </div>
+          <Button onClick={() => window.print()} data-testid="button-print-report">
+            Print / Save as PDF
+          </Button>
         </div>
       </header>
+
+      <div
+        className="bg-amber-50 border-b border-amber-200 text-amber-900 text-sm px-4 py-3 print:hidden"
+        data-testid="banner-save-warning"
+      >
+        <div className="max-w-3xl mx-auto flex flex-wrap items-center justify-between gap-3">
+          <p>
+            This report is never saved anywhere — not by us, not on our servers. If you leave this page without
+            printing or saving it, it will be lost for good.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="shrink-0 border-amber-400 text-amber-900 hover:bg-amber-100"
+            onClick={() => window.print()}
+            data-testid="button-print-report-banner"
+          >
+            Print / Save as PDF now
+          </Button>
+        </div>
+      </div>
+
+      <div className="hidden print:block max-w-3xl mx-auto px-4 pt-8">
+        <div className="flex items-center gap-3 mb-2">
+          <JJLogo className="h-8 w-8" />
+          <h1 className="text-lg font-semibold">Your Jesus Journey — Individual Report</h1>
+        </div>
+      </div>
 
       <main className="max-w-3xl mx-auto px-4 py-8 space-y-10">
         {/* Maturity summary */}
@@ -141,6 +172,12 @@ export function Report({
             average score for each Pathway, colored by Goal. Further down, each Pathway is broken
             into individual statements — a green square marks a statement that's a current strength,
             and an orange square marks one that's an opportunity to grow.
+          </p>
+          <p className="text-sm text-muted-foreground leading-relaxed" data-testid="text-report-god-note">
+            As you will notice, we repeatedly reference God in these reports. That is not a mistake.
+            As we get to know Jesus, and become more like Jesus, we will increasingly enjoy the same
+            trusting relationship that Jesus had with his Father, God. We are journeying with Jesus to
+            make our home with the God who loves us.
           </p>
         </section>
 
@@ -324,9 +361,16 @@ export function Report({
           </p>
         </section>
 
-        <div className="flex justify-center pt-6">
+        <div className="hidden print:block text-xs text-muted-foreground text-center pt-6 border-t border-border">
+          Jesus Journey Survey — personal report, generated {new Date().toLocaleDateString()}
+        </div>
+
+        <div className="flex flex-col items-center gap-3 pt-6 print:hidden">
+          <Button onClick={() => window.print()} data-testid="button-print-report-bottom">
+            Print / Save as PDF
+          </Button>
           <Button variant="outline" onClick={onRestart} data-testid="button-restart">
-            Start a new sample survey
+            Start a new survey
           </Button>
         </div>
       </main>

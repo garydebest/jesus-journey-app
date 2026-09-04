@@ -3,19 +3,21 @@ import { Intro } from "./Intro";
 import { MaturityQuestion } from "./MaturityQuestion";
 import { ItemQuestion } from "./ItemQuestion";
 import { ChangeQuestion } from "./ChangeQuestion";
-import { DemographicQuestion } from "./DemographicQuestion";
 import { Report } from "./Report";
 import { SURVEY_ITEMS } from "@shared/surveyItems";
-import { DEMOGRAPHICS, MATURITY_OPTIONS_PRE, MATURITY_OPTIONS_POST } from "@shared/questions";
-import { emptyState, TOTAL_STEPS, TOTAL_ITEM_STEPS, TOTAL_DEMO_STEPS, type SurveyState } from "@/lib/surveyState";
+import { MATURITY_OPTIONS_PRE, MATURITY_OPTIONS_POST } from "@shared/questions";
+import { emptyState, TOTAL_STEPS_INDIVIDUAL, TOTAL_ITEM_STEPS, type SurveyState } from "@/lib/surveyState";
 
+// The individual (anonymous, ephemeral) survey path intentionally skips the
+// demographic questions — we don't keep any data from this flow, so there's
+// no reason to ask for it. Demographics are still collected in the
+// church-group path (JoinSurveyFlow.tsx), where aggregate data is retained.
 type Screen =
   | "intro"
   | "pre-maturity"
   | `item-${number}`
   | "post-maturity"
   | "change"
-  | `demo-${number}`
   | "report";
 
 export function SurveyFlow() {
@@ -29,17 +31,13 @@ export function SurveyFlow() {
 
   function progressFor(screen: Screen): number {
     if (screen === "intro") return 0;
-    if (screen === "pre-maturity") return (1 / TOTAL_STEPS) * 100;
+    if (screen === "pre-maturity") return (1 / TOTAL_STEPS_INDIVIDUAL) * 100;
     if (screen.startsWith("item-")) {
       const idx = Number(screen.split("-")[1]);
-      return ((2 + idx) / TOTAL_STEPS) * 100;
+      return ((2 + idx) / TOTAL_STEPS_INDIVIDUAL) * 100;
     }
-    if (screen === "post-maturity") return ((2 + TOTAL_ITEM_STEPS) / TOTAL_STEPS) * 100;
-    if (screen === "change") return ((3 + TOTAL_ITEM_STEPS) / TOTAL_STEPS) * 100;
-    if (screen.startsWith("demo-")) {
-      const idx = Number(screen.split("-")[1]);
-      return ((4 + TOTAL_ITEM_STEPS + idx) / TOTAL_STEPS) * 100;
-    }
+    if (screen === "post-maturity") return ((2 + TOTAL_ITEM_STEPS) / TOTAL_STEPS_INDIVIDUAL) * 100;
+    if (screen === "change") return ((3 + TOTAL_ITEM_STEPS) / TOTAL_STEPS_INDIVIDUAL) * 100;
     return 100;
   }
 
@@ -106,32 +104,9 @@ export function SurveyFlow() {
       <ChangeQuestion
         value={state.change}
         onChange={(v) => setState((s) => ({ ...s, change: v }))}
-        onNext={() => setScreen("demo-0")}
+        onNext={() => setScreen("report")}
         onBack={() => setScreen("post-maturity")}
         progress={progressFor(screen)}
-      />
-    );
-  }
-
-  if (screen.startsWith("demo-")) {
-    const idx = Number(screen.split("-")[1]);
-    const demo = DEMOGRAPHICS[idx];
-    return (
-      <DemographicQuestion
-        key={demo.id}
-        demo={demo}
-        value={state.demographics[demo.id]}
-        onChange={(v) => setState((s) => ({ ...s, demographics: { ...s.demographics, [demo.id]: v } }))}
-        onNext={() => {
-          if (idx + 1 < DEMOGRAPHICS.length) setScreen(`demo-${idx + 1}`);
-          else setScreen("report");
-        }}
-        onBack={() => {
-          if (idx === 0) setScreen("change");
-          else setScreen(`demo-${idx - 1}`);
-        }}
-        progress={progressFor(screen)}
-        showIntroNote={idx === 0}
       />
     );
   }

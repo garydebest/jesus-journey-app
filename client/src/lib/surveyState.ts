@@ -26,8 +26,11 @@ export function emptyState(): SurveyState {
 export const TOTAL_ITEM_STEPS = SURVEY_ITEMS.length;
 export const TOTAL_DEMO_STEPS = DEMOGRAPHICS.length;
 
-/** Flattened step order for progress calculation: pre-maturity, 63 items, post-maturity, change, 9 demo. */
+/** Flattened step order for progress calculation: pre-maturity, 63 items, post-maturity, change, 9 demo. Used by the church-group flow (JoinSurveyFlow.tsx), which still collects demographics. */
 export const TOTAL_STEPS = 1 + TOTAL_ITEM_STEPS + 1 + 1 + TOTAL_DEMO_STEPS;
+
+/** Flattened step order for the individual (anonymous) flow, which skips demographics entirely: pre-maturity, 63 items, post-maturity, change. */
+export const TOTAL_STEPS_INDIVIDUAL = 1 + TOTAL_ITEM_STEPS + 1 + 1;
 
 export function stepIndexOf(step: Step): number {
   if (step === "intro") return 0;

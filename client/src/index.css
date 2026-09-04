@@ -315,3 +315,24 @@
     inset: -1px;
   }
 }
+
+@media print {
+  body {
+    background: white !important;
+  }
+
+  [data-testid^="card-pathway-"],
+  [data-testid="section-pathway-chart"],
+  [data-testid="section-maturity-summary"],
+  [data-testid="section-goal-summary"] {
+    break-inside: avoid;
+  }
+
+  [data-testid^="section-goal-"] {
+    break-before: page;
+  }
+
+  [data-testid="section-goal-trusting"] {
+    break-before: auto;
+  }
+}

@@ -1,5 +1,5 @@
 """
-Jesus Journey / My Faith Journey — Church Profile Report Generator
+Jesus Journey / My Jesus Journey — Church Profile Report Generator
 =====================================================================
 Implements the four sections specified in `docs/church-report-extended-
 design.md` that `church_report.py` intentionally leaves out of scope:

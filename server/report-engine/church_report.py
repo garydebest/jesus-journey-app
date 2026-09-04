@@ -1,5 +1,5 @@
 """
-Jesus Journey / My Faith Journey — Church Aggregate Report Generator
+Jesus Journey / My Jesus Journey — Church Aggregate Report Generator
 ======================================================================
 REVISED 2026-08-28 after reviewing 5 real sample church reports supplied
 by Dennis (Sample-Church-Group-Report-4.pdf, Sample-Church-Report-2019-29.pdf,

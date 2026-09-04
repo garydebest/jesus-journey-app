@@ -26,7 +26,8 @@ export function Intro({ onStart }: { onStart: () => void }) {
           </Button>
         </div>
         <p className="text-xs text-muted-foreground pt-4">
-          Prototype preview &mdash; sample data only, nothing is saved.
+          Fully anonymous &mdash; your responses are never stored. Be sure to print or save your
+          report before you close this page.
         </p>
       </div>
     </div>
