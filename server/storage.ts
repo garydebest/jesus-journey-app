@@ -188,6 +188,8 @@ export interface IStorage {
   createDebriefingReport(data: Omit<DebriefingReportRow, "id" | "generatedAt">): Promise<DebriefingReportRow>;
   getDebriefingReportByWave(waveId: string): Promise<DebriefingReportRow | undefined>;
   setDebriefingReportPdfPath(waveId: string, reportPdfPath: string): Promise<DebriefingReportRow | undefined>;
+  /** TEMP: one-off regeneration helper — remove after Grace Fellowship sample backfill. */
+  updateDebriefingReportJson(waveId: string, reportJson: string, respondentCount: number): Promise<DebriefingReportRow | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -464,6 +466,16 @@ export class DatabaseStorage implements IStorage {
     const rows = await db
       .update(debriefingReports)
       .set({ reportPdfPath })
+      .where(eq(debriefingReports.waveId, waveId))
+      .returning();
+    return rows[0];
+  }
+
+  /** TEMP: one-off regeneration helper — remove after Grace Fellowship sample backfill. */
+  async updateDebriefingReportJson(waveId: string, reportJson: string, respondentCount: number): Promise<DebriefingReportRow | undefined> {
+    const rows = await db
+      .update(debriefingReports)
+      .set({ reportJson, respondentCount })
       .where(eq(debriefingReports.waveId, waveId))
       .returning();
     return rows[0];
