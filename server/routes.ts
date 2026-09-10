@@ -22,6 +22,7 @@ import { z } from "zod";
 import { PRICING_TIERS, priceCentsForTier, publicPricingList } from "./pricing";
 import { createCheckoutSession, retrieveCheckoutSession, verifyStripeWebhookSignature, isStripeConfigured } from "./stripe";
 import { currencyForRequest } from "./currency";
+import { runReminderSweep } from "./reminders";
 
 function sanitizeChurch(church: { passwordHash?: string; [k: string]: any }) {
   const { passwordHash, ...rest } = church;
@@ -697,6 +698,23 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     } catch (err: any) {
       console.error("Stripe webhook handling error:", err?.message ?? err);
       res.status(500).json({ message: "Webhook handling error" });
+    }
+  });
+
+  // Internal endpoint for the daily reminder sweep, triggered by a Render
+  // Cron Job (see render-cron/README.md). Protected by a shared secret
+  // rather than church auth, since it's not called by any browser session.
+  app.post("/api/internal/run-reminder-sweep", async (req, res) => {
+    const secret = process.env.INTERNAL_CRON_SECRET;
+    if (!secret || req.header("x-cron-secret") !== secret) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    try {
+      const result = await runReminderSweep();
+      res.json(result);
+    } catch (err: any) {
+      console.error("Reminder sweep error:", err?.message ?? err);
+      res.status(500).json({ message: "Reminder sweep failed" });
     }
   });
 

@@ -207,9 +207,6 @@ export function PanelYourSurveys({
                         : `${remaining} more response${remaining === 1 ? "" : "s"} needed to reach 50% of your total adults (${declaredTotal}) before you can close and generate reports. You're at ${pctOfDeclared}% of your total adults so far.`}
                     </p>
                     <div className="flex flex-wrap gap-2 pt-1">
-                      <Button variant="outline" size="sm" disabled title="Coming soon">
-                        <Send className="mr-1.5 h-3.5 w-3.5" /> Send reminder
-                      </Button>
                       <Button
                         size="sm"
                         disabled={!reachedThreshold || closingId === current.id}
@@ -219,6 +216,10 @@ export function PanelYourSurveys({
                         {closingId === current.id ? "Closing..." : "Close survey & run reports"}
                       </Button>
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      Note: reminding your congregation to take the survey is up to you — send it out through your
+                      own church email list or announcements.
+                    </p>
                   </>
                 );
               })()}
@@ -228,13 +229,12 @@ export function PanelYourSurveys({
             <Card data-testid="card-reminder-info">
               <CardHeader className="pb-2">
                 <span className="text-primary"><Send className="h-5 w-5" /></span>
-                <CardTitle className="text-base font-serif mt-2">What "Send reminder" does</CardTitle>
+                <CardTitle className="text-base font-serif mt-2">Automatic timeline reminders</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Sends a one-time nudge to everyone who has <strong className="text-foreground">not yet responded</strong> —
-                  a short email/text reminding them the survey is open and takes about 10–15 minutes. People who already
-                  completed it are not contacted.
+                  Your primary contact automatically receives a short email 3 days ahead of each survey action plan
+                  phase, with guidance pulled from the relevant guide material. No setup needed.
                 </p>
               </CardContent>
             </Card>
