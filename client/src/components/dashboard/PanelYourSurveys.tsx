@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PlusSquare, Clock, Send, FileStack, CheckCircle2, CreditCard } from "lucide-react";
+import { SurveyTimeline } from "./SurveyTimeline";
 
 export interface WaveWithMeta {
   id: string;
@@ -29,6 +30,7 @@ function fmtDate(iso: string | null | undefined) {
 }
 
 interface Props {
+  token: string | null;
   waves: WaveWithMeta[];
   loading: boolean;
   error: string | null;
@@ -43,11 +45,12 @@ interface Props {
   onDownloadCommentsReport?: (wave: WaveWithMeta) => void;
   onViewReport: (wave: WaveWithMeta) => void;
   onAbandonPending?: (waveId: string) => void;
+  onDatesChanged?: () => void;
 }
 
 export function PanelYourSurveys({
-  waves, loading, error, closeError, downloadError, closingId, downloadingId,
-  onStartNew, onGoToPrepare, onClose, onDownloadReport, onDownloadCommentsReport, onViewReport, onAbandonPending,
+  token, waves, loading, error, closeError, downloadError, closingId, downloadingId,
+  onStartNew, onGoToPrepare, onClose, onDownloadReport, onDownloadCommentsReport, onViewReport, onAbandonPending, onDatesChanged,
 }: Props) {
   // The most recent wave drives the "what should I do right now" workflow card
   // (start new / finish payment / watch live responses). Every closed wave —
@@ -246,6 +249,16 @@ export function PanelYourSurveys({
               </CardContent>
             </Card>
           </div>
+          <div className="md:col-span-3">
+            <SurveyTimeline
+              token={token}
+              waveId={current.id}
+              opensAt={current.opensAt}
+              closesAt={current.closesAt}
+              waveStatus={current.status}
+              onDatesChanged={onDatesChanged ?? (() => {})}
+            />
+          </div>
         </div>
       ) : current ? (
         <div className="space-y-4">
@@ -262,6 +275,14 @@ export function PanelYourSurveys({
               </p>
             </CardContent>
           </Card>
+          <SurveyTimeline
+            token={token}
+            waveId={current.id}
+            opensAt={current.opensAt}
+            closesAt={current.closesAt}
+            waveStatus={current.status}
+            onDatesChanged={onDatesChanged ?? (() => {})}
+          />
           <p className="text-center text-xs text-muted-foreground">
             Ready to run this again? Each survey is a separate purchase —{" "}
             <button className="text-primary underline underline-offset-2" onClick={onStartNew} data-testid="button-start-again">

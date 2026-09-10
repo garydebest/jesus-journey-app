@@ -171,3 +171,25 @@ export const aggregateSnapshots = pgTable("aggregate_snapshots", {
 
 export type AggregateSnapshot = typeof aggregateSnapshots.$inferSelect;
 export type InsertAggregateSnapshot = typeof aggregateSnapshots.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Survey Action Plan — per-wave calendarized timeline. Base dates for every
+// phase are computed on the fly from the wave's opensAt/closesAt (see
+// shared/timeline.ts) so most phases never need a database row at all. A row
+// only exists here once a church manually nudges a phase's date away from
+// its calculated default, or once a reminder email has been sent for it —
+// this table is the "diff" against the calculated plan, not the plan itself.
+// ---------------------------------------------------------------------------
+export const surveyTimelinePhases = pgTable("survey_timeline_phases", {
+  id: text("id").primaryKey(), // uuid
+  waveId: text("wave_id").notNull().references(() => surveyWaves.id),
+  phaseKey: text("phase_key").notNull(), // matches TimelinePhaseDef.key in shared/timeline.ts
+  // Manual override date (YYYY-MM-DD). Null means "use the calculated default".
+  overrideDate: text("override_date"),
+  reminderSentAt: timestamp("reminder_sent_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(sql`now()`),
+});
+
+export type SurveyTimelinePhase = typeof surveyTimelinePhases.$inferSelect;
+export type InsertSurveyTimelinePhase = typeof surveyTimelinePhases.$inferInsert;

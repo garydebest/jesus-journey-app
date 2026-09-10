@@ -1,6 +1,6 @@
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import * as schema from "@shared/schema";
 import {
@@ -9,6 +9,7 @@ import {
   respondents,
   responses,
   aggregateSnapshots,
+  surveyTimelinePhases,
   type Church,
   type InsertChurch,
   type SurveyWave,
@@ -18,6 +19,7 @@ import {
   type ResponseRow,
   type InsertResponse,
   type AggregateSnapshot,
+  type SurveyTimelinePhase,
 } from "@shared/schema";
 
 const connectionString = process.env.DATABASE_URL;
@@ -162,6 +164,13 @@ export interface IStorage {
   getWaveByCheckoutSessionId(sessionId: string): Promise<SurveyWave | undefined>;
   markWavePaid(id: string, paymentIntentId: string | undefined): Promise<SurveyWave | undefined>;
   deleteUnpaidWave(id: string): Promise<void>;
+  setWaveDates(id: string, opensAt: string | null, closesAt: string | null): Promise<SurveyWave | undefined>;
+
+  // Survey Action Plan (timeline) phase overrides
+  getTimelinePhaseOverrides(waveId: string): Promise<SurveyTimelinePhase[]>;
+  upsertTimelinePhaseOverride(waveId: string, phaseKey: string, overrideDate: string | null): Promise<SurveyTimelinePhase>;
+  markTimelineReminderSent(waveId: string, phaseKey: string): Promise<void>;
+  getAllTimelinePhaseOverrides(): Promise<SurveyTimelinePhase[]>;
 
   // Respondents & responses
   createRespondent(entryMode: EntryMode, waveId?: string): Promise<Respondent>;
@@ -284,6 +293,60 @@ export class DatabaseStorage implements IStorage {
 
   async deleteUnpaidWave(id: string): Promise<void> {
     await db.delete(surveyWaves).where(eq(surveyWaves.id, id));
+  }
+
+  async setWaveDates(id: string, opensAt: string | null, closesAt: string | null): Promise<SurveyWave | undefined> {
+    const rows = await db
+      .update(surveyWaves)
+      .set({ opensAt, closesAt })
+      .where(eq(surveyWaves.id, id))
+      .returning();
+    return rows[0];
+  }
+
+  async getTimelinePhaseOverrides(waveId: string): Promise<SurveyTimelinePhase[]> {
+    return db.select().from(surveyTimelinePhases).where(eq(surveyTimelinePhases.waveId, waveId));
+  }
+
+  async upsertTimelinePhaseOverride(waveId: string, phaseKey: string, overrideDate: string | null): Promise<SurveyTimelinePhase> {
+    const existing = await db
+      .select()
+      .from(surveyTimelinePhases)
+      .where(and(eq(surveyTimelinePhases.waveId, waveId), eq(surveyTimelinePhases.phaseKey, phaseKey)));
+    if (existing[0]) {
+      const rows = await db
+        .update(surveyTimelinePhases)
+        .set({ overrideDate, updatedAt: new Date() })
+        .where(eq(surveyTimelinePhases.id, existing[0].id))
+        .returning();
+      return rows[0];
+    }
+    const rows = await db
+      .insert(surveyTimelinePhases)
+      .values({ id: randomUUID(), waveId, phaseKey, overrideDate })
+      .returning();
+    return rows[0];
+  }
+
+  async markTimelineReminderSent(waveId: string, phaseKey: string): Promise<void> {
+    const existing = await db
+      .select()
+      .from(surveyTimelinePhases)
+      .where(and(eq(surveyTimelinePhases.waveId, waveId), eq(surveyTimelinePhases.phaseKey, phaseKey)));
+    if (existing[0]) {
+      await db
+        .update(surveyTimelinePhases)
+        .set({ reminderSentAt: new Date(), updatedAt: new Date() })
+        .where(eq(surveyTimelinePhases.id, existing[0].id));
+      return;
+    }
+    await db
+      .insert(surveyTimelinePhases)
+      .values({ id: randomUUID(), waveId, phaseKey, overrideDate: null, reminderSentAt: new Date() });
+  }
+
+  async getAllTimelinePhaseOverrides(): Promise<SurveyTimelinePhase[]> {
+    return db.select().from(surveyTimelinePhases);
   }
 
   async getWaveById(id: string): Promise<SurveyWave | undefined> {

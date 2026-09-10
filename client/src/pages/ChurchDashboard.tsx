@@ -363,6 +363,7 @@ export function ChurchDashboard() {
 
           <TabsContent value="your-surveys" className="pt-6">
             <PanelYourSurveys
+              token={token}
               waves={waves}
               loading={loading}
               error={error}
@@ -377,6 +378,7 @@ export function ChurchDashboard() {
               onDownloadCommentsReport={handleDownloadCommentsReport}
               onViewReport={handleViewReport}
               onAbandonPending={handleAbandonPending}
+              onDatesChanged={loadWaves}
             />
           </TabsContent>
           <TabsContent value="prepare" className="pt-6"><PanelPrepare /></TabsContent>

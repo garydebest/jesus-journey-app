@@ -3,6 +3,8 @@ import type { Server } from "node:http";
 import bcrypt from "bcryptjs";
 import { storage } from "./storage";
 import { insertChurchSchema, insertWaveSchema, updateChurchContactSchema, ITEM_CODES, requiredResponsesForClose } from "@shared/schema";
+import { TIMELINE_PHASES, computeTimelineDates, defaultClosesAt } from "@shared/timeline";
+import { buildTimelineIcs } from "./ics";
 import { computeWaveAggregate } from "@shared/aggregate";
 import { generateChurchReportPdf } from "./pdfReport";
 import { fetchReportPdf } from "./reportStorage";
@@ -228,6 +230,138 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       responseCount: await storage.countResponsesByWave(wave.id),
       snapshot: await storage.getSnapshotByWave(wave.id),
     });
+  });
+
+  // Survey Action Plan (timeline) ----------------------------------------
+
+  // Returns the full 14-phase plan with computed dates. If opensAt isn't set
+  // yet, phase dates come back null and the client renders relative offsets
+  // instead ("2 weeks before your start date") as a preview.
+  app.get("/api/waves/:id/timeline", requireChurchAuth, async (req: AuthedRequest, res) => {
+    const wave = await storage.getWaveById(String(req.params.id));
+    if (!wave || wave.churchId !== req.churchId) {
+      return res.status(404).json({ message: "Wave not found" });
+    }
+    const overrides = await storage.getTimelinePhaseOverrides(wave.id);
+    const overrideByKey = new Map(overrides.map((o) => [o.phaseKey, o]));
+    const computed = computeTimelineDates(wave.opensAt, wave.closesAt);
+    const phases = computed.map((phase) => {
+      const override = overrideByKey.get(phase.key);
+      return {
+        ...phase,
+        date: override?.overrideDate ?? phase.date,
+        isAdjusted: !!override?.overrideDate,
+        calculatedDate: phase.date,
+      };
+    });
+    res.json({ wave, phases });
+  });
+
+  const setWaveDatesSchema = z.object({
+    opensAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "opensAt must be YYYY-MM-DD"),
+    // If omitted, closesAt is auto-generated as opensAt + 2 weeks per the guide's
+    // suggested schedule. Pass closesAt explicitly to override that default.
+    closesAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  });
+
+  // Sets or revises the survey's start date. Revising the start date after it
+  // was already set re-shifts the ENTIRE plan (both prep/launch phases before
+  // it and debrief/act phases after the end date), since every phase is
+  // computed as an offset from these two anchors — there is nothing else to
+  // update server-side; the client just re-fetches /timeline afterward.
+  app.patch("/api/waves/:id/dates", requireChurchAuth, async (req: AuthedRequest, res) => {
+    const wave = await storage.getWaveById(String(req.params.id));
+    if (!wave || wave.churchId !== req.churchId) {
+      return res.status(404).json({ message: "Wave not found" });
+    }
+    if (wave.status === "closed") {
+      return res.status(409).json({ message: "This survey is already closed; its dates can't be changed." });
+    }
+    const parsed = setWaveDatesSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid dates", errors: parsed.error.flatten() });
+    }
+    const opensAt = parsed.data.opensAt;
+    const closesAt = parsed.data.closesAt ?? defaultClosesAt(opensAt);
+    const updated = await storage.setWaveDates(wave.id, opensAt, closesAt);
+    res.json({ wave: updated });
+  });
+
+  const extendClosesAtSchema = z.object({
+    closesAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "closesAt must be YYYY-MM-DD"),
+  });
+
+  // Extends (or otherwise revises) just the end date — e.g. the 50% response
+  // threshold hasn't been reached yet. This only affects phases anchored to
+  // "closes" (debrief/act, which shift with it); prep/launch phases already
+  // anchored to opensAt are untouched.
+  app.patch("/api/waves/:id/extend-close", requireChurchAuth, async (req: AuthedRequest, res) => {
+    const wave = await storage.getWaveById(String(req.params.id));
+    if (!wave || wave.churchId !== req.churchId) {
+      return res.status(404).json({ message: "Wave not found" });
+    }
+    if (wave.status === "closed") {
+      return res.status(409).json({ message: "This survey is already closed; its dates can't be changed." });
+    }
+    if (!wave.opensAt) {
+      return res.status(409).json({ message: "Set a start date before extending the end date." });
+    }
+    const parsed = extendClosesAtSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid date", errors: parsed.error.flatten() });
+    }
+    const updated = await storage.setWaveDates(wave.id, wave.opensAt, parsed.data.closesAt);
+    res.json({ wave: updated });
+  });
+
+  const nudgePhaseSchema = z.object({
+    // Null clears the manual override and reverts to the calculated default.
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+  });
+
+  // Nudges a single phase to a manually-chosen date. This marks that phase as
+  // "adjusted" so a later opensAt/closesAt change won't silently overwrite it
+  // (see GET /timeline: overrides always win over the calculated date).
+  app.patch("/api/waves/:id/timeline/:phaseKey", requireChurchAuth, async (req: AuthedRequest, res) => {
+    const wave = await storage.getWaveById(String(req.params.id));
+    if (!wave || wave.churchId !== req.churchId) {
+      return res.status(404).json({ message: "Wave not found" });
+    }
+    const phaseKey = String(req.params.phaseKey);
+    if (!TIMELINE_PHASES.some((p) => p.key === phaseKey)) {
+      return res.status(404).json({ message: "Unknown timeline phase" });
+    }
+    const parsed = nudgePhaseSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid date", errors: parsed.error.flatten() });
+    }
+    const override = await storage.upsertTimelinePhaseOverride(wave.id, phaseKey, parsed.data.date);
+    res.json({ override });
+  });
+
+  // Downloads the whole plan (or a single phase, with ?phase=<key>) as an
+  // .ics file the church can import into Google Calendar, Apple Calendar, or
+  // Outlook. Only phases with a resolved (non-null) date are included.
+  app.get("/api/waves/:id/timeline.ics", requireChurchAuth, async (req: AuthedRequest, res) => {
+    const wave = await storage.getWaveById(String(req.params.id));
+    if (!wave || wave.churchId !== req.churchId) {
+      return res.status(404).json({ message: "Wave not found" });
+    }
+    const overrides = await storage.getTimelinePhaseOverrides(wave.id);
+    const overrideByKey = new Map(overrides.map((o) => [o.phaseKey, o]));
+    const computed = computeTimelineDates(wave.opensAt, wave.closesAt).map((phase) => ({
+      ...phase,
+      date: overrideByKey.get(phase.key)?.overrideDate ?? phase.date,
+    }));
+    const onlyPhase = typeof req.query.phase === "string" ? req.query.phase : undefined;
+    const selected = onlyPhase ? computed.filter((p) => p.key === onlyPhase) : computed;
+    const ics = buildTimelineIcs(wave.label, selected);
+    res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${wave.label.replace(/[^A-Za-z0-9-]+/g, "-")}-action-plan${onlyPhase ? `-${onlyPhase}` : ""}.ics"`,
+    );
+    res.send(ics);
   });
 
   app.post("/api/waves/:id/close", requireChurchAuth, async (req: AuthedRequest, res) => {
