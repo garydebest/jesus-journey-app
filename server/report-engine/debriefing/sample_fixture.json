@@ -1,0 +1,1634 @@
+{
+  "waveId": "25fd5a3d-0b0a-4174-bb12-6fa36ffef1cc",
+  "churchId": "fb55072c-3b29-49e8-9bc7-ee77b1393f4a",
+  "churchName": "Grace Fellowship Community Church",
+  "waveLabel": "Congregation Spiritual Health Survey — Sample Report",
+  "respondentCount": 210,
+  "generatedAt": "2026-09-10T21:40:14.723Z",
+  "executiveSummary": {
+    "strengths": [
+      {
+        "kind": "strength",
+        "headline": "Every week (Attendance Frequency) is a bright spot — running 0.62 points above the church average in spiritual maturity.",
+        "detail": "90 respondents (42.86% of the group) average 4.02 on the maturity scale, vs. the church-wide average. 65.56% report they're currently growing; 11.11% report fading.",
+        "corroboration": 1,
+        "directionalOnly": false,
+        "section": "Demographics — Attendance Frequency"
+      },
+      {
+        "kind": "strength",
+        "headline": "A few times/month (Small Group Participation) is a bright spot — running 0.47 points above the church average in spiritual maturity.",
+        "detail": "79 respondents (37.62% of the group) average 3.87 on the maturity scale, vs. the church-wide average. 69.62% report they're currently growing; 13.92% report fading.",
+        "corroboration": 1,
+        "directionalOnly": false,
+        "section": "Demographics — Small Group Participation"
+      },
+      {
+        "kind": "strength",
+        "headline": "From multiple races (Race / Ethnicity) is a bright spot — running 0.34 points above the church average in spiritual maturity.",
+        "detail": "27 respondents (12.86% of the group) average 3.74 on the maturity scale, vs. the church-wide average. 59.26% report they're currently growing; 7.41% report fading.",
+        "corroboration": 1,
+        "directionalOnly": false,
+        "section": "Demographics — Race / Ethnicity"
+      },
+      {
+        "kind": "strength",
+        "headline": "Every week (Small Group Participation) is a bright spot — running 0.31 points above the church average in spiritual maturity.",
+        "detail": "63 respondents (30% of the group) average 3.71 on the maturity scale, vs. the church-wide average. 53.97% report they're currently growing; 14.29% report fading.",
+        "corroboration": 1,
+        "directionalOnly": false,
+        "section": "Demographics — Small Group Participation"
+      },
+      {
+        "kind": "strength",
+        "headline": "My Beliefs — God's Kingdom Story is the strongest of the seven core dimensions.",
+        "detail": "Church average of 3.81 on this dimension, the highest of the seven measured.",
+        "corroboration": 1,
+        "directionalOnly": false,
+        "section": "Beliefs & Practices"
+      }
+    ],
+    "opportunities": [
+      {
+        "kind": "opportunity",
+        "headline": "Journeying with Others and My Actions — Relationships & Growth point to the same growth edge.",
+        "detail": "Both the pathway-level and dimension-level analysis independently surface this same area as the church's lowest-scoring, which raises confidence this is a real pattern rather than noise.",
+        "corroboration": 2,
+        "directionalOnly": false,
+        "section": "Cross-Cutting"
+      },
+      {
+        "kind": "opportunity",
+        "headline": "Journeying with Others: giving runs ahead of receiving.",
+        "detail": "In \"Journeying with Others,\" respondents score 3.81 on giving support to others vs. 2.83 on receiving it themselves (a 0.98-point gap). This one-directional pattern can point to relational isolation even among people who are relationally active.",
+        "corroboration": 1,
+        "directionalOnly": false,
+        "section": "Bottleneck Map"
+      },
+      {
+        "kind": "opportunity",
+        "headline": "Respondents at the most mature stage report the lowest rate of active growth.",
+        "detail": "Only 20% of \"God Centered\" respondents (n=30) say they're currently growing, vs. 74.91% across earlier stages. This can be a healthy plateau, or a sign that mature believers need a different kind of challenge or invitation to keep growing.",
+        "corroboration": 1,
+        "directionalOnly": false,
+        "section": "Maturity & Change"
+      },
+      {
+        "kind": "opportunity",
+        "headline": "Monthly (Small Group Participation) is running 0.83 points below the church average in spiritual maturity.",
+        "detail": "23 respondents (10.95% of the group) average 2.57 on the maturity scale, vs. the church-wide average. 69.57% report they're currently growing; 13.04% report fading.",
+        "corroboration": 1,
+        "directionalOnly": false,
+        "section": "Demographics — Small Group Participation"
+      },
+      {
+        "kind": "opportunity",
+        "headline": "Monthly (Attendance Frequency) is running 0.9 points below the church average in spiritual maturity.",
+        "detail": "26 respondents (12.38% of the group) average 2.5 on the maturity scale, vs. the church-wide average. 65.38% report they're currently growing; 15.38% report fading.",
+        "corroboration": 1,
+        "directionalOnly": false,
+        "section": "Demographics — Attendance Frequency"
+      },
+      {
+        "kind": "opportunity",
+        "headline": "Every few months (Small Group Participation) is running 0.57 points below the church average in spiritual maturity.",
+        "detail": "18 respondents (8.57% of the group) average 2.83 on the maturity scale, vs. the church-wide average. 77.78% report they're currently growing; 16.67% report fading.",
+        "corroboration": 1,
+        "directionalOnly": false,
+        "section": "Demographics — Small Group Participation"
+      },
+      {
+        "kind": "opportunity",
+        "headline": "Every few months (Attendance Frequency) is running 0.87 points below the church average in spiritual maturity.",
+        "detail": "17 respondents (8.1% of the group) average 2.53 on the maturity scale, vs. the church-wide average. 76.47% report they're currently growing; 11.76% report fading.",
+        "corroboration": 1,
+        "directionalOnly": false,
+        "section": "Demographics — Attendance Frequency"
+      }
+    ]
+  },
+  "demographics": [
+    {
+      "id": "gender",
+      "title": "Gender",
+      "breakdown": [
+        {
+          "group": "Female",
+          "n": 109,
+          "pctOfChurch": 51.9,
+          "avgMaturity": 3.39,
+          "maturityVsChurch": -0.01,
+          "growingPct": 73.39,
+          "fadingPct": 11.93,
+          "directionalOnly": false
+        },
+        {
+          "group": "Male",
+          "n": 101,
+          "pctOfChurch": 48.1,
+          "avgMaturity": 3.42,
+          "maturityVsChurch": 0.02,
+          "growingPct": 60.4,
+          "fadingPct": 13.86,
+          "directionalOnly": false
+        }
+      ],
+      "insights": []
+    },
+    {
+      "id": "ageGroup",
+      "title": "Age Group",
+      "breakdown": [
+        {
+          "group": "30-39",
+          "n": 42,
+          "pctOfChurch": 20,
+          "avgMaturity": 3.36,
+          "maturityVsChurch": -0.04,
+          "growingPct": 59.52,
+          "fadingPct": 14.29,
+          "directionalOnly": false
+        },
+        {
+          "group": "40-49",
+          "n": 41,
+          "pctOfChurch": 19.52,
+          "avgMaturity": 3.39,
+          "maturityVsChurch": -0.01,
+          "growingPct": 58.54,
+          "fadingPct": 24.39,
+          "directionalOnly": false
+        },
+        {
+          "group": "16-19",
+          "n": 33,
+          "pctOfChurch": 15.71,
+          "avgMaturity": 3.39,
+          "maturityVsChurch": -0.01,
+          "growingPct": 75.76,
+          "fadingPct": 6.06,
+          "directionalOnly": false
+        },
+        {
+          "group": "60 and older",
+          "n": 33,
+          "pctOfChurch": 15.71,
+          "avgMaturity": 3.42,
+          "maturityVsChurch": 0.02,
+          "growingPct": 72.73,
+          "fadingPct": 9.09,
+          "directionalOnly": false
+        },
+        {
+          "group": "50-59",
+          "n": 31,
+          "pctOfChurch": 14.76,
+          "avgMaturity": 3.42,
+          "maturityVsChurch": 0.02,
+          "growingPct": 67.74,
+          "fadingPct": 16.13,
+          "directionalOnly": false
+        },
+        {
+          "group": "20-29",
+          "n": 30,
+          "pctOfChurch": 14.29,
+          "avgMaturity": 3.43,
+          "maturityVsChurch": 0.03,
+          "growingPct": 73.33,
+          "fadingPct": 3.33,
+          "directionalOnly": false
+        }
+      ],
+      "insights": []
+    },
+    {
+      "id": "relationshipStatus",
+      "title": "Relationship Status",
+      "breakdown": [
+        {
+          "group": "Single in relationship",
+          "n": 47,
+          "pctOfChurch": 22.38,
+          "avgMaturity": 3.32,
+          "maturityVsChurch": -0.08,
+          "growingPct": 72.34,
+          "fadingPct": 6.38,
+          "directionalOnly": false
+        },
+        {
+          "group": "Independent single",
+          "n": 43,
+          "pctOfChurch": 20.48,
+          "avgMaturity": 3.51,
+          "maturityVsChurch": 0.11,
+          "growingPct": 65.12,
+          "fadingPct": 11.63,
+          "directionalOnly": false
+        },
+        {
+          "group": "Civil legal partnership",
+          "n": 36,
+          "pctOfChurch": 17.14,
+          "avgMaturity": 3.56,
+          "maturityVsChurch": 0.16,
+          "growingPct": 61.11,
+          "fadingPct": 13.89,
+          "directionalOnly": false
+        },
+        {
+          "group": "Divorced",
+          "n": 36,
+          "pctOfChurch": 17.14,
+          "avgMaturity": 3.33,
+          "maturityVsChurch": -0.07,
+          "growingPct": 69.44,
+          "fadingPct": 22.22,
+          "directionalOnly": false
+        },
+        {
+          "group": "Married but separated",
+          "n": 25,
+          "pctOfChurch": 11.9,
+          "avgMaturity": 3.48,
+          "maturityVsChurch": 0.08,
+          "growingPct": 80,
+          "fadingPct": 4,
+          "directionalOnly": false
+        },
+        {
+          "group": "Married",
+          "n": 23,
+          "pctOfChurch": 10.95,
+          "avgMaturity": 3.13,
+          "maturityVsChurch": -0.27,
+          "growingPct": 52.17,
+          "fadingPct": 21.74,
+          "directionalOnly": false
+        }
+      ],
+      "insights": []
+    },
+    {
+      "id": "attendanceFrequency",
+      "title": "Attendance Frequency",
+      "breakdown": [
+        {
+          "group": "Every week",
+          "n": 90,
+          "pctOfChurch": 42.86,
+          "avgMaturity": 4.02,
+          "maturityVsChurch": 0.62,
+          "growingPct": 65.56,
+          "fadingPct": 11.11,
+          "directionalOnly": false
+        },
+        {
+          "group": "A few times/month",
+          "n": 52,
+          "pctOfChurch": 24.76,
+          "avgMaturity": 3.46,
+          "maturityVsChurch": 0.06,
+          "growingPct": 63.46,
+          "fadingPct": 17.31,
+          "directionalOnly": false
+        },
+        {
+          "group": "Monthly",
+          "n": 26,
+          "pctOfChurch": 12.38,
+          "avgMaturity": 2.5,
+          "maturityVsChurch": -0.9,
+          "growingPct": 65.38,
+          "fadingPct": 15.38,
+          "directionalOnly": false
+        },
+        {
+          "group": "Infrequently or never",
+          "n": 25,
+          "pctOfChurch": 11.9,
+          "avgMaturity": 2.56,
+          "maturityVsChurch": -0.84,
+          "growingPct": 76,
+          "fadingPct": 8,
+          "directionalOnly": false
+        },
+        {
+          "group": "Every few months",
+          "n": 17,
+          "pctOfChurch": 8.1,
+          "avgMaturity": 2.53,
+          "maturityVsChurch": -0.87,
+          "growingPct": 76.47,
+          "fadingPct": 11.76,
+          "directionalOnly": false
+        }
+      ],
+      "insights": [
+        {
+          "kind": "strength",
+          "headline": "Every week (Attendance Frequency) is a bright spot — running 0.62 points above the church average in spiritual maturity.",
+          "detail": "90 respondents (42.86% of the group) average 4.02 on the maturity scale, vs. the church-wide average. 65.56% report they're currently growing; 11.11% report fading.",
+          "corroboration": 1,
+          "directionalOnly": false,
+          "section": "Demographics — Attendance Frequency"
+        },
+        {
+          "kind": "opportunity",
+          "headline": "Monthly (Attendance Frequency) is running 0.9 points below the church average in spiritual maturity.",
+          "detail": "26 respondents (12.38% of the group) average 2.5 on the maturity scale, vs. the church-wide average. 65.38% report they're currently growing; 15.38% report fading.",
+          "corroboration": 1,
+          "directionalOnly": false,
+          "section": "Demographics — Attendance Frequency"
+        },
+        {
+          "kind": "opportunity",
+          "headline": "Infrequently or never (Attendance Frequency) is running 0.84 points below the church average in spiritual maturity.",
+          "detail": "25 respondents (11.9% of the group) average 2.56 on the maturity scale, vs. the church-wide average. 76% report they're currently growing; 8% report fading.",
+          "corroboration": 1,
+          "directionalOnly": false,
+          "section": "Demographics — Attendance Frequency"
+        },
+        {
+          "kind": "opportunity",
+          "headline": "Every few months (Attendance Frequency) is running 0.87 points below the church average in spiritual maturity.",
+          "detail": "17 respondents (8.1% of the group) average 2.53 on the maturity scale, vs. the church-wide average. 76.47% report they're currently growing; 11.76% report fading.",
+          "corroboration": 1,
+          "directionalOnly": false,
+          "section": "Demographics — Attendance Frequency"
+        }
+      ]
+    },
+    {
+      "id": "tenure",
+      "title": "Tenure at Church",
+      "breakdown": [
+        {
+          "group": "1-2 years",
+          "n": 49,
+          "pctOfChurch": 23.33,
+          "avgMaturity": 3.33,
+          "maturityVsChurch": -0.07,
+          "growingPct": 67.35,
+          "fadingPct": 10.2,
+          "directionalOnly": false
+        },
+        {
+          "group": "Less than 1 year",
+          "n": 45,
+          "pctOfChurch": 21.43,
+          "avgMaturity": 3.56,
+          "maturityVsChurch": 0.16,
+          "growingPct": 68.89,
+          "fadingPct": 13.33,
+          "directionalOnly": false
+        },
+        {
+          "group": "11 or more years",
+          "n": 44,
+          "pctOfChurch": 20.95,
+          "avgMaturity": 3.25,
+          "maturityVsChurch": -0.15,
+          "growingPct": 65.91,
+          "fadingPct": 6.82,
+          "directionalOnly": false
+        },
+        {
+          "group": "6-10 years",
+          "n": 41,
+          "pctOfChurch": 19.52,
+          "avgMaturity": 3.54,
+          "maturityVsChurch": 0.14,
+          "growingPct": 60.98,
+          "fadingPct": 21.95,
+          "directionalOnly": false
+        },
+        {
+          "group": "3-5 years",
+          "n": 31,
+          "pctOfChurch": 14.76,
+          "avgMaturity": 3.32,
+          "maturityVsChurch": -0.08,
+          "growingPct": 74.19,
+          "fadingPct": 12.9,
+          "directionalOnly": false
+        }
+      ],
+      "insights": []
+    },
+    {
+      "id": "smallGroupFrequency",
+      "title": "Small Group Participation",
+      "breakdown": [
+        {
+          "group": "A few times/month",
+          "n": 79,
+          "pctOfChurch": 37.62,
+          "avgMaturity": 3.87,
+          "maturityVsChurch": 0.47,
+          "growingPct": 69.62,
+          "fadingPct": 13.92,
+          "directionalOnly": false
+        },
+        {
+          "group": "Every week",
+          "n": 63,
+          "pctOfChurch": 30,
+          "avgMaturity": 3.71,
+          "maturityVsChurch": 0.31,
+          "growingPct": 53.97,
+          "fadingPct": 14.29,
+          "directionalOnly": false
+        },
+        {
+          "group": "Infrequently or never",
+          "n": 27,
+          "pctOfChurch": 12.86,
+          "avgMaturity": 2.37,
+          "maturityVsChurch": -1.03,
+          "growingPct": 81.48,
+          "fadingPct": 3.7,
+          "directionalOnly": false
+        },
+        {
+          "group": "Monthly",
+          "n": 23,
+          "pctOfChurch": 10.95,
+          "avgMaturity": 2.57,
+          "maturityVsChurch": -0.83,
+          "growingPct": 69.57,
+          "fadingPct": 13.04,
+          "directionalOnly": false
+        },
+        {
+          "group": "Every few months",
+          "n": 18,
+          "pctOfChurch": 8.57,
+          "avgMaturity": 2.83,
+          "maturityVsChurch": -0.57,
+          "growingPct": 77.78,
+          "fadingPct": 16.67,
+          "directionalOnly": false
+        }
+      ],
+      "insights": [
+        {
+          "kind": "strength",
+          "headline": "A few times/month (Small Group Participation) is a bright spot — running 0.47 points above the church average in spiritual maturity.",
+          "detail": "79 respondents (37.62% of the group) average 3.87 on the maturity scale, vs. the church-wide average. 69.62% report they're currently growing; 13.92% report fading.",
+          "corroboration": 1,
+          "directionalOnly": false,
+          "section": "Demographics — Small Group Participation"
+        },
+        {
+          "kind": "strength",
+          "headline": "Every week (Small Group Participation) is a bright spot — running 0.31 points above the church average in spiritual maturity.",
+          "detail": "63 respondents (30% of the group) average 3.71 on the maturity scale, vs. the church-wide average. 53.97% report they're currently growing; 14.29% report fading.",
+          "corroboration": 1,
+          "directionalOnly": false,
+          "section": "Demographics — Small Group Participation"
+        },
+        {
+          "kind": "opportunity",
+          "headline": "Infrequently or never (Small Group Participation) is running 1.03 points below the church average in spiritual maturity.",
+          "detail": "27 respondents (12.86% of the group) average 2.37 on the maturity scale, vs. the church-wide average. 81.48% report they're currently growing; 3.7% report fading.",
+          "corroboration": 1,
+          "directionalOnly": false,
+          "section": "Demographics — Small Group Participation"
+        },
+        {
+          "kind": "opportunity",
+          "headline": "Monthly (Small Group Participation) is running 0.83 points below the church average in spiritual maturity.",
+          "detail": "23 respondents (10.95% of the group) average 2.57 on the maturity scale, vs. the church-wide average. 69.57% report they're currently growing; 13.04% report fading.",
+          "corroboration": 1,
+          "directionalOnly": false,
+          "section": "Demographics — Small Group Participation"
+        },
+        {
+          "kind": "opportunity",
+          "headline": "Every few months (Small Group Participation) is running 0.57 points below the church average in spiritual maturity.",
+          "detail": "18 respondents (8.57% of the group) average 2.83 on the maturity scale, vs. the church-wide average. 77.78% report they're currently growing; 16.67% report fading.",
+          "corroboration": 1,
+          "directionalOnly": false,
+          "section": "Demographics — Small Group Participation"
+        }
+      ]
+    },
+    {
+      "id": "volunteerFrequency",
+      "title": "Volunteering Frequency",
+      "breakdown": [
+        {
+          "group": "Monthly",
+          "n": 64,
+          "pctOfChurch": 30.48,
+          "avgMaturity": 3.69,
+          "maturityVsChurch": 0.29,
+          "growingPct": 73.44,
+          "fadingPct": 9.38,
+          "directionalOnly": false
+        },
+        {
+          "group": "Every week",
+          "n": 63,
+          "pctOfChurch": 30,
+          "avgMaturity": 3.62,
+          "maturityVsChurch": 0.22,
+          "growingPct": 52.38,
+          "fadingPct": 19.05,
+          "directionalOnly": false
+        },
+        {
+          "group": "A few times/month",
+          "n": 44,
+          "pctOfChurch": 20.95,
+          "avgMaturity": 3.5,
+          "maturityVsChurch": 0.1,
+          "growingPct": 72.73,
+          "fadingPct": 13.64,
+          "directionalOnly": false
+        },
+        {
+          "group": "Every few months",
+          "n": 25,
+          "pctOfChurch": 11.9,
+          "avgMaturity": 2.6,
+          "maturityVsChurch": -0.8,
+          "growingPct": 80,
+          "fadingPct": 8,
+          "directionalOnly": false
+        },
+        {
+          "group": "Infrequently or never",
+          "n": 14,
+          "pctOfChurch": 6.67,
+          "avgMaturity": 2.21,
+          "maturityVsChurch": -1.19,
+          "growingPct": 64.29,
+          "fadingPct": 7.14,
+          "directionalOnly": true
+        }
+      ],
+      "insights": [
+        {
+          "kind": "opportunity",
+          "headline": "Every few months (Volunteering Frequency) is running 0.8 points below the church average in spiritual maturity.",
+          "detail": "25 respondents (11.9% of the group) average 2.6 on the maturity scale, vs. the church-wide average. 80% report they're currently growing; 8% report fading.",
+          "corroboration": 1,
+          "directionalOnly": false,
+          "section": "Demographics — Volunteering Frequency"
+        },
+        {
+          "kind": "opportunity",
+          "headline": "Infrequently or never (Volunteering Frequency) is running 1.19 points below the church average in spiritual maturity.",
+          "detail": "14 respondents (6.67% of the group) average 2.21 on the maturity scale, vs. the church-wide average. 64.29% report they're currently growing; 7.14% report fading.",
+          "corroboration": 1,
+          "directionalOnly": true,
+          "section": "Demographics — Volunteering Frequency"
+        }
+      ]
+    },
+    {
+      "id": "raceEthnicity",
+      "title": "Race / Ethnicity",
+      "breakdown": [
+        {
+          "group": "White/Caucasian",
+          "n": 36,
+          "pctOfChurch": 17.14,
+          "avgMaturity": 3.39,
+          "maturityVsChurch": -0.01,
+          "growingPct": 75,
+          "fadingPct": 8.33,
+          "directionalOnly": false
+        },
+        {
+          "group": "Hispanic descent",
+          "n": 32,
+          "pctOfChurch": 15.24,
+          "avgMaturity": 3.41,
+          "maturityVsChurch": 0.01,
+          "growingPct": 56.25,
+          "fadingPct": 12.5,
+          "directionalOnly": false
+        },
+        {
+          "group": "East Indian descent",
+          "n": 31,
+          "pctOfChurch": 14.76,
+          "avgMaturity": 3.52,
+          "maturityVsChurch": 0.12,
+          "growingPct": 70.97,
+          "fadingPct": 9.68,
+          "directionalOnly": false
+        },
+        {
+          "group": "Black/African descent",
+          "n": 30,
+          "pctOfChurch": 14.29,
+          "avgMaturity": 3.27,
+          "maturityVsChurch": -0.13,
+          "growingPct": 63.33,
+          "fadingPct": 23.33,
+          "directionalOnly": false
+        },
+        {
+          "group": "Asian descent",
+          "n": 29,
+          "pctOfChurch": 13.81,
+          "avgMaturity": 3.14,
+          "maturityVsChurch": -0.26,
+          "growingPct": 72.41,
+          "fadingPct": 17.24,
+          "directionalOnly": false
+        },
+        {
+          "group": "From multiple races",
+          "n": 27,
+          "pctOfChurch": 12.86,
+          "avgMaturity": 3.74,
+          "maturityVsChurch": 0.34,
+          "growingPct": 59.26,
+          "fadingPct": 7.41,
+          "directionalOnly": false
+        },
+        {
+          "group": "Native People/First Nations",
+          "n": 25,
+          "pctOfChurch": 11.9,
+          "avgMaturity": 3.36,
+          "maturityVsChurch": -0.04,
+          "growingPct": 72,
+          "fadingPct": 12,
+          "directionalOnly": false
+        }
+      ],
+      "insights": [
+        {
+          "kind": "strength",
+          "headline": "From multiple races (Race / Ethnicity) is a bright spot — running 0.34 points above the church average in spiritual maturity.",
+          "detail": "27 respondents (12.86% of the group) average 3.74 on the maturity scale, vs. the church-wide average. 59.26% report they're currently growing; 7.41% report fading.",
+          "corroboration": 1,
+          "directionalOnly": false,
+          "section": "Demographics — Race / Ethnicity"
+        }
+      ]
+    },
+    {
+      "id": "childrenInHousehold",
+      "title": "Children in Household",
+      "breakdown": [
+        {
+          "group": "No children in household",
+          "n": 124,
+          "pctOfChurch": 59.05,
+          "avgMaturity": 3.38,
+          "maturityVsChurch": -0.02,
+          "growingPct": 65.32,
+          "fadingPct": 13.71,
+          "directionalOnly": false
+        },
+        {
+          "group": "Has children in household",
+          "n": 86,
+          "pctOfChurch": 40.95,
+          "avgMaturity": 3.43,
+          "maturityVsChurch": 0.03,
+          "growingPct": 69.77,
+          "fadingPct": 11.63,
+          "directionalOnly": false
+        }
+      ],
+      "insights": []
+    }
+  ],
+  "engagement": {
+    "insights": []
+  },
+  "maturityAndChange": {
+    "distribution": [
+      {
+        "label": "Distant",
+        "count": 11,
+        "pct": 5.24
+      },
+      {
+        "label": "Exploring",
+        "count": 28,
+        "pct": 13.33
+      },
+      {
+        "label": "Believing",
+        "count": 67,
+        "pct": 31.9
+      },
+      {
+        "label": "Trusting",
+        "count": 74,
+        "pct": 35.24
+      },
+      {
+        "label": "God Centered",
+        "count": 30,
+        "pct": 14.29
+      }
+    ],
+    "averageMaturity": 3.4,
+    "funnel": [
+      {
+        "fromLabel": "Distant",
+        "toLabel": "Exploring",
+        "fromCount": 11,
+        "toOrHigherCount": 199,
+        "advanceRate": 0.95
+      },
+      {
+        "fromLabel": "Exploring",
+        "toLabel": "Believing",
+        "fromCount": 28,
+        "toOrHigherCount": 171,
+        "advanceRate": 0.81
+      },
+      {
+        "fromLabel": "Believing",
+        "toLabel": "Trusting",
+        "fromCount": 67,
+        "toOrHigherCount": 104,
+        "advanceRate": 0.5
+      },
+      {
+        "fromLabel": "Trusting",
+        "toLabel": "God Centered",
+        "fromCount": 74,
+        "toOrHigherCount": 30,
+        "advanceRate": 0.14
+      }
+    ],
+    "changeByMaturity": [
+      {
+        "maturityLabel": "Distant",
+        "n": 11,
+        "growingPct": 63.64,
+        "sameOrFadingPct": 36.36
+      },
+      {
+        "maturityLabel": "Exploring",
+        "n": 28,
+        "growingPct": 71.43,
+        "sameOrFadingPct": 28.57
+      },
+      {
+        "maturityLabel": "Believing",
+        "n": 67,
+        "growingPct": 77.61,
+        "sameOrFadingPct": 22.39
+      },
+      {
+        "maturityLabel": "Trusting",
+        "n": 74,
+        "growingPct": 75.68,
+        "sameOrFadingPct": 24.32
+      },
+      {
+        "maturityLabel": "God Centered",
+        "n": 30,
+        "growingPct": 20,
+        "sameOrFadingPct": 80
+      }
+    ],
+    "plateauAtTopFlag": true,
+    "insights": [
+      {
+        "kind": "opportunity",
+        "headline": "Respondents at the most mature stage report the lowest rate of active growth.",
+        "detail": "Only 20% of \"God Centered\" respondents (n=30) say they're currently growing, vs. 74.91% across earlier stages. This can be a healthy plateau, or a sign that mature believers need a different kind of challenge or invitation to keep growing.",
+        "corroboration": 1,
+        "directionalOnly": false,
+        "section": "Maturity & Change"
+      }
+    ]
+  },
+  "pathwaysByGoal": [
+    {
+      "goal": "Trusting Jesus",
+      "goalAverage": 3.66,
+      "pathways": [
+        {
+          "num": 1,
+          "name": "Believing God's Story",
+          "goal": "Trusting Jesus",
+          "churchAverage": 3.8,
+          "band": "high",
+          "trajectory": [
+            {
+              "stage": "Distant",
+              "score": 2.53,
+              "n": 11
+            },
+            {
+              "stage": "Exploring",
+              "score": 3.11,
+              "n": 28
+            },
+            {
+              "stage": "Believing",
+              "score": 3.58,
+              "n": 67
+            },
+            {
+              "stage": "Trusting",
+              "score": 4.08,
+              "n": 74
+            },
+            {
+              "stage": "God Centered",
+              "score": 4.7,
+              "n": 30
+            }
+          ],
+          "trajectoryShape": "early-loaded",
+          "reversals": []
+        },
+        {
+          "num": 2,
+          "name": "Receiving God's Love",
+          "goal": "Trusting Jesus",
+          "churchAverage": 3.72,
+          "band": "medium",
+          "trajectory": [
+            {
+              "stage": "Distant",
+              "score": 2.32,
+              "n": 11
+            },
+            {
+              "stage": "Exploring",
+              "score": 3,
+              "n": 28
+            },
+            {
+              "stage": "Believing",
+              "score": 3.49,
+              "n": 67
+            },
+            {
+              "stage": "Trusting",
+              "score": 4.03,
+              "n": 74
+            },
+            {
+              "stage": "God Centered",
+              "score": 4.67,
+              "n": 30
+            }
+          ],
+          "trajectoryShape": "early-loaded",
+          "reversals": []
+        },
+        {
+          "num": 3,
+          "name": "My Identity",
+          "goal": "Trusting Jesus",
+          "churchAverage": 3.57,
+          "band": "medium",
+          "trajectory": [
+            {
+              "stage": "Distant",
+              "score": 2.3,
+              "n": 11
+            },
+            {
+              "stage": "Exploring",
+              "score": 2.77,
+              "n": 28
+            },
+            {
+              "stage": "Believing",
+              "score": 3.33,
+              "n": 67
+            },
+            {
+              "stage": "Trusting",
+              "score": 3.91,
+              "n": 74
+            },
+            {
+              "stage": "God Centered",
+              "score": 4.47,
+              "n": 30
+            }
+          ],
+          "trajectoryShape": "early-loaded",
+          "reversals": []
+        },
+        {
+          "num": 4,
+          "name": "Facing Challenges",
+          "goal": "Trusting Jesus",
+          "churchAverage": 3.56,
+          "band": "medium",
+          "trajectory": [
+            {
+              "stage": "Distant",
+              "score": 2.27,
+              "n": 11
+            },
+            {
+              "stage": "Exploring",
+              "score": 2.85,
+              "n": 28
+            },
+            {
+              "stage": "Believing",
+              "score": 3.32,
+              "n": 67
+            },
+            {
+              "stage": "Trusting",
+              "score": 3.89,
+              "n": 74
+            },
+            {
+              "stage": "God Centered",
+              "score": 4.43,
+              "n": 30
+            }
+          ],
+          "trajectoryShape": "early-loaded",
+          "reversals": []
+        }
+      ]
+    },
+    {
+      "goal": "Experiencing Jesus",
+      "goalAverage": 3.5,
+      "pathways": [
+        {
+          "num": 5,
+          "name": "Responding to God",
+          "goal": "Experiencing Jesus",
+          "churchAverage": 3.44,
+          "band": "low",
+          "trajectory": [
+            {
+              "stage": "Distant",
+              "score": 2.14,
+              "n": 11
+            },
+            {
+              "stage": "Exploring",
+              "score": 2.78,
+              "n": 28
+            },
+            {
+              "stage": "Believing",
+              "score": 3.17,
+              "n": 67
+            },
+            {
+              "stage": "Trusting",
+              "score": 3.77,
+              "n": 74
+            },
+            {
+              "stage": "God Centered",
+              "score": 4.35,
+              "n": 30
+            }
+          ],
+          "trajectoryShape": "early-loaded",
+          "reversals": []
+        },
+        {
+          "num": 6,
+          "name": "Communicating with God",
+          "goal": "Experiencing Jesus",
+          "churchAverage": 3.62,
+          "band": "medium",
+          "trajectory": [
+            {
+              "stage": "Distant",
+              "score": 2.25,
+              "n": 11
+            },
+            {
+              "stage": "Exploring",
+              "score": 2.89,
+              "n": 28
+            },
+            {
+              "stage": "Believing",
+              "score": 3.39,
+              "n": 67
+            },
+            {
+              "stage": "Trusting",
+              "score": 3.93,
+              "n": 74
+            },
+            {
+              "stage": "God Centered",
+              "score": 4.53,
+              "n": 30
+            }
+          ],
+          "trajectoryShape": "early-loaded",
+          "reversals": []
+        },
+        {
+          "num": 7,
+          "name": "Growing my Faith",
+          "goal": "Experiencing Jesus",
+          "churchAverage": 3.46,
+          "band": "low",
+          "trajectory": [
+            {
+              "stage": "Distant",
+              "score": 2.14,
+              "n": 11
+            },
+            {
+              "stage": "Exploring",
+              "score": 2.82,
+              "n": 28
+            },
+            {
+              "stage": "Believing",
+              "score": 3.21,
+              "n": 67
+            },
+            {
+              "stage": "Trusting",
+              "score": 3.76,
+              "n": 74
+            },
+            {
+              "stage": "God Centered",
+              "score": 4.32,
+              "n": 30
+            }
+          ],
+          "trajectoryShape": "early-loaded",
+          "reversals": []
+        },
+        {
+          "num": 8,
+          "name": "Worshipping",
+          "goal": "Experiencing Jesus",
+          "churchAverage": 3.46,
+          "band": "low",
+          "trajectory": [
+            {
+              "stage": "Distant",
+              "score": 2.06,
+              "n": 11
+            },
+            {
+              "stage": "Exploring",
+              "score": 2.82,
+              "n": 28
+            },
+            {
+              "stage": "Believing",
+              "score": 3.21,
+              "n": 67
+            },
+            {
+              "stage": "Trusting",
+              "score": 3.78,
+              "n": 74
+            },
+            {
+              "stage": "God Centered",
+              "score": 4.34,
+              "n": 30
+            }
+          ],
+          "trajectoryShape": "early-loaded",
+          "reversals": []
+        }
+      ]
+    },
+    {
+      "goal": "Reflecting Jesus",
+      "goalAverage": 3.45,
+      "pathways": [
+        {
+          "num": 9,
+          "name": "Expressing God's Love",
+          "goal": "Reflecting Jesus",
+          "churchAverage": 3.59,
+          "band": "medium",
+          "trajectory": [
+            {
+              "stage": "Distant",
+              "score": 2.24,
+              "n": 11
+            },
+            {
+              "stage": "Exploring",
+              "score": 2.89,
+              "n": 28
+            },
+            {
+              "stage": "Believing",
+              "score": 3.37,
+              "n": 67
+            },
+            {
+              "stage": "Trusting",
+              "score": 3.91,
+              "n": 74
+            },
+            {
+              "stage": "God Centered",
+              "score": 4.45,
+              "n": 30
+            }
+          ],
+          "trajectoryShape": "early-loaded",
+          "reversals": []
+        },
+        {
+          "num": 10,
+          "name": "Practicing my Faith",
+          "goal": "Reflecting Jesus",
+          "churchAverage": 3.45,
+          "band": "low",
+          "trajectory": [
+            {
+              "stage": "Distant",
+              "score": 2.11,
+              "n": 11
+            },
+            {
+              "stage": "Exploring",
+              "score": 2.78,
+              "n": 28
+            },
+            {
+              "stage": "Believing",
+              "score": 3.2,
+              "n": 67
+            },
+            {
+              "stage": "Trusting",
+              "score": 3.78,
+              "n": 74
+            },
+            {
+              "stage": "God Centered",
+              "score": 4.33,
+              "n": 30
+            }
+          ],
+          "trajectoryShape": "early-loaded",
+          "reversals": []
+        },
+        {
+          "num": 11,
+          "name": "Journeying with Others",
+          "goal": "Reflecting Jesus",
+          "churchAverage": 3.32,
+          "band": "low",
+          "trajectory": [
+            {
+              "stage": "Distant",
+              "score": 2.11,
+              "n": 11
+            },
+            {
+              "stage": "Exploring",
+              "score": 2.7,
+              "n": 28
+            },
+            {
+              "stage": "Believing",
+              "score": 3.25,
+              "n": 67
+            },
+            {
+              "stage": "Trusting",
+              "score": 3.75,
+              "n": 74
+            },
+            {
+              "stage": "God Centered",
+              "score": 3.44,
+              "n": 30
+            }
+          ],
+          "trajectoryShape": "non-monotonic",
+          "reversals": [
+            {
+              "fromStage": "Trusting",
+              "toStage": "God Centered",
+              "pointDrop": 0.31
+            }
+          ]
+        },
+        {
+          "num": 12,
+          "name": "Reconciling",
+          "goal": "Reflecting Jesus",
+          "churchAverage": 3.44,
+          "band": "low",
+          "trajectory": [
+            {
+              "stage": "Distant",
+              "score": 2.06,
+              "n": 11
+            },
+            {
+              "stage": "Exploring",
+              "score": 2.74,
+              "n": 28
+            },
+            {
+              "stage": "Believing",
+              "score": 3.22,
+              "n": 67
+            },
+            {
+              "stage": "Trusting",
+              "score": 3.74,
+              "n": 74
+            },
+            {
+              "stage": "God Centered",
+              "score": 4.33,
+              "n": 30
+            }
+          ],
+          "trajectoryShape": "early-loaded",
+          "reversals": []
+        }
+      ]
+    },
+    {
+      "goal": "Serving Jesus",
+      "goalAverage": 3.52,
+      "pathways": [
+        {
+          "num": 13,
+          "name": "Partnering with God",
+          "goal": "Serving Jesus",
+          "churchAverage": 3.66,
+          "band": "medium",
+          "trajectory": [
+            {
+              "stage": "Distant",
+              "score": 2.38,
+              "n": 11
+            },
+            {
+              "stage": "Exploring",
+              "score": 2.96,
+              "n": 28
+            },
+            {
+              "stage": "Believing",
+              "score": 3.44,
+              "n": 67
+            },
+            {
+              "stage": "Trusting",
+              "score": 3.97,
+              "n": 74
+            },
+            {
+              "stage": "God Centered",
+              "score": 4.52,
+              "n": 30
+            }
+          ],
+          "trajectoryShape": "early-loaded",
+          "reversals": []
+        },
+        {
+          "num": 14,
+          "name": "Stewarding Resources",
+          "goal": "Serving Jesus",
+          "churchAverage": 3.44,
+          "band": "low",
+          "trajectory": [
+            {
+              "stage": "Distant",
+              "score": 2.09,
+              "n": 11
+            },
+            {
+              "stage": "Exploring",
+              "score": 2.74,
+              "n": 28
+            },
+            {
+              "stage": "Believing",
+              "score": 3.21,
+              "n": 67
+            },
+            {
+              "stage": "Trusting",
+              "score": 3.75,
+              "n": 74
+            },
+            {
+              "stage": "God Centered",
+              "score": 4.34,
+              "n": 30
+            }
+          ],
+          "trajectoryShape": "early-loaded",
+          "reversals": []
+        },
+        {
+          "num": 15,
+          "name": "Showing Compassion",
+          "goal": "Serving Jesus",
+          "churchAverage": 3.44,
+          "band": "low",
+          "trajectory": [
+            {
+              "stage": "Distant",
+              "score": 2.05,
+              "n": 11
+            },
+            {
+              "stage": "Exploring",
+              "score": 2.71,
+              "n": 28
+            },
+            {
+              "stage": "Believing",
+              "score": 3.2,
+              "n": 67
+            },
+            {
+              "stage": "Trusting",
+              "score": 3.77,
+              "n": 74
+            },
+            {
+              "stage": "God Centered",
+              "score": 4.38,
+              "n": 30
+            }
+          ],
+          "trajectoryShape": "early-loaded",
+          "reversals": []
+        },
+        {
+          "num": 16,
+          "name": "Acting Justly",
+          "goal": "Serving Jesus",
+          "churchAverage": 3.53,
+          "band": "medium",
+          "trajectory": [
+            {
+              "stage": "Distant",
+              "score": 2.3,
+              "n": 11
+            },
+            {
+              "stage": "Exploring",
+              "score": 2.83,
+              "n": 28
+            },
+            {
+              "stage": "Believing",
+              "score": 3.29,
+              "n": 67
+            },
+            {
+              "stage": "Trusting",
+              "score": 3.86,
+              "n": 74
+            },
+            {
+              "stage": "God Centered",
+              "score": 4.39,
+              "n": 30
+            }
+          ],
+          "trajectoryShape": "early-loaded",
+          "reversals": []
+        }
+      ]
+    }
+  ],
+  "dimensions": {
+    "rollups": [
+      {
+        "id": "beliefs-gods-character",
+        "name": "My Beliefs — God's Character & Relationship",
+        "type": "belief",
+        "churchAverage": 3.8,
+        "rank": 2
+      },
+      {
+        "id": "beliefs-kingdom-story",
+        "name": "My Beliefs — God's Kingdom Story",
+        "type": "belief",
+        "churchAverage": 3.81,
+        "rank": 1
+      },
+      {
+        "id": "identity-life-with-god",
+        "name": "My Identity — Life with God Practices",
+        "type": "practice",
+        "churchAverage": 3.44,
+        "rank": 5
+      },
+      {
+        "id": "identity-inner-life",
+        "name": "My Identity — Inner Life Practices",
+        "type": "practice",
+        "churchAverage": 3.45,
+        "rank": 4
+      },
+      {
+        "id": "actions-relationships",
+        "name": "My Actions — Relationships & Growth",
+        "type": "practice",
+        "churchAverage": 3.36,
+        "rank": 7
+      },
+      {
+        "id": "actions-compassion-justice",
+        "name": "My Actions — Compassion & Justice",
+        "type": "practice",
+        "churchAverage": 3.43,
+        "rank": 6
+      },
+      {
+        "id": "actions-partnering-with-god",
+        "name": "My Actions — Partnering with God for Others",
+        "type": "practice",
+        "churchAverage": 3.49,
+        "rank": 3
+      }
+    ],
+    "beliefPracticeGaps": [
+      {
+        "pathwayNum": 2,
+        "pathwayName": "Receiving God's Love",
+        "beliefAvg": 3.82,
+        "practiceAvg": 3.44,
+        "gap": 0.38
+      },
+      {
+        "pathwayNum": 3,
+        "pathwayName": "My Identity",
+        "beliefAvg": 3.83,
+        "practiceAvg": 3.44,
+        "gap": 0.39
+      },
+      {
+        "pathwayNum": 4,
+        "pathwayName": "Facing Challenges",
+        "beliefAvg": 3.76,
+        "practiceAvg": 3.46,
+        "gap": 0.3
+      },
+      {
+        "pathwayNum": 6,
+        "pathwayName": "Communicating with God",
+        "beliefAvg": 3.8,
+        "practiceAvg": 3.43,
+        "gap": 0.37
+      },
+      {
+        "pathwayNum": 9,
+        "pathwayName": "Expressing God's Love",
+        "beliefAvg": 3.81,
+        "practiceAvg": 3.45,
+        "gap": 0.36
+      },
+      {
+        "pathwayNum": 13,
+        "pathwayName": "Partnering with God",
+        "beliefAvg": 3.81,
+        "practiceAvg": 3.44,
+        "gap": 0.37
+      },
+      {
+        "pathwayNum": 16,
+        "pathwayName": "Acting Justly",
+        "beliefAvg": 3.78,
+        "practiceAvg": 3.41,
+        "gap": 0.37
+      }
+    ],
+    "insights": [
+      {
+        "kind": "opportunity",
+        "headline": "Stated belief runs ahead of lived practice church-wide.",
+        "detail": "Belief items average 3.81 vs. 3.43 for practice items — a 0.37-point gap. People affirm the truths more readily than they consistently live them out day to day.",
+        "corroboration": 1,
+        "directionalOnly": false,
+        "section": "Beliefs & Practices"
+      },
+      {
+        "kind": "strength",
+        "headline": "My Beliefs — God's Kingdom Story is the strongest of the seven core dimensions.",
+        "detail": "Church average of 3.81 on this dimension, the highest of the seven measured.",
+        "corroboration": 1,
+        "directionalOnly": false,
+        "section": "Beliefs & Practices"
+      },
+      {
+        "kind": "opportunity",
+        "headline": "My Actions — Relationships & Growth is the area with the most room to grow.",
+        "detail": "Church average of 3.36 on this dimension, the lowest of the seven measured.",
+        "corroboration": 1,
+        "directionalOnly": false,
+        "section": "Beliefs & Practices"
+      }
+    ]
+  },
+  "bottleneckMap": {
+    "weakestPathways": [
+      {
+        "name": "Journeying with Others",
+        "goal": "Reflecting Jesus",
+        "score": 3.32
+      },
+      {
+        "name": "Responding to God",
+        "goal": "Experiencing Jesus",
+        "score": 3.44
+      },
+      {
+        "name": "Reconciling",
+        "goal": "Reflecting Jesus",
+        "score": 3.44
+      }
+    ],
+    "reciprocityChecks": [
+      {
+        "pathwayName": "Journeying with Others",
+        "givingScore": 3.81,
+        "receivingScore": 2.83,
+        "gap": 0.98,
+        "n": 210,
+        "directionalOnly": false
+      }
+    ],
+    "insights": [
+      {
+        "kind": "opportunity",
+        "headline": "Journeying with Others is the pathway with the most room to grow church-wide.",
+        "detail": "Church average of 3.32 on a 0-5 scale, part of the \"Reflecting Jesus\" goal area.",
+        "corroboration": 1,
+        "directionalOnly": false,
+        "section": "Bottleneck Map"
+      },
+      {
+        "kind": "opportunity",
+        "headline": "Responding to God is the pathway with the most room to grow church-wide.",
+        "detail": "Church average of 3.44 on a 0-5 scale, part of the \"Experiencing Jesus\" goal area.",
+        "corroboration": 1,
+        "directionalOnly": false,
+        "section": "Bottleneck Map"
+      },
+      {
+        "kind": "opportunity",
+        "headline": "Reconciling is the pathway with the most room to grow church-wide.",
+        "detail": "Church average of 3.44 on a 0-5 scale, part of the \"Reflecting Jesus\" goal area.",
+        "corroboration": 1,
+        "directionalOnly": false,
+        "section": "Bottleneck Map"
+      },
+      {
+        "kind": "opportunity",
+        "headline": "Journeying with Others: giving runs ahead of receiving.",
+        "detail": "In \"Journeying with Others,\" respondents score 3.81 on giving support to others vs. 2.83 on receiving it themselves (a 0.98-point gap). This one-directional pattern can point to relational isolation even among people who are relationally active.",
+        "corroboration": 1,
+        "directionalOnly": false,
+        "section": "Bottleneck Map"
+      }
+    ]
+  },
+  "crossCutting": {
+    "insights": [
+      {
+        "kind": "opportunity",
+        "headline": "Journeying with Others and My Actions — Relationships & Growth point to the same growth edge.",
+        "detail": "Both the pathway-level and dimension-level analysis independently surface this same area as the church's lowest-scoring, which raises confidence this is a real pattern rather than noise.",
+        "corroboration": 2,
+        "directionalOnly": false,
+        "section": "Cross-Cutting"
+      }
+    ]
+  },
+  "suggestedDebriefQuestions": [
+    "What's behind our strength in \"Every week (Attendance Frequency) is a bright spot — running 0.62 points above the church average in spiritual maturity\"? How can we build on it intentionally?",
+    "What would it look like to take one concrete step this quarter on \"Journeying with Others and My Actions — Relationships & Growth point to the same growth edge\"?",
+    "Our most mature members report the least active growth — is that a healthy plateau, or do they need a new kind of challenge or invitation?",
+    "\"Journeying with Others\" is our lowest-scoring pathway — what's one practical, low-barrier way we could invite people into it this season?",
+    "Which demographic group in this report most surprised you — and why?"
+  ],
+  "dataNotes": [
+    "Findings marked \"directional only\" come from a subgroup smaller than 15 respondents. Treat them as a hint worth watching, not a confirmed pattern."
+  ]
+}

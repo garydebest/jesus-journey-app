@@ -7,8 +7,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { JJLogo } from "@/lib/logo";
 import { WaveReportView } from "@/components/WaveReportView";
+import { DebriefingReportView } from "@/components/DebriefingReportView";
 import { useAdminAuth, adminApiRequest, adminApiRequestBlob } from "@/lib/adminAuth";
 import type { WaveAggregateSummary } from "@shared/aggregate";
+import type { DebriefingReport } from "@shared/debriefing/types";
 
 interface AdminChurch {
   id: string;
@@ -37,6 +39,8 @@ interface AdminWaveEntry {
   hasReport: boolean;
   hasReportPdf: boolean;
   hasCommentsReportPdf: boolean;
+  hasDebriefingReport: boolean;
+  hasDebriefingReportPdf: boolean;
 }
 
 interface AdminChurchGroup {
@@ -55,6 +59,9 @@ export function AdminOverview() {
   const [reportSummary, setReportSummary] = useState<WaveAggregateSummary | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [downloadingCommentsId, setDownloadingCommentsId] = useState<string | null>(null);
+  const [downloadingDebriefingId, setDownloadingDebriefingId] = useState<string | null>(null);
+  const [debriefingWaveEntry, setDebriefingWaveEntry] = useState<AdminWaveEntry | null>(null);
+  const [debriefingReport, setDebriefingReport] = useState<DebriefingReport | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -119,6 +126,37 @@ export function AdminOverview() {
       setError(String(err?.message ?? "Full PDF report is not available."));
     } finally {
       setDownloadingId(null);
+    }
+  }
+
+  async function handleViewDebriefing(entry: AdminWaveEntry) {
+    setDebriefingWaveEntry(entry);
+    setDebriefingReport(null);
+    try {
+      const res = await adminApiRequest(token, "GET", `/api/admin/waves/${entry.wave.id}/debriefing`);
+      const json = await res.json();
+      setDebriefingReport(json.debriefing.report);
+    } catch {
+      // dialog shows fallback text
+    }
+  }
+
+  async function handleDownloadDebriefingPdf(entry: AdminWaveEntry) {
+    setDownloadingDebriefingId(entry.wave.id);
+    try {
+      const blob = await adminApiRequestBlob(token, `/api/admin/waves/${entry.wave.id}/debriefing.pdf`);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "Debriefing-Report.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setError(String(err?.message ?? "Debriefing report PDF is not available."));
+    } finally {
+      setDownloadingDebriefingId(null);
     }
   }
 
@@ -252,6 +290,27 @@ export function AdminOverview() {
                                   {downloadingCommentsId === entry.wave.id ? "Preparing..." : "Comments PDF"}
                                 </Button>
                               )}
+                              {entry.hasDebriefingReport && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleViewDebriefing(entry)}
+                                  data-testid={`button-admin-debriefing-${entry.wave.id}`}
+                                >
+                                  Debriefing report
+                                </Button>
+                              )}
+                              {entry.hasDebriefingReportPdf && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDownloadDebriefingPdf(entry)}
+                                  disabled={downloadingDebriefingId === entry.wave.id}
+                                  data-testid={`button-admin-download-debriefing-${entry.wave.id}`}
+                                >
+                                  {downloadingDebriefingId === entry.wave.id ? "Preparing..." : "Debriefing PDF"}
+                                </Button>
+                              )}
                             </>
                           ) : (
                             <Button
@@ -284,6 +343,19 @@ export function AdminOverview() {
             <WaveReportView summary={reportSummary} churchName={reportChurch.name} />
           ) : (
             <p className="text-sm text-muted-foreground py-6">Loading report...</p>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!debriefingWaveEntry} onOpenChange={(open) => !open && setDebriefingWaveEntry(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Debriefing report — {debriefingWaveEntry?.wave.label}</DialogTitle>
+          </DialogHeader>
+          {debriefingReport ? (
+            <DebriefingReportView report={debriefingReport} />
+          ) : (
+            <p className="text-sm text-muted-foreground py-6">Loading debriefing report...</p>
           )}
         </DialogContent>
       </Dialog>

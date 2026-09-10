@@ -10,6 +10,7 @@ import {
   responses,
   aggregateSnapshots,
   surveyTimelinePhases,
+  debriefingReports,
   type Church,
   type InsertChurch,
   type SurveyWave,
@@ -20,6 +21,7 @@ import {
   type InsertResponse,
   type AggregateSnapshot,
   type SurveyTimelinePhase,
+  type DebriefingReportRow,
 } from "@shared/schema";
 
 const connectionString = process.env.DATABASE_URL;
@@ -183,6 +185,9 @@ export interface IStorage {
   createAggregateSnapshot(data: Omit<AggregateSnapshot, "id" | "generatedAt">): Promise<AggregateSnapshot>;
   getSnapshotByWave(waveId: string): Promise<AggregateSnapshot | undefined>;
   getSnapshotsByChurch(churchId: string): Promise<AggregateSnapshot[]>;
+  createDebriefingReport(data: Omit<DebriefingReportRow, "id" | "generatedAt">): Promise<DebriefingReportRow>;
+  getDebriefingReportByWave(waveId: string): Promise<DebriefingReportRow | undefined>;
+  setDebriefingReportPdfPath(waveId: string, reportPdfPath: string): Promise<DebriefingReportRow | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -440,6 +445,28 @@ export class DatabaseStorage implements IStorage {
 
   async getSnapshotsByChurch(churchId: string): Promise<AggregateSnapshot[]> {
     return db.select().from(aggregateSnapshots).where(eq(aggregateSnapshots.churchId, churchId));
+  }
+
+  async createDebriefingReport(data: Omit<DebriefingReportRow, "id" | "generatedAt">): Promise<DebriefingReportRow> {
+    const rows = await db
+      .insert(debriefingReports)
+      .values({ id: randomUUID(), ...data })
+      .returning();
+    return rows[0];
+  }
+
+  async getDebriefingReportByWave(waveId: string): Promise<DebriefingReportRow | undefined> {
+    const rows = await db.select().from(debriefingReports).where(eq(debriefingReports.waveId, waveId));
+    return rows[0];
+  }
+
+  async setDebriefingReportPdfPath(waveId: string, reportPdfPath: string): Promise<DebriefingReportRow | undefined> {
+    const rows = await db
+      .update(debriefingReports)
+      .set({ reportPdfPath })
+      .where(eq(debriefingReports.waveId, waveId))
+      .returning();
+    return rows[0];
   }
 }
 
