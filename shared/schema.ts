@@ -193,3 +193,23 @@ export const surveyTimelinePhases = pgTable("survey_timeline_phases", {
 
 export type SurveyTimelinePhase = typeof surveyTimelinePhases.$inferSelect;
 export type InsertSurveyTimelinePhase = typeof surveyTimelinePhases.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Debriefing Reports — admin-only analytical companion to the church report.
+// Generated once per wave, in the same close-wave request as the church
+// report, from the same raw response rows, BEFORE those rows are purged.
+// Additive only: no existing table's shape changes. One row per wave
+// (idempotent — a re-close overwrites, never duplicates).
+// ---------------------------------------------------------------------------
+export const debriefingReports = pgTable("debriefing_reports", {
+  id: text("id").primaryKey(), // uuid
+  waveId: text("wave_id").notNull().unique().references(() => surveyWaves.id),
+  churchId: text("church_id").notNull().references(() => churches.id),
+  respondentCount: integer("respondent_count").notNull(),
+  reportJson: text("report_json").notNull(), // full structured DebriefingReport (see shared/debriefing/types.ts)
+  reportPdfPath: text("report_pdf_path"), // Supabase Storage object key in the "church-reports" bucket (e.g. "<waveId>-debrief.pdf")
+  generatedAt: timestamp("generated_at", { withTimezone: true }).notNull().default(sql`now()`),
+});
+
+export type DebriefingReportRow = typeof debriefingReports.$inferSelect;
+export type InsertDebriefingReportRow = typeof debriefingReports.$inferInsert;
