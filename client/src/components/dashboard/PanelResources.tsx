@@ -34,7 +34,7 @@ export function PanelResources() {
                   {card.ctaLabel}
                 </Button>
               )}
-              {card.fullDocIndex !== undefined && <FullDoc doc={FULL_DOCS[card.fullDocIndex]} label="Read the full outline" />}
+              {card.fullDocIndex !== undefined && <FullDoc doc={FULL_DOCS[card.fullDocIndex]} label="Read the full message" />}
             </CardContent>
           </Card>
         ))}

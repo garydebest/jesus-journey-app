@@ -197,8 +197,8 @@ export const RESOURCE_CARDS: ResourceCard[] = [
   },
   {
     icon: "message",
-    title: "Sample Message Outline",
-    body: "A minimal Sunday-message outline for sharing strengths & opportunities — built to be personalized.",
+    title: "Sample Message",
+    body: "A full, ready-to-adapt Sunday message for sharing your church's strengths & opportunities — built to be personalized with your own survey results.",
     ctaLabel: "Download",
     fullDocIndex: 13,
   },

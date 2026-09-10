@@ -326,62 +326,56 @@ export const FULL_DOCS: FullDoc[] = [
 <h4>Preparing for Survey Follow-Up</h4>
 <p>After approximately 18 months, it will be time to begin looking at repeating the Jesus Journey Survey. This will give us a comprehensive look into how our profile of strengths and opportunities has evolved. We will be able to see how the soil in which we are rooted has become more fertile and how we indeed are, as a community, growing up into Christ!</p>
 <p class="doc-source">Source: Act — Making a Plan. © 2017 Jesus Journey Group. All Rights Reserved.</p>` },
-  { title: `Becoming Like Jesus (Sample Message)`, html: `<p><em>Colossians 1:28–29</em> — He is the one we are proclaiming. We are instructing everybody and teaching everybody in every kind of wisdom, so that we can present everybody grown up, complete, in the king. That’s what I am working for, struggling with all his energy which is powerfully at work within me.</p>
-<h4>Why does this matter?</h4>
-<ul>
-<li>Saying yes to Jesus is the beginning of a journey toward life at its fullest, not just a contract securing the future (if just the latter, put it in a safety deposit box and grab it when you need it).</li>
-<li>Eternal life has broken in to meet us / the whole point is to learn how to step toward it and embrace it — how? By trusting Jesus enough to become like him in everything (to become like Jesus is to become fully alive).</li>
-<li>Not just a one-time event — saying yes to Jesus is lived out one day at a time as we learn to align ourselves with God’s “unforced rhythms of grace” (the invitations that God constantly sets before us / “will you trust me enough to live this way?”).</li>
-</ul>
-<h4>Is this only the concern of fathers / mothers / church leaders?</h4>
-<ul>
-<li>“That’s what I’m working so hard at day after day, year after year…” (their job to make us like Jesus?)</li>
-<li>While God may give them that concern, first of all, most of all, primary concern for our spiritual journey needs to be our own. God has made it possible for us to really live, but it only can happen through an active partnership.</li>
-<li><em>Philippians 2:12–13</em> — Your task now is to work at bringing about your own salvation; and naturally you’ll be taking this with utter seriousness. After all, God himself is the one who’s at work among you, who provides both the will and the energy to enable you to do what pleases him.</li>
-<li>We can’t do it without God; God evidently won’t do it without us.</li>
-<li><em>2 Peter 1:3, 5</em> — Everything that goes into a life of pleasing God has been miraculously given to us by getting to know, personally and intimately, the One who invited us to God. The best invitation we ever received!… So don’t lose a minute in building on what you’ve been given (make every effort), complementing your basic faith with good character, spiritual understanding, alert discipline, passionate patience, reverent wonder, warm friendliness, and generous love, each dimension fitting into and developing the others. With these qualities active and growing in your lives, no grass will grow under your feet, no day will pass without its reward as you mature in your experience of our Master Jesus.</li>
-<li>Note: is this the way we want the process of growing to be? No! We want God to do all the heavy lifting! However, every father and mother knows that if you help your child as much as they want help, they will never grow into who they need to become.</li>
-</ul>
-<h4>How do we do this? (Fully enter into partnership with God toward growth)</h4>
-<ul>
-<li>By daily (one day at a time) trusting Jesus to show us how to truly live, and then literally doing what he shows us.</li>
-<li>Not passively but actively (constantly inviting, immersing ourselves in the story, welcoming input of others).</li>
-</ul>
-<h4>What happens if we say no?</h4>
-<ul>
-<li>“Unforced rhythms of grace” are always an invitation.</li>
-<li>If we keep ignoring our conscience, eventually we can’t hear it.</li>
-</ul>
-<h4>The importance of community</h4>
-<ul>
-<li>Thank God our journey with Jesus is walked out in community (like horses on a carousel — for as many as are down, there is an equal number who are up!).</li>
-<li><em>Hebrews 10</em> — don’t neglect meeting with each other / encourage each other constantly!</li>
-<li>This month we began a very intentional process of finding out where we are together in this Jesus Journey and discovering how to best help one another walk in it.</li>
-</ul>
-<h4>Three significant strengths to celebrate</h4>
+  { title: `Becoming Like Jesus (Sample Message)`, html: `<div class="doc-logo-header"><img src="/assets/logo-mark.png" alt="Jesus Journey logo" width="84" height="38" /><span class="doc-eyebrow">Becoming Like Jesus — Sample Message</span></div>
+<p><em>Colossians 1:28–29</em> — “He is the one we are proclaiming. We are instructing everybody and teaching everybody in every kind of wisdom, so that we can present everybody grown up, complete, in the king. That’s what I am working for, struggling with all his energy which is powerfully at work within me.”</p>
+<p>Saying yes to Jesus is the beginning of a journey toward life at its fullest — it isn’t just a contract securing our future. If that’s all it were, we could put it in a safety deposit box and pull it out only when we need it. But that’s not what Jesus offers us.</p>
+<p>Eternal life has already broken into our world to meet us. The whole point now is learning how to step toward it and embrace it. And how do we do that? By trusting Jesus enough to become like him in everything. Because becoming like Jesus isn’t a constraint on our life — it’s what it means to become fully alive.</p>
+<p>This isn’t a one-time event. Saying yes to Jesus is something we live out one day at a time, as we learn to align ourselves with what Eugene Peterson, in his paraphrase of Matthew 11:28–30, calls God’s “unforced rhythms of grace.” Every day, God sets an invitation before us: “<em>Will you trust me enough to live this way?</em>”</p>
+<h4>Why Does This Matter?</h4>
+<p>Is spiritual growth only the concern of pastors, parents, or church leaders? Paul writes, “That’s what I’m working so hard at, day after day, year after year.” Does that mean it’s their job to make us like Jesus?</p>
+<p>While God may give spiritual leaders a genuine concern for our growth, the primary responsibility for our own spiritual journey has to be ours. God has made it possible for us to really live — but that life only happens through an active partnership between us and him.</p>
+<p><em>Philippians 2:12–13</em> puts it directly: “<em>Your task now is to work at bringing about your own salvation; and naturally you’ll be taking this with utter seriousness. After all, God himself is the one who’s at work among you, who provides both the will and the energy to enable you to do what pleases him.</em>”</p>
+<p>Here’s the tension we live inside: we can’t do this without God, and God evidently won’t do it without us.</p>
+<p><em>2 Peter 1:3, 5</em> describes it this way: “<em>Everything that goes into a life of pleasing God has been miraculously given to us by getting to know, personally and intimately, the One who invited us to God. The best invitation we ever received! So don’t lose a minute in building on what you’ve been given — make every effort — complementing your basic faith with good character, spiritual understanding, alert discipline, passionate patience, reverent wonder, warm friendliness, and generous love, each dimension fitting into and developing the others. With these qualities active and growing in your lives, no grass will grow under your feet, no day will pass without its reward as you mature in your experience of our Master Jesus.</em>”</p>
+<h4>Whose Job Is This, Really?</h4>
+<p>Is this really how we’d want the process of growing to go? Honestly, probably not. Most of us would rather God do all the heavy lifting. But every parent knows a hard truth: if you help your child as much as they want to be helped, they will never grow into who they need to become. The same is true in our life with God.</p>
+<h4>How Do We Actually Do This?</h4>
+<p>We fully enter into partnership with God toward growth in a simple but demanding way: daily, one day at a time, we trust Jesus to show us how to truly live — and then we actually do what he shows us.</p>
+<p>This isn’t a passive posture. It means constantly inviting God in, immersing ourselves in his story, and welcoming the honest input of others who know us well.</p>
+<h4>What Happens If We Say No?</h4>
+<p>God’s unforced rhythms of grace are always an invitation, never a demand. But invitations can be declined — and declined again, and again. If we keep ignoring our conscience, eventually we stop being able to hear it at all. That’s not a threat; it’s simply how spiritual life works.</p>
+<h4>The Importance of Community</h4>
+<p>Thank God this journey with Jesus was never meant to be walked alone. Think of it like horses on a carousel — for as many as are down at any moment, there’s an equal number who are up, lifting the whole thing forward.</p>
+<p><em>Hebrews 10</em> tells us not to neglect meeting together, but to encourage one another constantly. That’s not a suggestion for the highly motivated; it’s how the Christian life was designed to function.</p>
+<p>This month, our church began a very intentional process: finding out where we are together on this Jesus Journey, and discovering how we can best help one another walk in it.</p>
+<h4>Three Strengths to Celebrate</h4>
+<p class="doc-note"><strong>Note:</strong> The three strengths below are illustrative placeholders only. In the actual message, replace them with the specific strengths that emerge from your own congregation’s Jesus Journey survey results.</p>
+<p>Based on where we are as a church right now, here are three significant strengths worth celebrating:</p>
 <ul>
 <li>We believe and understand God’s big story.</li>
 <li>We believe we are secure in God’s unconditional love for us and for the world.</li>
-<li>We believe that God wants to be involved in every part of our lives and guide us to bring God’s goodness to the world around us.</li>
-<li>These beliefs give us an anchor / foundation to plant our feet… but not to stay where we are — to be able to move ahead more fully into life and freedom.</li>
+<li>We believe that God wants to be involved in every part of our lives and to guide us to bring his goodness to the world around us.</li>
 </ul>
-<h4>Three opportunities to reach toward</h4>
+<p>These beliefs give us an anchor and a foundation to plant our feet on. But that foundation isn’t meant to keep us standing still — it’s meant to free us to move ahead more fully into life and freedom.</p>
+<h4>Three Opportunities to Reach Toward</h4>
+<p class="doc-note"><strong>Note:</strong> The three opportunities below are illustrative placeholders only. In the actual message, replace them with the specific growth opportunities that emerge from your own congregation’s Jesus Journey survey results.</p>
+<p>Alongside those strengths, our survey also points to three real opportunities to grow:</p>
 <ul>
-<li>We haven’t yet taken hold of what we believe is possible and actively cultivated the presence and love of God (passive, waiting for God / others to do the heavy lifting / waiting for it to happen versus reaching to take hold of it).</li>
-<li>We can experience a much greater sense of God’s active leading as we love and care for others around us (let out the clutch).</li>
-<li>God is inviting us to more fully step into the flow of the river of justice that flows from God’s heart (not just those who are like us).</li>
+<li>We haven’t yet taken hold of what we believe is possible, or actively cultivated the presence and love of God. Too often we’re passive — waiting for God, or for someone else, to do the heavy lifting — instead of reaching out to take hold of what’s already ours.</li>
+<li>We can experience a much greater sense of God’s active leading as we love and care for the people around us. It’s like letting out the clutch: engagement is what actually moves us forward.</li>
+<li>God is inviting us to more fully step into the flow of the river of justice that flows from his heart — not just concern for people like us, but for all people.</li>
 </ul>
-<h4>Next steps: We can work because God is at work!</h4>
-<ul>
-<li>In coming months, exactly what we are going to do.</li>
-<li>Continues this week (two meetings: where are we and what can we begin to do about it?).</li>
-<li>Coming months nurturing a three-stranded cord / soils with three healthy elements:
-<ul>
+<h4>Next Steps: We Can Work Because God Is at Work</h4>
+<p>Here’s exactly what we’re going to do in the coming months.</p>
+<p>This week, the process continues with two gatherings built around two questions: where are we right now, and what can we begin to do about it?</p>
+<p>In the months ahead, we’ll be nurturing what you might picture as a three-stranded cord, or three healthy soils, each one reinforcing the others:</p>
+<ol>
 <li>How to include God more actively in our journey.</li>
-<li>How to include each other more in our journey.</li>
-<li>How to take full advantage of the wisdom / strength in the larger family of God.</li>
-</ul>
-</li>
-</ul>
-<p class="doc-source">Source: Resources — Becoming Like Jesus (Sample Message Outline). Intentionally minimal so it can be personalized for your own congregation.</p>` },
+<li>How to include each other more fully in our journey.</li>
+<li>How to take full advantage of the wisdom and strength found in the larger family of God.</li>
+</ol>
+<p>None of this works if we try to carry it alone, and none of it works if we just wait for it to happen to us. It works because it’s a partnership — God supplying the will and the energy, and us showing up, day after day, to do what he shows us.</p>
+<p>So here’s the invitation in front of each of us this week: not a program to finish, not a checklist to complete, but a relationship to keep saying yes to. One more day. One more unforced rhythm of grace. One more step toward becoming who we were always meant to be — fully alive, and fully like Jesus.</p>
+<p>That’s the journey. And we’re on it together.</p>
+<p class="doc-source">Source: Resources — Becoming Like Jesus (Sample Message). Intentionally minimal so it can be personalized for your own congregation.</p>` },
 ];
