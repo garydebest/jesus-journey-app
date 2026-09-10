@@ -23,7 +23,9 @@ export interface WaveWithMeta {
 function fmtDate(iso: string | null | undefined) {
   if (!iso) return null;
   try {
-    return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    // Parse as local midnight (not UTC) so the displayed calendar date
+    // matches the stored YYYY-MM-DD regardless of the viewer's timezone.
+    return new Date(iso + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
   } catch {
     return null;
   }
