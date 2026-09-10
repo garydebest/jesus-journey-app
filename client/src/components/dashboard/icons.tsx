@@ -1,7 +1,7 @@
 import {
   Clock, TrendingUp, ListChecks, ClipboardList, Activity, FileStack,
   BarChart3, MessageSquare, BookOpen, Users, CalendarClock, NotebookPen,
-  FolderDown, Image, Mic2,
+  FolderDown, Mic2, MonitorPlay, KeyRound, Mail,
 } from "lucide-react";
 import type { InfoCard, ResourceCard } from "@/lib/dashboardContent";
 
@@ -24,8 +24,10 @@ export function InfoCardIcon({ icon, className = "h-5 w-5" }: { icon: InfoCard["
 export function ResourceCardIcon({ icon, className = "h-6 w-6" }: { icon: ResourceCard["icon"]; className?: string }) {
   const map: Record<ResourceCard["icon"], React.ComponentType<{ className?: string }>> = {
     curriculum: FolderDown,
-    graphics: Image,
     message: Mic2,
+    slideshow: MonitorPlay,
+    code: KeyRound,
+    email: Mail,
   };
   const Icon = map[icon] ?? FolderDown;
   return <Icon className={className} />;

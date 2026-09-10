@@ -159,24 +159,40 @@ export const ACT_STEPS: ActStep[] = [
 ];
 
 export interface ResourceCard {
-  icon: "curriculum" | "graphics" | "message";
+  icon: "curriculum" | "message" | "slideshow" | "code" | "email";
   title: string;
   body: string;
   ctaLabel: string;
+  ctaHref?: string;
   fullDocIndex?: number;
 }
 
 export const RESOURCE_CARDS: ResourceCard[] = [
   {
+    icon: "slideshow",
+    title: "Promo Slideshow",
+    body: "A short, editable slideshow announcing the survey — play it before or after a service in the weeks leading up to launch.",
+    ctaLabel: "Download slideshow (.pptx)",
+    ctaHref: "/jesus-journey-promo-slideshow.pptx",
+  },
+  {
+    icon: "code",
+    title: "Join Code Slide",
+    body: "A single slide with your join code and jesusjourney.life — display it during a later Sunday service so people can enter the code on the spot.",
+    ctaLabel: "Download slide (.pptx)",
+    ctaHref: "/jesus-journey-joincode-slide.pptx",
+  },
+  {
+    icon: "email",
+    title: "Sample Invitation Email",
+    body: "A ready-to-send email with your join code, so congregants can take the survey at home on their own time.",
+    ctaLabel: "Download email (.html)",
+    ctaHref: "/jesus-journey-sample-email.html",
+  },
+  {
     icon: "curriculum",
     title: "Small Group Curriculum",
     body: "Discussion guides to help groups reflect on their own results together.",
-    ctaLabel: "Download",
-  },
-  {
-    icon: "graphics",
-    title: "Graphic Templates",
-    body: "Promotional slides and bulletin graphics for announcing your survey.",
     ctaLabel: "Download",
   },
   {

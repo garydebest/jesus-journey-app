@@ -23,9 +23,17 @@ export function PanelResources() {
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-muted-foreground leading-relaxed">{card.body}</p>
-              <Button variant="outline" size="sm" disabled title="Resource download coming soon">
-                {card.ctaLabel}
-              </Button>
+              {card.ctaHref ? (
+                <Button variant="outline" size="sm" asChild>
+                  <a href={card.ctaHref} download target="_blank" rel="noopener noreferrer">
+                    {card.ctaLabel}
+                  </a>
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" disabled title="Resource download coming soon">
+                  {card.ctaLabel}
+                </Button>
+              )}
               {card.fullDocIndex !== undefined && <FullDoc doc={FULL_DOCS[card.fullDocIndex]} label="Read the full outline" />}
             </CardContent>
           </Card>
