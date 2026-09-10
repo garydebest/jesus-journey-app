@@ -731,36 +731,6 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     res.send(pdfBuffer);
   });
 
-  // TEMP: one-off regeneration route for the Grace Fellowship sample debriefing
-  // report, so it picks up the new demographicAssessment / maturityStageAssessment
-  // fields added after the sample was originally generated. Remove after use.
-  app.post("/api/admin/waves/:id/debriefing/regenerate-sample", requireAdminAuth, async (req, res) => {
-    const waveId = String(req.params.id);
-    if (waveId !== "25fd5a3d-0b0a-4174-bb12-6fa36ffef1cc") {
-      return res.status(403).json({ message: "This one-off route only regenerates the known Grace Fellowship sample wave." });
-    }
-    try {
-      const { generateGraceFellowshipSample } = await import("@shared/debriefing/testSyntheticData");
-      const rows = generateGraceFellowshipSample(210, 42) as any[];
-      const debriefing = buildDebriefingReport({
-        waveId,
-        churchId: "fb55072c-3b29-49e8-9bc7-ee77b1393f4a",
-        churchName: "Grace Fellowship Community Church",
-        waveLabel: "Congregation Spiritual Health Survey \u2014 Sample Report",
-        rows,
-      });
-      await storage.updateDebriefingReportJson(waveId, JSON.stringify(debriefing), debriefing.respondentCount);
-      const pdfResult = await generateDebriefingReportPdf(waveId, debriefing);
-      if (!pdfResult.ok) {
-        return res.status(500).json({ message: "Report JSON updated but PDF regeneration failed", error: pdfResult.error });
-      }
-      await storage.setDebriefingReportPdfPath(waveId, pdfResult.storageKey!);
-      res.json({ ok: true, respondentCount: debriefing.respondentCount, storageKey: pdfResult.storageKey });
-    } catch (err) {
-      res.status(500).json({ message: "Regeneration failed", error: String(err) });
-    }
-  });
-
   // -------------------------------------------------------------------
   // Stripe webhook — authoritative source of truth for payment completion.
   // Uses req.rawBody (captured by the express.json `verify` hook in
