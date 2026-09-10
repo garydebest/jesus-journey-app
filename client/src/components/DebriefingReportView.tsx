@@ -95,6 +95,16 @@ export function DebriefingReportView({ report }: { report: DebriefingReport }) {
         </div>
       ))}
 
+      <SectionHeading>Demographic assessment</SectionHeading>
+      <div className="text-xs text-muted-foreground">
+        Every age group, the singles/married split, and children-in-household — each with an explicit verdict, not just standout cases.
+      </div>
+      <div className="space-y-3">
+        {report.demographicAssessment.map((i, idx) => (
+          <InsightRow key={idx} insight={i} />
+        ))}
+      </div>
+
       <SectionHeading>Engagement</SectionHeading>
       <div className="space-y-3">
         {report.engagement.insights.map((i, idx) => (
@@ -106,6 +116,16 @@ export function DebriefingReportView({ report }: { report: DebriefingReport }) {
       <div className="text-xs text-muted-foreground">Church average maturity: {report.maturityAndChange.averageMaturity.toFixed(2)}</div>
       <div className="space-y-3">
         {report.maturityAndChange.insights.map((i, idx) => (
+          <InsightRow key={idx} insight={i} />
+        ))}
+      </div>
+
+      <SectionHeading>Maturity stage assessment</SectionHeading>
+      <div className="text-xs text-muted-foreground">
+        Exploring, Believing, Trusting, and God Centered — each with an explicit verdict.
+      </div>
+      <div className="space-y-3">
+        {report.maturityStageAssessment.map((i, idx) => (
           <InsightRow key={idx} insight={i} />
         ))}
       </div>

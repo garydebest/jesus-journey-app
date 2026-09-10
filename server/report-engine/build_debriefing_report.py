@@ -676,6 +676,39 @@ def render_demographics(c, report, church_name, report_date, page_num):
 
 
 # ============================================================
+# 3b. Demographic Assessment (systematic, named-scope)
+# ============================================================
+
+def render_demographic_assessment(c, report, church_name, report_date, page_num):
+    """Every age bracket, plus singles vs. married and children-in-household,
+    each with an explicit strength/opportunity verdict -- distinct from the
+    outlier-only callouts on the Demographic Observations pages: every group
+    in scope appears here, even routine or zero-respondent ones."""
+    assessment = report.get("demographicAssessment") or []
+    flow = Flow(c, church_name, report_date, page_num, "Demographic Assessment",
+                "Demographic Assessment", title_size=22)
+    flow.y -= 0.04 * inch
+
+    flow.c.setFont("Inter", 9.8)
+    flow.c.setFillColor(INK_MUTED)
+    intro = ("Every age group, the singles/married split, and children-in-household are "
+             "each given an explicit strength or opportunity verdict below, so leaders can "
+             "see coverage across the whole congregation \u2014 not only the standout cases.")
+    flow.y = draw_body_paragraph(flow.c, MARGIN, flow.y, intro, PAGE_W - 2 * MARGIN,
+                                  size=9.8, leading=13.6, color=INK_MUTED)
+    flow.y -= 0.12 * inch
+
+    if not assessment:
+        flow.c.setFont("Inter", 10)
+        flow.c.setFillColor(INK_MUTED)
+        flow.c.drawString(MARGIN, flow.y, "No demographic assessment available for this wave.")
+        return flow.page_num + 1
+
+    draw_insight_list(flow, assessment)
+    return flow.page_num + 1
+
+
+# ============================================================
 # 4. Engagement Observations
 # ============================================================
 
@@ -775,6 +808,39 @@ def render_maturity(c, report, church_name, report_date, page_num):
                    [2.3 * inch, 0.85 * inch, 1.4 * inch, 1.5 * inch])
 
     draw_insight_list(flow, m.get("insights") or [], heading="INSIGHTS")
+    return flow.page_num + 1
+
+
+# ============================================================
+# 5b. Maturity Stage Assessment (systematic, named-scope)
+# ============================================================
+
+def render_maturity_stage_assessment(c, report, church_name, report_date, page_num):
+    """Explicit strength/opportunity verdict for each of the four named
+    maturity stages -- Exploring, Believing, Trusting, God Centered.
+    \"Distant\" is intentionally excluded, per Gary's request. Distinct from
+    the plateau-only flag on the Maturity & Change pages."""
+    assessment = report.get("maturityStageAssessment") or []
+    flow = Flow(c, church_name, report_date, page_num, "Maturity Stage Assessment",
+                "Maturity Stage Assessment", title_size=22)
+    flow.y -= 0.04 * inch
+
+    flow.c.setFont("Inter", 9.8)
+    flow.c.setFillColor(INK_MUTED)
+    intro = ("Each stage of the journey \u2014 Exploring, Believing, Trusting, and God Centered \u2014 "
+             "is given an explicit strength or opportunity verdict below, based on how its active-growth "
+             "rate compares to the church-wide average.")
+    flow.y = draw_body_paragraph(flow.c, MARGIN, flow.y, intro, PAGE_W - 2 * MARGIN,
+                                  size=9.8, leading=13.6, color=INK_MUTED)
+    flow.y -= 0.12 * inch
+
+    if not assessment:
+        flow.c.setFont("Inter", 10)
+        flow.c.setFillColor(INK_MUTED)
+        flow.c.drawString(MARGIN, flow.y, "No maturity stage assessment available for this wave.")
+        return flow.page_num + 1
+
+    draw_insight_list(flow, assessment)
     return flow.page_num + 1
 
 
@@ -1044,11 +1110,17 @@ def build_debriefing_report_pdf(out_path: str, report: dict) -> bool:
     # 3. Demographic Observations
     page_num = render_demographics(c, report, church_name, report_date, page_num)
 
+    # 3b. Demographic Assessment (systematic, named-scope)
+    page_num = render_demographic_assessment(c, report, church_name, report_date, page_num)
+
     # 4. Engagement Observations
     page_num = render_engagement(c, report, church_name, report_date, page_num)
 
     # 5. Spiritual Maturity & Change Observations
     page_num = render_maturity(c, report, church_name, report_date, page_num)
+
+    # 5b. Maturity Stage Assessment (systematic, named-scope)
+    page_num = render_maturity_stage_assessment(c, report, church_name, report_date, page_num)
 
     # 6. Pathway Observations by Goal
     page_num = render_pathways(c, report, church_name, report_date, page_num)

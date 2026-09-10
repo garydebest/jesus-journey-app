@@ -6,6 +6,7 @@ import { analyzePathways } from "./pathways";
 import { analyzeMaturityAndChange } from "./maturity";
 import { analyzeDimensions } from "./dimensions";
 import { analyzeBottlenecks } from "./bottlenecks";
+import { buildDemographicAssessment, buildMaturityStageAssessment } from "./systematicAssessment";
 import type { DebriefingReport, Insight } from "./types";
 import { round2, mean } from "./helpers";
 
@@ -58,6 +59,8 @@ export function buildDebriefingReport(params: {
   const maturity = analyzeMaturityAndChange(rows);
   const dims = analyzeDimensions(rows);
   const bottlenecks = analyzeBottlenecks(rows, pathways);
+  const demographicAssessment = buildDemographicAssessment(demographics);
+  const maturityStageAssessment = buildMaturityStageAssessment(maturity.changeByMaturity);
 
   const pathwaysByGoal = GOALS.map((goal) => {
     const goalPathways = pathways.filter((p) => p.goal === goal);
@@ -126,6 +129,11 @@ export function buildDebriefingReport(params: {
   // of insights that reference the same pathway/dimension name in their
   // headline — a lightweight way to detect independent agreement without a
   // rigid rule table for every possible pairing.
+  // Systematic assessment items are excluded from the executive-summary pool
+  // deliberately: they cover every group by design (including routine,
+  // unremarkable ones), so ranking them alongside outlier-driven insights
+  // would crowd out genuinely notable findings. They're presented in their
+  // own dedicated report sections instead.
   const allInsights = [
     ...demographics.flatMap((d) => d.insights),
     ...pathwayInsights,
@@ -160,8 +168,10 @@ export function buildDebriefingReport(params: {
     generatedAt: new Date().toISOString(),
     executiveSummary,
     demographics,
+    demographicAssessment,
     engagement: { insights: engagementInsights },
     maturityAndChange: maturity,
+    maturityStageAssessment,
     pathwaysByGoal,
     dimensions: dims,
     bottleneckMap: bottlenecks,

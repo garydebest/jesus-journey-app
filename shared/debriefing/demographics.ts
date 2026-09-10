@@ -91,6 +91,32 @@ export function analyzeDemographics(rows: ResponseRow[]): DemographicSection[] {
     });
   }
 
+  // Singles vs. married — combine the two "single" relationship-status
+  // options into one group, keep "Married" as its own group. Separated,
+  // partnership, and divorced are intentionally left out of this grouping
+  // (they still appear individually under the full "Relationship Status"
+  // section above).
+  const SINGLE_VALUES = new Set(["Independent single", "Single in relationship"]);
+  const singlesMarriedGroups = rows.map((r) => {
+    const v = r.relationshipStatus;
+    if (v && SINGLE_VALUES.has(v)) return "Single";
+    if (v === "Married") return "Married";
+    return null;
+  });
+  const singlesMarriedBreakdown = buildBreakdown(
+    rows.map((r, i) => ({ ...r, __smLabel: singlesMarriedGroups[i] }) as unknown as ResponseRow),
+    (r) => (r as unknown as { __smLabel: string | null }).__smLabel,
+    churchAvgMaturity,
+  );
+  if (singlesMarriedBreakdown.length > 0) {
+    sections.push({
+      id: "singlesVsMarried",
+      title: "Singles vs. Married",
+      breakdown: singlesMarriedBreakdown,
+      insights: insightsForSection("Singles vs. Married", singlesMarriedBreakdown),
+    });
+  }
+
   // children_in_household is a JSON-encoded string array — decode and treat
   // "has children in household" as a boolean group rather than exploding into
   // every combination of ages.

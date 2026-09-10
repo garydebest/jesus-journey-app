@@ -109,6 +109,13 @@ export interface DebriefingReport {
 
   demographics: DemographicSection[];
 
+  // Systematic strength/opportunity verdict for every group in a fixed,
+  // named scope (every age bracket, singles vs. married, children in
+  // household) — distinct from demographics[].insights, which only
+  // surfaces statistical outliers. Every group in scope appears here,
+  // even ones with no notable gap or zero respondents.
+  demographicAssessment: Insight[];
+
   engagement: {
     insights: Insight[];
   };
@@ -121,6 +128,12 @@ export interface DebriefingReport {
     plateauAtTopFlag: boolean; // the named "Jesus Centered lowest growing rate" pattern check
     insights: Insight[];
   };
+
+  // Systematic strength/opportunity verdict for each of the four named
+  // maturity stages (Exploring, Believing, Trusting, God Centered) —
+  // "Distant" is intentionally excluded. Distinct from
+  // maturityAndChange.insights, which only surfaces statistical outliers.
+  maturityStageAssessment: Insight[];
 
   pathwaysByGoal: {
     goal: string;
