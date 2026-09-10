@@ -10,9 +10,6 @@ import { generateChurchReportPdf } from "./pdfReport";
 import { buildDebriefingReport } from "@shared/debriefing/engine";
 import { generateDebriefingReportPdf } from "./debriefingPdf";
 import { fetchReportPdf } from "./reportStorage";
-import { readFileSync } from "node:fs";
-import path from "node:path";
-import { resolveModuleDir } from "./paths";
 import {
   createSession,
   destroySession,
@@ -28,12 +25,6 @@ import { PRICING_TIERS, priceCentsForTier, publicPricingList } from "./pricing";
 import { createCheckoutSession, retrieveCheckoutSession, verifyStripeWebhookSignature, isStripeConfigured } from "./stripe";
 import { currencyForRequest } from "./currency";
 import { runReminderSweep } from "./reminders";
-
-// See server/paths.ts for why this can't just be fileURLToPath(import.meta.url).
-const routesModuleDir = resolveModuleDir(
-  typeof import.meta !== "undefined" ? import.meta.url : undefined,
-  typeof __dirname !== "undefined" ? __dirname : undefined,
-);
 
 function sanitizeChurch(church: { passwordHash?: string; [k: string]: any }) {
   const { passwordHash, ...rest } = church;
@@ -738,44 +729,6 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", 'attachment; filename="Debriefing-Report.pdf"');
     res.send(pdfBuffer);
-  });
-
-  // -------------------------------------------------------------------
-  // TEMPORARY: one-off backfill for the Grace Fellowship sample
-  // debriefing report. This wave's raw responses were purged before the
-  // debriefing engine existed, so there is no way to regenerate it from
-  // live data. Restricted to this single wave ID; remove after use.
-  // -------------------------------------------------------------------
-  app.post("/api/admin/waves/:id/debriefing/backfill-sample", requireAdminAuth, async (req, res) => {
-    const waveId = String(req.params.id);
-    if (waveId !== "25fd5a3d-0b0a-4174-bb12-6fa36ffef1cc") {
-      return res.status(403).json({ message: "Backfill is restricted to the Grace Fellowship sample wave" });
-    }
-    try {
-      const fixturePath = path.join(routesModuleDir, "report-engine", "debriefing", "sample_fixture.json");
-      const fixtureRaw = readFileSync(fixturePath, "utf-8");
-      const debriefing = JSON.parse(fixtureRaw);
-      const existing = await storage.getDebriefingReportByWave(waveId);
-      if (!existing) {
-        await storage.createDebriefingReport({
-          waveId,
-          churchId: debriefing.churchId,
-          respondentCount: debriefing.respondentCount,
-          reportJson: JSON.stringify(debriefing),
-          reportPdfPath: null,
-        });
-      }
-      const debriefPdf = await generateDebriefingReportPdf(waveId, debriefing);
-      if (debriefPdf.ok && debriefPdf.storageKey) {
-        await storage.setDebriefingReportPdfPath(waveId, debriefPdf.storageKey);
-      } else {
-        return res.status(500).json({ message: "PDF generation failed", error: debriefPdf.error });
-      }
-      res.json({ ok: true, storageKey: debriefPdf.storageKey });
-    } catch (err: any) {
-      console.error("Debriefing backfill failed", err);
-      res.status(500).json({ message: "Backfill failed", error: String(err?.message ?? err) });
-    }
   });
 
   // -------------------------------------------------------------------
