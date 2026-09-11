@@ -34,6 +34,10 @@ interface AdminWaveEntry {
     priceCents?: number | null;
     currency?: string | null;
     minSampleSize: number;
+    opensAt?: string | null;
+    closesAt?: string | null;
+    closedAt?: string | null;
+    createdAt?: string;
   };
   responseCount: number;
   hasReport: boolean;
@@ -97,6 +101,8 @@ export function AdminOverview() {
   const [debriefingReport, setDebriefingReport] = useState<DebriefingReport | null>(null);
   const [legacyViewChurch, setLegacyViewChurch] = useState<AdminChurch | null>(null);
   const [legacyViewSnapshot, setLegacyViewSnapshot] = useState<AdminLegacySnapshot | null>(null);
+  const [detailChurch, setDetailChurch] = useState<AdminChurch | null>(null);
+  const [detailWaveEntry, setDetailWaveEntry] = useState<AdminWaveEntry | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -314,7 +320,17 @@ export function AdminOverview() {
                         data-testid={`row-admin-wave-${entry.wave.id}`}
                       >
                         <div>
-                          <div className="text-sm">{entry.wave.label}</div>
+                          <button
+                            type="button"
+                            className="text-sm font-medium text-left hover:underline"
+                            onClick={() => {
+                              setDetailChurch(church);
+                              setDetailWaveEntry(entry);
+                            }}
+                            data-testid={`button-admin-wave-detail-${entry.wave.id}`}
+                          >
+                            {entry.wave.label}
+                          </button>
                           <div className="text-xs text-muted-foreground">
                             code {entry.wave.joinCode} · {entry.responseCount} responses · needs {Math.ceil(entry.wave.minSampleSize * 0.5)} to close (50% of {entry.wave.minSampleSize} total adults)
                           </div>
@@ -426,6 +442,63 @@ export function AdminOverview() {
             <DebriefingReportView report={debriefingReport} />
           ) : (
             <p className="text-sm text-muted-foreground py-6">Loading debriefing report...</p>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!detailWaveEntry}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDetailChurch(null);
+            setDetailWaveEntry(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{detailChurch?.name} — {detailWaveEntry?.wave.label}</DialogTitle>
+          </DialogHeader>
+          {detailWaveEntry && (
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Status</span>
+                <Badge variant={detailWaveEntry.wave.status === "closed" ? "secondary" : "default"}>
+                  {detailWaveEntry.wave.status}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Join code</span>
+                <span className="font-mono">{detailWaveEntry.wave.joinCode}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Start date</span>
+                <span>
+                  {detailWaveEntry.wave.opensAt
+                    ? new Date(detailWaveEntry.wave.opensAt).toLocaleDateString()
+                    : detailWaveEntry.wave.createdAt
+                      ? new Date(detailWaveEntry.wave.createdAt).toLocaleDateString()
+                      : "—"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Progress</span>
+                <span>
+                  {detailWaveEntry.responseCount} / {detailWaveEntry.wave.minSampleSize} responses
+                  {" "}(needs {Math.ceil(detailWaveEntry.wave.minSampleSize * 0.5)} to close)
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">
+                  {detailWaveEntry.wave.status === "closed" ? "Closed on" : "Expected close"}
+                </span>
+                <span>
+                  {detailWaveEntry.wave.status === "closed"
+                    ? (detailWaveEntry.wave.closedAt ? new Date(detailWaveEntry.wave.closedAt).toLocaleDateString() : "—")
+                    : (detailWaveEntry.wave.closesAt ? new Date(detailWaveEntry.wave.closesAt).toLocaleDateString() : "Not set")}
+                </span>
+              </div>
+            </div>
           )}
         </DialogContent>
       </Dialog>

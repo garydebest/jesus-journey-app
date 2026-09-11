@@ -608,7 +608,12 @@ export async function registerRoutes(httpServer: Server, app: Express) {
                 };
               }),
           );
-          waves.sort((a, b) => (a.wave.createdAt < b.wave.createdAt ? 1 : -1));
+          const statusRank = (status: string) => (status === "closed" ? 1 : 0);
+          waves.sort((a, b) => {
+            const rankDiff = statusRank(a.wave.status) - statusRank(b.wave.status);
+            if (rankDiff !== 0) return rankDiff;
+            return a.wave.createdAt < b.wave.createdAt ? 1 : -1;
+          });
           const legacySnapshots = allLegacySnapshots
             .filter((s) => s.churchId === church.id)
             .map((s) => ({
