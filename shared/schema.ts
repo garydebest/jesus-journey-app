@@ -213,3 +213,77 @@ export const debriefingReports = pgTable("debriefing_reports", {
 
 export type DebriefingReportRow = typeof debriefingReports.$inferSelect;
 export type InsertDebriefingReportRow = typeof debriefingReports.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Legacy snapshots — historical pre-2026 survey results (e.g. the 2017 SJI
+// Jesus Journey PDF reports) entered as summary-only baselines for churches
+// that never ran a real survey_waves-backed wave through this app. There is
+// no raw per-respondent data for these — only the rollup percentages that
+// were printed in the original PDF report. This is a DIFFERENT shape than
+// aggregateSnapshots on purpose:
+//   - references churches directly, not surveyWaves (no join code, no
+//     payment, no pending/live/closed lifecycle — the survey already
+//     happened, on paper, years ago)
+//   - every pathway/goal figure is NULLABLE. Source PDFs sometimes had
+//     chart-rendering corruption for a subset of pathways/goals (values
+//     rendered as impossible numbers like "1,411" instead of a percent) and
+//     no clean replacement existed for that section. Per the "store only
+//     what the PDF shows" rule, corrupted or missing sections are stored as
+//     null, never fabricated or back-filled — the UI must render "not
+//     available in source report" rather than a fake 0 or computed score.
+//   - respondentCount is a printed n, not a live purge-eligible count.
+// One row per historical church/survey-date pair (a church could in theory
+// have more than one legacy PDF from different years).
+// ---------------------------------------------------------------------------
+
+// One entry per of the 16 named pathways; `pct` null = not available/corrupted in source PDF.
+export interface LegacyPathwayFigure {
+  num: number; // 1-16, matches the canonical pathway order used elsewhere in the app
+  name: string; // e.g. "Believing God's Story"
+  goal: string; // e.g. "Trusting Jesus"
+  pct: number | null; // % "Always/Mostly True", church-wide, as printed. Null if not available.
+}
+
+// One entry per of the 4 goals; `pct` null = not available/corrupted in source PDF.
+export interface LegacyGoalFigure {
+  goal: string; // e.g. "Trusting Jesus"
+  pct: number | null;
+}
+
+export interface LegacyMaturityFigure {
+  label: string; // e.g. "Jesus Centered" — as printed, may not exactly match current MATURITY_LABELS wording
+  pct: number;
+}
+
+export interface LegacySpiritualChangeFigure {
+  label: string; // e.g. "Growing significantly"
+  pct: number;
+}
+
+// Freeform printed demographic breakdowns, kept as printed (label -> pct),
+// grouped by the category heading used in the source report.
+export type LegacyDemographics = Record<string, Record<string, number>>;
+
+export interface LegacySnapshotSummary {
+  sourceLabel: string; // e.g. "SJI 2017 Jesus Journey Report"
+  reportDate: string | null; // YYYY-MM-DD as printed on the report footer, if shown
+  surveyWindow: string | null; // free text as printed, e.g. "2017-09-29 to 2017-10-15"
+  maturityDistribution: LegacyMaturityFigure[];
+  spiritualChangeDistribution: LegacySpiritualChangeFigure[];
+  goalAverages: LegacyGoalFigure[]; // length 4, in Goal 1-4 order
+  pathwayAverages: LegacyPathwayFigure[]; // length 16, in Pathway 1-16 order
+  demographics: LegacyDemographics;
+  notes: string | null; // free text flag for anything an admin should know, e.g. corruption/date caveats
+}
+
+export const legacySnapshots = pgTable("legacy_snapshots", {
+  id: text("id").primaryKey(), // uuid
+  churchId: text("church_id").notNull().references(() => churches.id),
+  respondentCount: integer("respondent_count").notNull(), // printed n
+  summaryJson: text("summary_json").notNull(), // LegacySnapshotSummary, JSON-encoded
+  sourceFileNote: text("source_file_note"), // which uploaded PDF(s) this was transcribed from, for audit trail
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
+});
+
+export type LegacySnapshotRow = typeof legacySnapshots.$inferSelect;
+export type InsertLegacySnapshotRow = typeof legacySnapshots.$inferInsert;

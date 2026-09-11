@@ -11,6 +11,7 @@ import {
   aggregateSnapshots,
   surveyTimelinePhases,
   debriefingReports,
+  legacySnapshots,
   type Church,
   type InsertChurch,
   type SurveyWave,
@@ -22,6 +23,7 @@ import {
   type AggregateSnapshot,
   type SurveyTimelinePhase,
   type DebriefingReportRow,
+  type LegacySnapshotRow,
 } from "@shared/schema";
 
 const connectionString = process.env.DATABASE_URL;
@@ -188,6 +190,12 @@ export interface IStorage {
   createDebriefingReport(data: Omit<DebriefingReportRow, "id" | "generatedAt">): Promise<DebriefingReportRow>;
   getDebriefingReportByWave(waveId: string): Promise<DebriefingReportRow | undefined>;
   setDebriefingReportPdfPath(waveId: string, reportPdfPath: string): Promise<DebriefingReportRow | undefined>;
+
+  // Legacy (pre-app, PDF-sourced) historical snapshots
+  createLegacyChurch(name: string, region: string | null): Promise<Church>;
+  createLegacySnapshot(data: Omit<LegacySnapshotRow, "id" | "createdAt">): Promise<LegacySnapshotRow>;
+  getLegacySnapshotsByChurch(churchId: string): Promise<LegacySnapshotRow[]>;
+  getAllLegacySnapshots(): Promise<LegacySnapshotRow[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -467,6 +475,50 @@ export class DatabaseStorage implements IStorage {
       .where(eq(debriefingReports.waveId, waveId))
       .returning();
     return rows[0];
+  }
+
+  // ---- Legacy (pre-app, PDF-sourced) historical snapshots ----
+
+  async createLegacyChurch(name: string, region: string | null): Promise<Church> {
+    let code = "";
+    for (let attempts = 0; attempts < 10; attempts++) {
+      code = `${name.replace(/[^A-Za-z]/g, "").slice(0, 5).toUpperCase() || "GRP"}-${genCode(4)}`;
+      const existing = await db.select().from(churches).where(eq(churches.communityCode, code));
+      if (existing.length === 0) break;
+    }
+    // Legacy churches never sign in, so contact fields are placeholders — never used for
+    // login or notifications. Email must still be unique to satisfy the column constraint.
+    const placeholderEmail = `legacy+${randomUUID()}@jesusjourney.life`;
+    const rows = await db
+      .insert(churches)
+      .values({
+        id: randomUUID(),
+        name,
+        primaryContactName: "(legacy record — no live contact)",
+        primaryContactEmail: placeholderEmail,
+        primaryContactPhone: null,
+        passwordHash: "legacy-no-login",
+        region,
+        communityCode: code,
+      })
+      .returning();
+    return rows[0];
+  }
+
+  async createLegacySnapshot(data: Omit<LegacySnapshotRow, "id" | "createdAt">): Promise<LegacySnapshotRow> {
+    const rows = await db
+      .insert(legacySnapshots)
+      .values({ id: randomUUID(), ...data })
+      .returning();
+    return rows[0];
+  }
+
+  async getLegacySnapshotsByChurch(churchId: string): Promise<LegacySnapshotRow[]> {
+    return db.select().from(legacySnapshots).where(eq(legacySnapshots.churchId, churchId));
+  }
+
+  async getAllLegacySnapshots(): Promise<LegacySnapshotRow[]> {
+    return db.select().from(legacySnapshots);
   }
 }
 

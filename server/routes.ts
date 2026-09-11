@@ -587,6 +587,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   app.get("/api/admin/churches", requireAdminAuth, async (_req, res) => {
     const allChurches = await storage.getAllChurches();
     const allWaves = await storage.getAllWaves();
+    const allLegacySnapshots = await storage.getAllLegacySnapshots();
     const result = await Promise.all(
       allChurches
         .map(async (church) => {
@@ -608,9 +609,19 @@ export async function registerRoutes(httpServer: Server, app: Express) {
               }),
           );
           waves.sort((a, b) => (a.wave.createdAt < b.wave.createdAt ? 1 : -1));
+          const legacySnapshots = allLegacySnapshots
+            .filter((s) => s.churchId === church.id)
+            .map((s) => ({
+              id: s.id,
+              respondentCount: s.respondentCount,
+              summary: JSON.parse(s.summaryJson),
+              sourceFileNote: s.sourceFileNote,
+              createdAt: s.createdAt,
+            }));
           return {
             church: sanitizeChurch(church),
             waves,
+            legacySnapshots,
           };
         }),
     );

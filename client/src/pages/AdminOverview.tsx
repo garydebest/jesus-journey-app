@@ -43,9 +43,42 @@ interface AdminWaveEntry {
   hasDebriefingReportPdf: boolean;
 }
 
+interface LegacyPathwayFigure {
+  num: number;
+  name: string;
+  goal: string;
+  pct: number | null;
+}
+
+interface LegacyGoalFigure {
+  goal: string;
+  pct: number | null;
+}
+
+interface LegacySnapshotSummary {
+  sourceLabel: string;
+  reportDate: string | null;
+  surveyWindow: string | null;
+  maturityDistribution: { label: string; pct: number }[];
+  spiritualChangeDistribution: { label: string; pct: number }[];
+  goalAverages: LegacyGoalFigure[];
+  pathwayAverages: LegacyPathwayFigure[];
+  demographics: Record<string, Record<string, number>>;
+  notes: string | null;
+}
+
+interface AdminLegacySnapshot {
+  id: string;
+  respondentCount: number;
+  summary: LegacySnapshotSummary;
+  sourceFileNote: string | null;
+  createdAt: string;
+}
+
 interface AdminChurchGroup {
   church: AdminChurch;
   waves: AdminWaveEntry[];
+  legacySnapshots: AdminLegacySnapshot[];
 }
 
 export function AdminOverview() {
@@ -62,6 +95,8 @@ export function AdminOverview() {
   const [downloadingDebriefingId, setDownloadingDebriefingId] = useState<string | null>(null);
   const [debriefingWaveEntry, setDebriefingWaveEntry] = useState<AdminWaveEntry | null>(null);
   const [debriefingReport, setDebriefingReport] = useState<DebriefingReport | null>(null);
+  const [legacyViewChurch, setLegacyViewChurch] = useState<AdminChurch | null>(null);
+  const [legacyViewSnapshot, setLegacyViewSnapshot] = useState<AdminLegacySnapshot | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -215,7 +250,7 @@ export function AdminOverview() {
         ) : groups.length === 0 ? (
           <p className="text-sm text-muted-foreground">No churches have signed up yet.</p>
         ) : (
-          groups.map(({ church, waves }) => (
+          groups.map(({ church, waves, legacySnapshots }) => (
             <Card key={church.id} data-testid={`card-admin-church-${church.id}`}>
               <CardContent className="pt-6 space-y-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -232,6 +267,41 @@ export function AdminOverview() {
                   </div>
                   <Badge variant="secondary">{waves.length} survey{waves.length === 1 ? "" : "s"}</Badge>
                 </div>
+
+                {legacySnapshots.length > 0 && (
+                  <div className="space-y-2 border-t border-border pt-3">
+                    <div className="text-xs font-medium text-muted-foreground">Historical records (pre-app, from PDF reports)</div>
+                    {legacySnapshots.map((snap) => (
+                      <div
+                        key={snap.id}
+                        className="flex items-center justify-between gap-4 flex-wrap"
+                        data-testid={`row-admin-legacy-${snap.id}`}
+                      >
+                        <div>
+                          <div className="text-sm">{snap.summary.sourceLabel}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {snap.summary.reportDate ? `Report date ${snap.summary.reportDate}` : "Report date unknown"} · {snap.respondentCount} respondents
+                            {snap.summary.surveyWindow ? ` · window ${snap.summary.surveyWindow}` : ""}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary">legacy</Badge>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setLegacyViewChurch(church);
+                              setLegacyViewSnapshot(snap);
+                            }}
+                            data-testid={`button-admin-view-legacy-${snap.id}`}
+                          >
+                            View summary
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {waves.length === 0 ? (
                   <p className="text-xs text-muted-foreground">No surveys started yet.</p>
@@ -359,6 +429,104 @@ export function AdminOverview() {
           )}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!legacyViewSnapshot} onOpenChange={(open) => !open && setLegacyViewSnapshot(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{legacyViewChurch?.name} — {legacyViewSnapshot?.summary.sourceLabel}</DialogTitle>
+          </DialogHeader>
+          {legacyViewSnapshot ? <LegacySnapshotView snapshot={legacyViewSnapshot} /> : null}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function LegacySnapshotView({ snapshot }: { snapshot: AdminLegacySnapshot }) {
+  const { summary, respondentCount } = snapshot;
+  return (
+    <div className="space-y-5 text-sm">
+      <div className="text-xs text-muted-foreground space-y-0.5">
+        <div>Respondents: {respondentCount}</div>
+        {summary.reportDate && <div>Report date: {summary.reportDate}</div>}
+        {summary.surveyWindow && <div>Survey window: {summary.surveyWindow}</div>}
+        {snapshot.sourceFileNote && <div>Source: {snapshot.sourceFileNote}</div>}
+      </div>
+
+      {summary.notes && (
+        <Alert data-testid="alert-legacy-notes">
+          <AlertDescription>{summary.notes}</AlertDescription>
+        </Alert>
+      )}
+
+      <div>
+        <div className="font-medium mb-2">Spiritual maturity profile</div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {summary.maturityDistribution.map((m) => (
+            <div key={m.label} className="rounded border border-border px-3 py-2">
+              <div className="text-xs text-muted-foreground">{m.label}</div>
+              <div className="text-base font-semibold">{m.pct}%</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <div className="font-medium mb-2">Spiritual change since last year</div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {summary.spiritualChangeDistribution.map((c) => (
+            <div key={c.label} className="rounded border border-border px-3 py-2">
+              <div className="text-xs text-muted-foreground">{c.label}</div>
+              <div className="text-base font-semibold">{c.pct}%</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <div className="font-medium mb-2">Goal averages</div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {summary.goalAverages.map((g) => (
+            <div key={g.goal} className="rounded border border-border px-3 py-2">
+              <div className="text-xs text-muted-foreground">{g.goal}</div>
+              <div className="text-base font-semibold">{g.pct === null ? "—" : `${g.pct}%`}</div>
+              {g.pct === null && <div className="text-[11px] text-muted-foreground">not available in source report</div>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <div className="font-medium mb-2">Pathway averages</div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {summary.pathwayAverages.map((p) => (
+            <div key={p.num} className="rounded border border-border px-3 py-2">
+              <div className="text-xs text-muted-foreground">{p.num}. {p.name}</div>
+              <div className="text-base font-semibold">{p.pct === null ? "—" : `${p.pct}%`}</div>
+              {p.pct === null && <div className="text-[11px] text-muted-foreground">not available in source report</div>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <div className="font-medium mb-2">Demographics</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {Object.entries(summary.demographics).map(([category, values]) => (
+            <div key={category} className="rounded border border-border px-3 py-2">
+              <div className="text-xs font-medium text-muted-foreground mb-1">{category}</div>
+              <div className="space-y-0.5">
+                {Object.entries(values).map(([label, pct]) => (
+                  <div key={label} className="flex justify-between text-xs">
+                    <span>{label}</span>
+                    <span>{pct}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
