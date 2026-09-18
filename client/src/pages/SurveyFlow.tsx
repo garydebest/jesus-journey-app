@@ -48,7 +48,7 @@ export function SurveyFlow() {
   if (screen === "pre-maturity") {
     return (
       <MaturityQuestion
-        title="Which of the following statements best describes where you are now in your faith journey with God?"
+        title="Which of the following statements best describes where you are now in your faith journey with Jesus?"
         options={MATURITY_OPTIONS_PRE}
         value={state.preMaturity}
         onChange={(v) => setState((s) => ({ ...s, preMaturity: v }))}
@@ -86,7 +86,7 @@ export function SurveyFlow() {
   if (screen === "post-maturity") {
     return (
       <MaturityQuestion
-        title="After answering the above questions, how would you now describe where you are in your faith journey toward God?"
+        title="After answering the above questions, how would you now describe where you are in your faith journey toward Jesus?"
         options={MATURITY_OPTIONS_POST}
         value={state.postMaturity}
         onChange={(v) => setState((s) => ({ ...s, postMaturity: v }))}

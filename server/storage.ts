@@ -1,6 +1,7 @@
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
+import type { SurveyPlan, ResponseBreakdown } from "@shared/surveyAccess";
 import { randomUUID } from "node:crypto";
 import * as schema from "@shared/schema";
 import {
@@ -129,6 +130,7 @@ export function ensureBootstrapped(): Promise<void> {
     bootstrapped = (async () => {
       await pool.query(bootstrapSql);
       await ensureColumn("churches", "primary_contact_phone", "primary_contact_phone TEXT");
+      await ensureColumn("churches", "survey_plan_json", "survey_plan_json TEXT");
       await ensureColumn("survey_waves", "size_tier", "size_tier TEXT");
       await ensureColumn("survey_waves", "payment_status", "payment_status TEXT NOT NULL DEFAULT 'unpaid'");
       await ensureColumn("survey_waves", "price_cents", "price_cents INTEGER");
@@ -169,6 +171,9 @@ export interface IStorage {
   markWavePaid(id: string, paymentIntentId: string | undefined): Promise<SurveyWave | undefined>;
   deleteUnpaidWave(id: string): Promise<void>;
   setWaveDates(id: string, opensAt: string | null, closesAt: string | null): Promise<SurveyWave | undefined>;
+  saveChurchPlan(churchId: string, plan: SurveyPlan): Promise<void>;
+  confirmWavePlan(waveId: string, churchId: string, plan: SurveyPlan): Promise<SurveyWave>;
+  getResponseBreakdown(waveId: string): Promise<ResponseBreakdown>;
 
   // Survey Action Plan (timeline) phase overrides
   getTimelinePhaseOverrides(waveId: string): Promise<SurveyTimelinePhase[]>;
@@ -295,17 +300,62 @@ export class DatabaseStorage implements IStorage {
       .update(surveyWaves)
       .set({
         paymentStatus: "paid",
-        status: "live",
+        status: "not_started",
         stripePaymentIntentId: paymentIntentId ?? null,
         paidAt: new Date().toISOString(),
       })
-      .where(eq(surveyWaves.id, id))
+      .where(and(eq(surveyWaves.id, id), eq(surveyWaves.paymentStatus, "unpaid"), eq(surveyWaves.status, "pending_payment")))
       .returning();
-    return rows[0];
+    return rows[0] ?? this.getWaveById(id);
   }
 
   async deleteUnpaidWave(id: string): Promise<void> {
-    await db.delete(surveyWaves).where(eq(surveyWaves.id, id));
+    await db.delete(surveyWaves).where(and(eq(surveyWaves.id, id), eq(surveyWaves.paymentStatus, "unpaid"), eq(surveyWaves.status, "pending_payment")));
+  }
+
+  async saveChurchPlan(churchId: string, plan: SurveyPlan): Promise<void> {
+    await db.update(churches).set({ surveyPlanJson: JSON.stringify(plan) }).where(eq(churches.id, churchId));
+  }
+
+  async confirmWavePlan(waveId: string, churchId: string, plan: SurveyPlan): Promise<SurveyWave> {
+    return db.transaction(async (tx) => {
+      // Lock the wave so a duplicate confirmation cannot reactivate a closed
+      // survey or race a different plan into the saved timeline.
+      const [wave] = await tx.select().from(surveyWaves)
+        .where(and(eq(surveyWaves.id, waveId), eq(surveyWaves.churchId, churchId))).for("update");
+      if (!wave || wave.paymentStatus !== "paid" || wave.status === "closed") throw new Error("This survey cannot be activated.");
+      const [{ total }] = await tx.select({ total: sql<number>`count(*)::int` }).from(responses).where(eq(responses.waveId, waveId));
+      if (total > 0 && plan.minSampleSize !== wave.minSampleSize) throw new Error("The adult total is locked after the first response.");
+      const [updated] = await tx.update(surveyWaves).set({
+        opensAt: plan.opensAt, closesAt: plan.closesAt, minSampleSize: plan.minSampleSize, status: "live",
+      }).where(eq(surveyWaves.id, waveId)).returning();
+      const existing = await tx.select().from(surveyTimelinePhases).where(eq(surveyTimelinePhases.waveId, waveId));
+      for (const phase of existing) {
+        await tx.update(surveyTimelinePhases).set({ overrideDate: plan.overrides[phase.phaseKey] ?? null, updatedAt: new Date() })
+          .where(eq(surveyTimelinePhases.id, phase.id));
+      }
+      for (const [phaseKey, overrideDate] of Object.entries(plan.overrides)) {
+        if (!existing.some((p) => p.phaseKey === phaseKey)) {
+          await tx.insert(surveyTimelinePhases).values({ id: randomUUID(), waveId, phaseKey, overrideDate });
+        }
+      }
+      await tx.update(churches).set({ surveyPlanJson: null }).where(eq(churches.id, churchId));
+      return updated;
+    });
+  }
+
+  async getResponseBreakdown(waveId: string): Promise<ResponseBreakdown> {
+    // Counts only, no answers, respondent IDs, timestamps or cross-tabs leave
+    // the server through this endpoint.
+    const gender = await db.select({ label: responses.gender, count: sql<number>`count(*)::int` })
+      .from(responses).where(eq(responses.waveId, waveId)).groupBy(responses.gender);
+    const age = await db.select({ label: responses.ageGroup, count: sql<number>`count(*)::int` })
+      .from(responses).where(eq(responses.waveId, waveId)).groupBy(responses.ageGroup);
+    return {
+      total: gender.reduce((sum, group) => sum + group.count, 0),
+      gender: gender.map((group) => ({ ...group, label: group.label ?? "Not provided" })),
+      age: age.map((group) => ({ ...group, label: group.label ?? "Not provided" })),
+    };
   }
 
   async setWaveDates(id: string, opensAt: string | null, closesAt: string | null): Promise<SurveyWave | undefined> {

@@ -27,7 +27,9 @@ function AppRouter() {
       <Route path="/" component={LandingRoute} />
       <Route path="/survey" component={SurveyFlow} />
       <Route path="/join/:code" component={JoinSurveyFlow} />
-      <Route path="/church" component={ChurchAuth} />
+      <Route path="/church">{() => <ChurchAuth />}</Route>
+      <Route path="/church/login">{() => <ChurchAuth />}</Route>
+      <Route path="/church/signup">{() => <ChurchAuth initialMode="signup" />}</Route>
       <Route path="/dashboard" component={ChurchDashboard} />
       <Route path="/settings" component={ChurchSettings} />
       <Route path="/admin/login" component={AdminLogin} />

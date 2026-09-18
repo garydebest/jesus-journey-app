@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { pgTable, text, integer, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { calendarDate } from "./surveyAccess";
 
 // ---------------------------------------------------------------------------
 // Churches — self-serve accounts for primary contacts
@@ -9,18 +10,19 @@ import { z } from "zod";
 export const churches = pgTable("churches", {
   id: text("id").primaryKey(), // uuid
   name: text("name").notNull(),
-  communityCode: text("community_code").notNull().unique(), // human-typeable join code, e.g. "GRACE-4821"
+  communityCode: text("community_code").notNull().unique(), // legacy account reference, NOT a participant join code
   primaryContactName: text("primary_contact_name").notNull(),
   primaryContactEmail: text("primary_contact_email").notNull().unique(),
   primaryContactPhone: text("primary_contact_phone"),
   passwordHash: text("password_hash").notNull(),
   region: text("region"),
+  surveyPlanJson: text("survey_plan_json"), // optional, provisional next-survey plan; never an activation
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
 });
 
 export const insertChurchSchema = createInsertSchema(churches, {
   primaryContactEmail: z.string().email(),
-}).omit({ id: true, createdAt: true, communityCode: true, passwordHash: true });
+}).omit({ id: true, createdAt: true, communityCode: true, passwordHash: true, surveyPlanJson: true });
 
 export type InsertChurch = z.infer<typeof insertChurchSchema>;
 export type Church = typeof churches.$inferSelect;
@@ -78,15 +80,18 @@ export const surveyWaves = pgTable("survey_waves", {
 });
 
 export const insertWaveSchema = createInsertSchema(surveyWaves, {
+  label: z.string().trim().min(1).max(200),
+  opensAt: calendarDate.nullish(),
+  closesAt: calendarDate.nullish(),
   sizeTier: z.enum(SIZE_TIERS),
-  minSampleSize: z.number().int().min(16, "Total number of adults must be at least 16."),
+  minSampleSize: z.number().int().min(16, "Total number of adults must be at least 16.").max(1000000),
 }).pick({
   label: true,
   minSampleSize: true,
   opensAt: true,
   closesAt: true,
   sizeTier: true,
-});
+}).refine((data) => !data.opensAt || !data.closesAt || data.closesAt >= data.opensAt, "Closing date cannot precede start date.");
 
 // Actual response threshold required before a wave can be closed and reports generated:
 // 50% of the church's total number of adults, rounded up.

@@ -100,7 +100,7 @@ export const TIMELINE_PHASES: TimelinePhaseDef[] = [
     offsetDays: 0,
     title: "Survey closes",
     summary:
-      "Once the 50% threshold and your end date are both reached, close the survey and thank your congregation for participating.",
+      "Once the 50% threshold is reached, close when you are ready and thank your congregation for participating. The planned end date is a guide, not an automatic closure.",
     sourceDoc: "Step-by-Step to Success",
   },
   {

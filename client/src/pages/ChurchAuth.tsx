@@ -8,10 +8,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { JJLogo } from "@/lib/logo";
 import { useChurchAuth } from "@/lib/churchAuth";
 
-export function ChurchAuth() {
+export function ChurchAuth({ initialMode = "login" }: { initialMode?: "login" | "signup" }) {
   const [, setLocation] = useLocation();
   const { token, signup, login } = useChurchAuth();
-  const [mode, setMode] = useState<"login" | "signup">("signup");
+  const [mode, setMode] = useState<"login" | "signup">(initialMode);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -77,8 +77,8 @@ export function ChurchAuth() {
             <CardTitle className="text-lg">{mode === "signup" ? "Create your church account" : "Church sign in"}</CardTitle>
             <CardDescription>
               {mode === "signup"
-                ? "Set up a free account to launch a survey and receive your aggregate report."
-                : "Sign in to view your survey progress and reports."}
+                ? "Create a free account to explore a survey plan. A separate purchase is required to activate each survey."
+                : "Use your existing email and password to review reports, plan dates, or manage a purchased survey. Your login stays the same for every survey."}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -101,7 +101,7 @@ export function ChurchAuth() {
               )}
               <div className="space-y-1.5">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required data-testid="input-email" />
+                <Input id="email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required data-testid="input-email" />
               </div>
               {mode === "signup" && (
                 <div className="space-y-1.5">
@@ -111,7 +111,7 @@ export function ChurchAuth() {
               )}
               <div className="space-y-1.5">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} data-testid="input-password" />
+                <Input id="password" type="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} required minLength={mode === "signup" ? 8 : undefined} data-testid="input-password" />
                 {mode === "signup" && <p className="text-xs text-muted-foreground">At least 8 characters.</p>}
               </div>
 

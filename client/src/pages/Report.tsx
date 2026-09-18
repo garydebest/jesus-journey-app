@@ -170,8 +170,8 @@ export function Report({
             For each Goal, we measure progress along four Pathways. Pathways are means through which
             your Journey of Faith can be helped to move forward. Below you'll see a chart with your
             average score for each Pathway, colored by Goal. Further down, each Pathway is broken
-            into individual statements — a green square marks a statement that's a current strength,
-            and an orange square marks one that's an opportunity to grow.
+            into individual statements. A green dot marks a Strength to Celebrate,
+            and an orange dot marks an Opportunity to Explore.
           </p>
           <p className="text-sm text-muted-foreground leading-relaxed" data-testid="text-report-god-note">
             As you will notice, we repeatedly reference God in these reports. That is not a mistake.
@@ -227,6 +227,16 @@ export function Report({
           ))}
         </section>
 
+        <p className="text-sm leading-relaxed rounded-lg border border-border p-4" data-testid="pathway-legend">
+          In the following pathways, interpret{" "}
+          <span className="inline-block h-2.5 w-2.5 rounded-full" role="img" aria-label="green dot"
+            style={{ background: BAND_STYLES.high.bg, printColorAdjust: "exact", WebkitPrintColorAdjust: "exact" }} />
+          {" "}as a <strong>Strength to Celebrate</strong> and{" "}
+          <span className="inline-block h-2.5 w-2.5 rounded-full" role="img" aria-label="orange dot"
+            style={{ background: BAND_STYLES.low.bg, printColorAdjust: "exact", WebkitPrintColorAdjust: "exact" }} />
+          {" "}as an <strong>Opportunity to Explore</strong>.
+        </p>
+
         {/* Pathway detail cards, grouped by goal */}
         {GOALS.map((goal) => (
           <section key={goal} className="space-y-4" data-testid={`section-goal-${goal.split(" ")[0].toLowerCase()}`}>
@@ -279,11 +289,11 @@ export function Report({
                           data-testid={`text-item-bullet-${code}`}
                         >
                           <span
-                            className="mt-1 h-2.5 w-2.5 rounded-sm shrink-0"
-                            style={{ background: swatch }}
+                            className="mt-1 h-2.5 w-2.5 rounded-full shrink-0"
+                            style={{ background: swatch, printColorAdjust: "exact", WebkitPrintColorAdjust: "exact" }}
                             aria-hidden="true"
                           />
-                          <span>{ITEM_BULLETS[code]}</span>
+                          <span><span className="sr-only">{strong ? "Strength to Celebrate: " : "Opportunity to Explore: "}</span>{ITEM_BULLETS[code]}</span>
                         </li>
                       );
                     })}

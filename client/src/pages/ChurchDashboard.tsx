@@ -27,7 +27,7 @@ function formatPrice(price: number, currency: string): string {
 }
 
 const TABS = [
-  { value: "your-surveys", label: "Your Surveys", badge: "★" },
+  { value: "your-surveys", label: "Your Reports", badge: "★" },
   { value: "prepare", label: "Prepare", badge: "1" },
   { value: "collect", label: "Collect", badge: "2" },
   { value: "interpret", label: "Interpret", badge: "3" },
@@ -40,10 +40,12 @@ export function ChurchDashboard() {
   const { token, church, logout } = useChurchAuth();
   const [waves, setWaves] = useState<WaveWithMeta[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [reportWave, setReportWave] = useState<WaveWithMeta | null>(null);
   const [reportSummary, setReportSummary] = useState<WaveAggregateSummary | null>(null);
+  const [reportError, setReportError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("your-surveys");
 
   const [label, setLabel] = useState("");
@@ -62,12 +64,13 @@ export function ChurchDashboard() {
   const loadWaves = useCallback(async () => {
     if (!token) return;
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await churchApiRequest(token, "GET", "/api/waves");
       const json = await res.json();
       setWaves(json.waves);
     } catch (err: any) {
-      setError(String(err?.message ?? err));
+      setLoadError("We couldn't load your saved surveys. This does not mean your reports are missing. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -110,9 +113,9 @@ export function ChurchDashboard() {
         .then((res) => res.json())
         .then((json) => {
           if (json.wave?.paymentStatus === "paid") {
-            setCheckoutBanner({ kind: "success", message: "Payment received — your survey is live! Share the join code with your congregation." });
+            setCheckoutBanner({ kind: "success", message: "Payment received. Review your action plan and confirm the start date to activate your new survey code." });
           } else {
-            setCheckoutBanner({ kind: "pending", message: "We're still confirming your payment with Stripe. This can take a moment — refresh shortly if the survey doesn't show as live." });
+            setCheckoutBanner({ kind: "pending", message: "We're still confirming your payment with Stripe. Refresh shortly if the survey does not show as paid and awaiting confirmation." });
           }
           loadWaves();
         })
@@ -191,12 +194,13 @@ export function ChurchDashboard() {
   async function handleViewReport(wave: WaveWithMeta) {
     setReportWave(wave);
     setReportSummary(null);
+    setReportError(null);
     try {
       const res = await churchApiRequest(token, "GET", `/api/waves/${wave.id}/report`);
       const json = await res.json();
       setReportSummary(json.snapshot.summary);
     } catch (err) {
-      // leave summary null; dialog will show a message
+      setReportError("We could not load this report. Close this window and try again.");
     }
   }
 
@@ -249,9 +253,10 @@ export function ChurchDashboard() {
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Start a new survey</DialogTitle>
+                  <DialogTitle>Purchase a new survey</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleCreateWave} className="space-y-4">
+                  {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
                   <div className="space-y-1.5">
                     <Label htmlFor="wave-label">Label</Label>
                     <Input id="wave-label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Fall 2026 Survey" required data-testid="input-wave-label" />
@@ -290,11 +295,11 @@ export function ChurchDashboard() {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label htmlFor="opens-at">Opens (optional)</Label>
+                      <Label htmlFor="opens-at">Provisional start</Label>
                       <Input id="opens-at" type="date" value={opensAt} onChange={(e) => setOpensAt(e.target.value)} data-testid="input-opens-at" />
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="closes-at">Closes (optional)</Label>
+                      <Label htmlFor="closes-at">Provisional close</Label>
                       <Input id="closes-at" type="date" value={closesAt} onChange={(e) => setClosesAt(e.target.value)} data-testid="input-closes-at" />
                     </div>
                   </div>
@@ -306,7 +311,7 @@ export function ChurchDashboard() {
                 </form>
               </DialogContent>
             </Dialog>
-            <Button variant="ghost" size="sm" onClick={() => setLocation("/settings")} data-testid="button-settings">
+            <Button variant="ghost" size="sm" disabled={church.isDemo} onClick={() => setLocation("/settings")} data-testid="button-settings">
               Settings
             </Button>
             <Button variant="outline" size="sm" onClick={() => { logout(); setLocation("/church"); }} data-testid="button-logout">
@@ -330,16 +335,6 @@ export function ChurchDashboard() {
             </AlertDescription>
           </Alert>
         )}
-        <div className="rounded-md border bg-muted/20 px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Your community join code</div>
-            <div className="text-lg font-mono tracking-widest" data-testid="text-community-code">{church.communityCode}</div>
-          </div>
-          <p className="text-xs text-muted-foreground max-w-sm">
-            Share this code, or a specific survey's code, with your congregation.
-          </p>
-        </div>
-
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-transparent p-0 border-b rounded-none">
             {TABS.map((t) => (
@@ -364,14 +359,26 @@ export function ChurchDashboard() {
           <TabsContent value="your-surveys" className="pt-6">
             <PanelYourSurveys
               token={token}
+              isDemo={church.isDemo}
               waves={waves}
               loading={loading}
+              loadError={loadError}
+              onRetryLoad={loadWaves}
               error={error}
               closeError={closeError}
               downloadError={downloadError}
               closingId={closingId}
               downloadingId={downloadingId}
-              onStartNew={() => setCreateOpen(true)}
+              onStartNew={(plan) => {
+                if (church.isDemo) return;
+                if (plan) {
+                  setMinSample(String(plan.minSampleSize));
+                  setOpensAt(plan.opensAt);
+                  setClosesAt(plan.closesAt);
+                }
+                setError(null);
+                setCreateOpen(true);
+              }}
               onGoToPrepare={() => setActiveTab("prepare")}
               onClose={handleCloseWave}
               onDownloadReport={handleDownloadFullReport}
@@ -404,7 +411,7 @@ export function ChurchDashboard() {
           {reportSummary ? (
             <WaveReportView summary={reportSummary} churchName={church.name} />
           ) : (
-            <p className="text-sm text-muted-foreground py-6">Loading report...</p>
+            <p role={reportError ? "alert" : "status"} className="text-sm text-muted-foreground py-6">{reportError ?? "Loading report..."}</p>
           )}
         </DialogContent>
       </Dialog>

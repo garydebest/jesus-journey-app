@@ -25,10 +25,15 @@ import { PRICING_TIERS, priceCentsForTier, publicPricingList } from "./pricing";
 import { createCheckoutSession, retrieveCheckoutSession, verifyStripeWebhookSignature, isStripeConfigured } from "./stripe";
 import { currencyForRequest } from "./currency";
 import { runReminderSweep } from "./reminders";
+import { acceptsResponses, calendarDate, emptySurveyPlan, isDemoChurch, surveyPlanSchema } from "@shared/surveyAccess";
 
-function sanitizeChurch(church: { passwordHash?: string; [k: string]: any }) {
-  const { passwordHash, ...rest } = church;
-  return rest;
+function sanitizeChurch(church: { passwordHash?: string; [k: string]: any }): Record<string, any> {
+  const { passwordHash, surveyPlanJson, ...rest } = church;
+  return { ...rest, isDemo: isDemoChurch(church.id) };
+}
+
+function sanitizeWave(wave: any) {
+  return wave ? { ...wave, joinCode: wave.paymentStatus === "paid" ? wave.joinCode : null } : wave;
 }
 
 const submitResponseSchema = z.object({
@@ -54,6 +59,16 @@ const submitResponseSchema = z.object({
 });
 
 export async function registerRoutes(httpServer: Server, app: Express) {
+  // The shared demo account is read-only on the server. Its interactive
+  // planning and progress examples are simulated in the browser.
+  app.use(["/api/waves", "/api/churches/me", "/api/churches/plan"], (req: AuthedRequest, res, next) => {
+    if (req.method === "GET" || req.method === "HEAD") return next();
+    requireChurchAuth(req, res, () => {
+      if (isDemoChurch(req.churchId!)) return res.status(403).json({ message: "The Grace demo is read-only. Your practice changes are not saved to the shared account." });
+      next();
+    });
+  });
+
   // -------------------------------------------------------------------
   // Church self-serve auth
   // -------------------------------------------------------------------
@@ -122,6 +137,21 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     res.json({ church: sanitizeChurch(church) });
   });
 
+  app.get("/api/churches/plan", requireChurchAuth, async (req: AuthedRequest, res) => {
+    const church = await storage.getChurchById(req.churchId!);
+    if (!church) return res.status(404).json({ message: "Church not found" });
+    let plan = emptySurveyPlan();
+    try { plan = surveyPlanSchema.parse(JSON.parse(church.surveyPlanJson ?? "null")); } catch {}
+    res.json({ plan });
+  });
+
+  app.put("/api/churches/plan", requireChurchAuth, async (req: AuthedRequest, res) => {
+    const parsed = surveyPlanSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid plan" });
+    await storage.saveChurchPlan(req.churchId!, parsed.data);
+    res.json({ plan: parsed.data });
+  });
+
   // -------------------------------------------------------------------
   // Pricing (public)
   // -------------------------------------------------------------------
@@ -134,8 +164,8 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   // Waves (church-authenticated)
   // -------------------------------------------------------------------
   // Creates a wave in `pending_payment` state and immediately starts a
-  // Stripe Checkout Session for it. The wave only becomes `live` once the
-  // webhook confirms payment (see /api/stripe/webhook below). Every survey
+  // Stripe Checkout Session for it. Payment makes it `not_started`;
+  // explicit plan confirmation activates it. Every survey
   // is a standalone one-time purchase — no subscriptions.
   app.post("/api/waves", requireChurchAuth, async (req: AuthedRequest, res) => {
     const parsed = insertWaveSchema.safeParse(req.body);
@@ -148,6 +178,10 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     const church = await storage.getChurchById(req.churchId!);
     if (!church) return res.status(404).json({ message: "Church not found" });
 
+    const existingWaves = await storage.getWavesByChurch(church.id);
+    if (existingWaves.some((wave) => wave.paymentStatus === "paid" && wave.status !== "closed")) {
+      return res.status(409).json({ message: "You already have a purchased survey. Confirm or complete it before buying another." });
+    }
     const tier = parsed.data.sizeTier;
     const currency = currencyForRequest(req);
     const priceCents = priceCentsForTier(tier, currency);
@@ -166,7 +200,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         metadata: { waveId: wave.id, churchId: church.id },
       });
       await storage.setWaveCheckoutSession(wave.id, session.id);
-      res.status(201).json({ wave, checkoutUrl: session.url });
+      res.status(201).json({ wave: sanitizeWave(wave), checkoutUrl: session.url });
     } catch (err: any) {
       // Roll back the unpaid wave so it doesn't clutter the dashboard as a
       // dead entry if Stripe couldn't be reached.
@@ -183,39 +217,36 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       return res.status(404).json({ message: "Wave not found" });
     }
     if (wave.paymentStatus === "paid" || !wave.stripeCheckoutSessionId) {
-      return res.json({ wave });
+      return res.json({ wave: sanitizeWave(wave) });
     }
     try {
       const session = await retrieveCheckoutSession(wave.stripeCheckoutSessionId);
       if (session.payment_status === "paid") {
         const updated = await storage.markWavePaid(wave.id, session.payment_intent ?? undefined);
-        return res.json({ wave: updated });
+        return res.json({ wave: sanitizeWave(updated) });
       }
-      res.json({ wave });
+      res.json({ wave: sanitizeWave(wave), checkoutUrl: session.status === "open" ? session.url : null });
     } catch {
-      res.json({ wave });
+      res.json({ wave: sanitizeWave(wave) });
     }
   });
 
-  // Allows a church to abandon (delete) a wave that is still stuck in
-  // pending_payment — e.g. they closed the Stripe tab without paying.
+  // Retain pending checkouts so delayed payment settlement stays recoverable.
   app.delete("/api/waves/:id/pending", requireChurchAuth, async (req: AuthedRequest, res) => {
     const wave = await storage.getWaveById(String(req.params.id));
     if (!wave || wave.churchId !== req.churchId) {
       return res.status(404).json({ message: "Wave not found" });
     }
-    if (wave.paymentStatus === "paid") {
-      return res.status(409).json({ message: "This survey has already been paid for." });
-    }
-    await storage.deleteUnpaidWave(wave.id);
-    res.json({ ok: true });
+    // A Stripe session may still settle asynchronously after the visitor
+    // leaves checkout. Never delete its wave while payment can arrive.
+    return res.status(409).json({ message: "An unfinished checkout is kept until its payment status is resolved. It cannot activate a survey without payment." });
   });
 
   app.get("/api/waves", requireChurchAuth, async (req: AuthedRequest, res) => {
     const waves = await storage.getWavesByChurch(req.churchId!);
     const withCounts = await Promise.all(
       waves.map(async (w) => ({
-        ...w,
+        ...sanitizeWave(w),
         responseCount: w.status === "closed" ? undefined : await storage.countResponsesByWave(w.id),
         snapshot: await storage.getSnapshotByWave(w.id),
       })),
@@ -229,10 +260,37 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       return res.status(404).json({ message: "Wave not found" });
     }
     res.json({
-      wave,
+      wave: sanitizeWave(wave),
       responseCount: await storage.countResponsesByWave(wave.id),
       snapshot: await storage.getSnapshotByWave(wave.id),
     });
+  });
+
+  app.get("/api/waves/:id/participation", requireChurchAuth, async (req: AuthedRequest, res) => {
+    const wave = await storage.getWaveById(String(req.params.id));
+    if (!wave || wave.churchId !== req.churchId) return res.status(404).json({ message: "Wave not found" });
+    if (wave.paymentStatus !== "paid") return res.status(403).json({ message: "Purchase is required." });
+    if (wave.status === "closed") return res.status(409).json({ message: "See the saved report for this completed survey." });
+    res.json(await storage.getResponseBreakdown(wave.id));
+  });
+
+  app.post("/api/waves/:id/confirm-plan", requireChurchAuth, async (req: AuthedRequest, res) => {
+    const wave = await storage.getWaveById(String(req.params.id));
+    if (!wave || wave.churchId !== req.churchId) return res.status(404).json({ message: "Wave not found" });
+    if (wave.paymentStatus !== "paid") return res.status(403).json({ message: "Purchase this survey before confirming its start date." });
+    if (wave.status === "closed") return res.status(409).json({ message: "A completed survey cannot be reopened. Purchase a new survey." });
+    const parsed = surveyPlanSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid plan" });
+    if (!parsed.data.opensAt || !parsed.data.closesAt) return res.status(400).json({ message: "Set both a start date and a planned closing date." });
+    if (wave.status === "not_started" && parsed.data.closesAt < new Date().toISOString().slice(0, 10)) {
+      return res.status(400).json({ message: "Choose a closing date that has not already passed." });
+    }
+    try {
+      const updated = await storage.confirmWavePlan(wave.id, req.churchId!, parsed.data);
+      res.json({ wave: sanitizeWave(updated) });
+    } catch (error: any) {
+      res.status(409).json({ message: error.message });
+    }
   });
 
   // Survey Action Plan (timeline) ----------------------------------------
@@ -257,14 +315,14 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         calculatedDate: phase.date,
       };
     });
-    res.json({ wave, phases });
+    res.json({ wave: sanitizeWave(wave), phases });
   });
 
   const setWaveDatesSchema = z.object({
-    opensAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "opensAt must be YYYY-MM-DD"),
+    opensAt: calendarDate,
     // If omitted, closesAt is auto-generated as opensAt + 2 weeks per the guide's
     // suggested schedule. Pass closesAt explicitly to override that default.
-    closesAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    closesAt: calendarDate.optional(),
   });
 
   // Sets or revises the survey's start date. Revising the start date after it
@@ -277,6 +335,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     if (!wave || wave.churchId !== req.churchId) {
       return res.status(404).json({ message: "Wave not found" });
     }
+    if (wave.paymentStatus !== "paid") return res.status(403).json({ message: "Purchase is required to set survey dates." });
     if (wave.status === "closed") {
       return res.status(409).json({ message: "This survey is already closed; its dates can't be changed." });
     }
@@ -286,12 +345,13 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     }
     const opensAt = parsed.data.opensAt;
     const closesAt = parsed.data.closesAt ?? defaultClosesAt(opensAt);
+    if (closesAt < opensAt) return res.status(400).json({ message: "Closing date cannot precede start date." });
     const updated = await storage.setWaveDates(wave.id, opensAt, closesAt);
     res.json({ wave: updated });
   });
 
   const extendClosesAtSchema = z.object({
-    closesAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "closesAt must be YYYY-MM-DD"),
+    closesAt: calendarDate,
   });
 
   // Extends (or otherwise revises) just the end date — e.g. the 50% response
@@ -303,6 +363,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     if (!wave || wave.churchId !== req.churchId) {
       return res.status(404).json({ message: "Wave not found" });
     }
+    if (wave.paymentStatus !== "paid") return res.status(403).json({ message: "Purchase is required." });
     if (wave.status === "closed") {
       return res.status(409).json({ message: "This survey is already closed; its dates can't be changed." });
     }
@@ -313,13 +374,14 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     if (!parsed.success) {
       return res.status(400).json({ message: "Invalid date", errors: parsed.error.flatten() });
     }
+    if (parsed.data.closesAt < wave.opensAt) return res.status(400).json({ message: "Closing date cannot precede start date." });
     const updated = await storage.setWaveDates(wave.id, wave.opensAt, parsed.data.closesAt);
     res.json({ wave: updated });
   });
 
   const nudgePhaseSchema = z.object({
     // Null clears the manual override and reverts to the calculated default.
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+    date: calendarDate.nullable(),
   });
 
   // Nudges a single phase to a manually-chosen date. This marks that phase as
@@ -330,7 +392,9 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     if (!wave || wave.churchId !== req.churchId) {
       return res.status(404).json({ message: "Wave not found" });
     }
+    if (wave.paymentStatus !== "paid" || wave.status === "closed") return res.status(403).json({ message: "Only a purchased, unfinished survey can be adjusted." });
     const phaseKey = String(req.params.phaseKey);
+    if (["full_launch", "survey_closes"].includes(phaseKey)) return res.status(400).json({ message: "Change the plan's start or closing date instead." });
     if (!TIMELINE_PHASES.some((p) => p.key === phaseKey)) {
       return res.status(404).json({ message: "Unknown timeline phase" });
     }
@@ -350,6 +414,9 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     if (!wave || wave.churchId !== req.churchId) {
       return res.status(404).json({ message: "Wave not found" });
     }
+    if (wave.paymentStatus !== "paid" || !["live", "prep", "closing_soon", "closed"].includes(wave.status)) {
+      return res.status(403).json({ message: "Confirm your purchased survey's action plan before adding it to your calendar." });
+    }
     const overrides = await storage.getTimelinePhaseOverrides(wave.id);
     const overrideByKey = new Map(overrides.map((o) => [o.phaseKey, o]));
     const computed = computeTimelineDates(wave.opensAt, wave.closesAt).map((phase) => ({
@@ -358,7 +425,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     }));
     const onlyPhase = typeof req.query.phase === "string" ? req.query.phase : undefined;
     const selected = onlyPhase ? computed.filter((p) => p.key === onlyPhase) : computed;
-    const ics = buildTimelineIcs(wave.label, selected);
+    const ics = buildTimelineIcs(wave.label, selected, wave.id);
     res.setHeader("Content-Type", "text/calendar; charset=utf-8");
     res.setHeader(
       "Content-Disposition",
@@ -375,6 +442,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     if (wave.status === "closed") {
       return res.status(409).json({ message: "This survey wave is already closed" });
     }
+    if (!acceptsResponses(wave)) return res.status(403).json({ message: "Payment and start-date confirmation are required before closing." });
     const rows = await storage.getResponsesByWave(wave.id);
     const requiredResponses = requiredResponsesForClose(wave.minSampleSize);
     if (rows.length < requiredResponses) {
@@ -441,7 +509,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     if (wave.status === "closed") {
       return res.status(410).json({ message: "This survey is now closed" });
     }
-    if (wave.status === "pending_payment" || wave.status === "not_started") {
+    if (!acceptsResponses(wave)) {
       return res.status(403).json({ message: "This survey has not been opened by the church yet" });
     }
     const church = await storage.getChurchById(wave.churchId);
@@ -461,7 +529,8 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     const wave = await storage.getWaveByJoinCode(joinCode);
     if (!wave) return res.status(404).json({ message: "No survey found with that code" });
     if (wave.status === "closed") return res.status(410).json({ message: "This survey is now closed" });
-    if (wave.status === "pending_payment" || wave.status === "not_started") {
+    if (isDemoChurch(wave.churchId)) return res.status(403).json({ message: "The demo does not collect real responses." });
+    if (!acceptsResponses(wave)) {
       return res.status(403).json({ message: "This survey has not been opened by the church yet" });
     }
 
@@ -598,7 +667,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
                 const snapshot = await storage.getSnapshotByWave(w.id);
                 const debriefing = await storage.getDebriefingReportByWave(w.id);
                 return {
-                  wave: w,
+                  wave: sanitizeWave(w),
                   responseCount: w.status === "closed" ? snapshot?.respondentCount ?? 0 : await storage.countResponsesByWave(w.id),
                   hasReport: !!snapshot,
                   hasReportPdf: !!snapshot?.reportPdfPath,
@@ -637,6 +706,8 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   app.post("/api/admin/waves/:id/close", requireAdminAuth, async (req, res) => {
     const wave = await storage.getWaveById(String(req.params.id));
     if (!wave) return res.status(404).json({ message: "Wave not found" });
+    if (isDemoChurch(wave.churchId)) return res.status(403).json({ message: "The shared demo is read-only." });
+    if (!acceptsResponses(wave)) return res.status(409).json({ message: "Only an activated paid survey can be force closed." });
     if (wave.status === "closed") return res.status(409).json({ message: "Already closed" });
     const rows = await storage.getResponsesByWave(wave.id);
     if (rows.length === 0) {

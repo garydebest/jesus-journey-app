@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { requestWithRetry, responseError } from "./apiTransport";
 
 interface AdminAuthState {
   token: string | null;
@@ -52,7 +53,7 @@ export function useAdminAuth(): AdminAuthState {
 
 // Authenticated fetch helper for admin-scoped API calls.
 export async function adminApiRequest(token: string | null, method: string, url: string, body?: unknown) {
-  const res = await fetch(`${API_BASE}${url}`, {
+  const res = await requestWithRetry(`${API_BASE}${url}`, {
     method,
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -61,19 +62,17 @@ export async function adminApiRequest(token: string | null, method: string, url:
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(text);
+    throw await responseError(res);
   }
   return res;
 }
 
 export async function adminApiRequestBlob(token: string | null, url: string): Promise<Blob> {
-  const res = await fetch(`${API_BASE}${url}`, {
+  const res = await requestWithRetry(`${API_BASE}${url}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(text);
+    throw await responseError(res);
   }
   return res.blob();
 }

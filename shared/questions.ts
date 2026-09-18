@@ -1,18 +1,18 @@
 // Maturity self-report options (used for Q1 pre-survey and Q9 post-survey restatement)
 export const MATURITY_OPTIONS_PRE = [
-  { value: 1, label: "I do not presently see God as important to my life." },
-  { value: 2, label: "I am exploring if and how God fits into my life." },
-  { value: 3, label: "I believe God is real and I am trying to follow God in some parts of my life." },
-  { value: 4, label: "I am learning more and more to trust God in many of the practical aspects of my life." },
-  { value: 5, label: "I see God as the center of my life and I am committed to becoming like Jesus in all parts of my life." },
+  { value: 1, label: "I do not presently see Jesus as important to my life." },
+  { value: 2, label: "I am exploring if and how Jesus fits into my life." },
+  { value: 3, label: "I believe Jesus is real and I am trying to follow Jesus in some parts of my life." },
+  { value: 4, label: "I am learning more and more to trust Jesus in many of the practical aspects of my life." },
+  { value: 5, label: "I see Jesus as the center of my life and I am committed to becoming like Jesus in all parts of my life." },
 ];
 
 export const MATURITY_OPTIONS_POST = [
-  { value: 1, label: "I do not presently see God as important to my life." },
-  { value: 2, label: "I am exploring if and how God fits into my life." },
-  { value: 3, label: "I believe God is important and I am trying to follow God in some parts of my life." },
-  { value: 4, label: "I am learning more and more to trust God in many of the practical aspects of my life." },
-  { value: 5, label: "I see God as the center of my life and I am committed to becoming like Jesus in all parts of my life." },
+  { value: 1, label: "I do not presently see Jesus as important to my life." },
+  { value: 2, label: "I am exploring if and how Jesus fits into my life." },
+  { value: 3, label: "I believe Jesus is important and I am trying to follow Jesus in some parts of my life." },
+  { value: 4, label: "I am learning more and more to trust Jesus in many of the practical aspects of my life." },
+  { value: 5, label: "I see Jesus as the center of my life and I am committed to becoming like Jesus in all parts of my life." },
 ];
 
 export const MATURITY_LABELS = ["", "Distant", "Exploring", "Believing", "Trusting", "God Centered"];

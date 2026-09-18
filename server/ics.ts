@@ -7,17 +7,17 @@ import { randomUUID } from "node:crypto";
 import type { ComputedPhase } from "@shared/timeline";
 
 function foldLine(line: string): string {
-  // RFC 5545 §3.1: lines longer than 75 octets should be folded with a
-  // leading space on the continuation. Simple char-based fold is sufficient
-  // here since our text is plain ASCII/UTF-8 short sentences.
-  if (line.length <= 75) return line;
+  // Fold by UTF-8 octets without splitting a Unicode code point.
   const parts: string[] = [];
-  let rest = line;
-  while (rest.length > 75) {
-    parts.push(rest.slice(0, 75));
-    rest = " " + rest.slice(75);
+  let current = "";
+  for (const char of line) {
+    if (Buffer.byteLength(current + char, "utf8") > 75) {
+      parts.push(current);
+      current = " ";
+    }
+    current += char;
   }
-  parts.push(rest);
+  parts.push(current);
   return parts.join("\r\n");
 }
 
@@ -41,7 +41,7 @@ function addOneDay(isoDate: string): string {
  * resolved date. Phases without a date (opensAt/closesAt not set yet) are
  * silently skipped — callers should only pass phases worth exporting.
  */
-export function buildTimelineIcs(waveLabel: string, phases: ComputedPhase[]): string {
+export function buildTimelineIcs(waveLabel: string, phases: ComputedPhase[], waveId?: string): string {
   const now = new Date();
   const stamp =
     now.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
@@ -51,15 +51,15 @@ export function buildTimelineIcs(waveLabel: string, phases: ComputedPhase[]): st
     .map((phase) => {
       const dtStart = toIcsDate(phase.date!);
       const dtEnd = toIcsDate(addOneDay(phase.date!));
-      const uid = `${randomUUID()}@jesusjourney.life`;
+      const uid = `${waveId ?? randomUUID()}-${phase.key}@jesusjourney.life`;
       const summary = escapeText(`Jesus Journey: ${phase.title} (${waveLabel})`);
       const description = escapeText(phase.summary);
       return [
         "BEGIN:VEVENT",
         foldLine(`UID:${uid}`),
         `DTSTAMP:${stamp}`,
-        `DTSTART:${dtStart}`,
-        `DTEND:${dtEnd}`,
+        `DTSTART;VALUE=DATE:${dtStart}`,
+        `DTEND;VALUE=DATE:${dtEnd}`,
         foldLine(`SUMMARY:${summary}`),
         foldLine(`DESCRIPTION:${description}`),
         "END:VEVENT",

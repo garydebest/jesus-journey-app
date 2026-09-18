@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // Automated survey action plan reminders.
 //
-// Every day, this checks every "live" or "not_started" survey wave, computes
+// Every day, this checks activated paid non-demo survey waves, computes
 // its 14-phase action plan (respecting manual per-phase date overrides), and
 // emails the church's primary contact a heads-up REMINDER_LEAD_DAYS before
 // any phase whose date falls exactly that many days out. Each phase is only
@@ -16,6 +16,7 @@
 import { storage } from "./storage";
 import { computeTimelineDates, type ComputedPhase } from "@shared/timeline";
 import { sendEmail, isMailerConfigured } from "./mailer";
+import { acceptsResponses, isDemoChurch } from "@shared/surveyAccess";
 
 export const REMINDER_LEAD_DAYS = 3;
 
@@ -93,7 +94,7 @@ export async function runReminderSweep(): Promise<ReminderRunResult> {
   const targetDate = addDaysIso(today, REMINDER_LEAD_DAYS);
 
   const waves = await storage.getAllWaves();
-  const activeWaves = waves.filter((w) => w.status === "live" || w.status === "not_started");
+  const activeWaves = waves.filter((w) => !isDemoChurch(w.churchId) && acceptsResponses(w));
 
   for (const wave of activeWaves) {
     result.checked++;

@@ -13,6 +13,7 @@ import type { WaveAggregateSummary } from "@shared/aggregate";
 import type { DebriefingReport } from "@shared/debriefing/types";
 
 interface AdminChurch {
+  isDemo?: boolean;
   id: string;
   name: string;
   communityCode: string;
@@ -27,7 +28,7 @@ interface AdminWaveEntry {
   wave: {
     id: string;
     label: string;
-    joinCode: string;
+    joinCode: string | null;
     status: string;
     paymentStatus?: string;
     sizeTier?: string | null;
@@ -89,6 +90,11 @@ export function AdminOverview() {
   const [, setLocation] = useLocation();
   const { token, logout } = useAdminAuth();
   const [groups, setGroups] = useState<AdminChurchGroup[]>([]);
+  const [accountFilter, setAccountFilter] = useState("customers");
+  const [forceClosing, setForceClosing] = useState(false);
+  const [forceCloseId, setForceCloseId] = useState<string | null>(null);
+  const accountCategory = (g: AdminChurchGroup) => g.church.isDemo ? "demo" : g.waves.some(e => e.wave.paymentStatus === "paid") || g.legacySnapshots.length > 0 ? "customers" : "registered";
+  const visibleGroups = groups.filter(g => accountFilter === "all" || accountCategory(g) === accountFilter);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [reportChurch, setReportChurch] = useState<AdminChurch | null>(null);
@@ -130,11 +136,15 @@ export function AdminOverview() {
   }, [token, loadChurches]);
 
   async function handleForceClose(waveId: string) {
+    setForceClosing(true);
     try {
       await adminApiRequest(token, "POST", `/api/admin/waves/${waveId}/close`);
+      setForceCloseId(null);
       await loadChurches();
     } catch (err: any) {
       setError(String(err?.message ?? err));
+    } finally {
+      setForceClosing(false);
     }
   }
 
@@ -246,6 +256,13 @@ export function AdminOverview() {
         </div>
       </header>
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+        <div className="space-y-3">
+          <h1 className="text-xl font-semibold">Church accounts</h1>
+          <p className="text-sm text-muted-foreground">These are account registrations, not sign-in records. Registering does not purchase a survey or activate a participant code.</p>
+          <div className="flex flex-wrap gap-2">
+            {[["customers", "Customers & historical records"], ["registered", "Registered, no purchase"], ["demo", "Demo"], ["all", "All accounts"]].map(([value, label]) => <Button key={value} size="sm" variant={accountFilter === value ? "default" : "outline"} aria-pressed={accountFilter === value} onClick={() => setAccountFilter(value)}>{label} ({groups.filter(g => value === "all" || accountCategory(g) === value).length})</Button>)}
+          </div>
+        </div>
         {error && (
           <Alert variant="destructive" data-testid="alert-admin-error">
             <AlertDescription>{error}</AlertDescription>
@@ -253,25 +270,25 @@ export function AdminOverview() {
         )}
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading churches...</p>
-        ) : groups.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No churches have signed up yet.</p>
+        ) : visibleGroups.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No accounts in this category.</p>
         ) : (
-          groups.map(({ church, waves, legacySnapshots }) => (
+          visibleGroups.map(({ church, waves, legacySnapshots }) => (
             <Card key={church.id} data-testid={`card-admin-church-${church.id}`}>
               <CardContent className="pt-6 space-y-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <div className="text-sm font-semibold">{church.name}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
+                    <div className="text-xs text-muted-foreground mt-0.5 break-all">
                       {church.primaryContactName} · {church.primaryContactEmail}
                       {church.primaryContactPhone ? ` · ${church.primaryContactPhone}` : ""}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      Join code {church.communityCode}
+                      {church.isDemo ? "Shared demo account" : waves.some(e => e.wave.paymentStatus === "paid") ? "Survey customer" : legacySnapshots.length ? "Historical report account" : "Registered, no purchase"}
                       {church.region ? ` · ${church.region}` : ""}
                     </div>
                   </div>
-                  <Badge variant="secondary">{waves.length} survey{waves.length === 1 ? "" : "s"}</Badge>
+                  <Badge variant="secondary">{church.isDemo ? `${waves.length} demo survey` : `${waves.filter(e => e.wave.paymentStatus === "paid").length} purchased${waves.some(e => e.wave.paymentStatus !== "paid") ? ` · ${waves.filter(e => e.wave.paymentStatus !== "paid").length} unpaid` : ""}`}</Badge>
                 </div>
 
                 {legacySnapshots.length > 0 && (
@@ -310,7 +327,7 @@ export function AdminOverview() {
                 )}
 
                 {waves.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No surveys started yet.</p>
+                  <p className="text-xs text-muted-foreground">No survey purchases. No active participant code.</p>
                 ) : (
                   <div className="space-y-2 border-t border-border pt-3">
                     {waves.map((entry) => (
@@ -332,11 +349,11 @@ export function AdminOverview() {
                             {entry.wave.label}
                           </button>
                           <div className="text-xs text-muted-foreground">
-                            code {entry.wave.joinCode} · {entry.responseCount} responses · needs {Math.ceil(entry.wave.minSampleSize * 0.5)} to close (50% of {entry.wave.minSampleSize} total adults)
+                            {entry.wave.joinCode ? `${entry.wave.status === "not_started" ? "Reserved code" : entry.wave.status === "closed" ? "Closed code" : "Survey code"} ${entry.wave.joinCode}` : "No activated code"} · {entry.responseCount} responses · needs {Math.ceil(entry.wave.minSampleSize * 0.5)} to close (50% of {entry.wave.minSampleSize} total adults)
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={entry.wave.status === "closed" ? "secondary" : "default"}>{entry.wave.status}</Badge>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant={entry.wave.status === "closed" ? "secondary" : "default"}>{entry.wave.status === "not_started" && entry.wave.paymentStatus === "paid" ? "Paid · awaiting confirmation" : entry.wave.status.replaceAll("_", " ")}</Badge>
                           {entry.wave.paymentStatus && (
                             <Badge variant={entry.wave.paymentStatus === "paid" ? "outline" : "destructive"} data-testid={`badge-payment-${entry.wave.id}`}>
                               {entry.wave.paymentStatus}
@@ -402,8 +419,8 @@ export function AdminOverview() {
                             <Button
                               size="sm"
                               variant="outline"
-                              disabled={entry.wave.status === "closed" || entry.responseCount === 0}
-                              onClick={() => handleForceClose(entry.wave.id)}
+                              disabled={church.isDemo || entry.wave.paymentStatus !== "paid" || entry.wave.status === "closed" || entry.responseCount === 0}
+                              onClick={() => setForceCloseId(entry.wave.id)}
                               data-testid={`button-admin-close-${entry.wave.id}`}
                             >
                               Force close
@@ -419,6 +436,17 @@ export function AdminOverview() {
           ))
         )}
       </main>
+
+      <Dialog open={!!forceCloseId} onOpenChange={(open) => !open && !forceClosing && setForceCloseId(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Force close this survey?</DialogTitle></DialogHeader>
+          <p className="text-sm">This admin override bypasses the 50% target, generates reports and permanently removes raw responses. The survey cannot be reopened.</p>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="outline" disabled={forceClosing} onClick={() => setForceCloseId(null)}>Cancel</Button>
+            <Button variant="destructive" disabled={forceClosing} onClick={() => forceCloseId && handleForceClose(forceCloseId)}>{forceClosing ? "Closing…" : "Confirm force close"}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!reportWaveEntry} onOpenChange={(open) => !open && setReportWaveEntry(null)}>
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
@@ -469,7 +497,7 @@ export function AdminOverview() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Join code</span>
-                <span className="font-mono">{detailWaveEntry.wave.joinCode}</span>
+                <span className="font-mono">{detailWaveEntry.wave.joinCode ?? "Not activated"}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Start date</span>

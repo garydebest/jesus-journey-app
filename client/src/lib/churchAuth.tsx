@@ -1,7 +1,9 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 import { apiRequest } from "./queryClient";
+import { requestWithRetry, responseError } from "./apiTransport";
 
 export interface ChurchAccount {
+  isDemo?: boolean;
   id: string;
   name: string;
   communityCode: string;
@@ -52,7 +54,7 @@ export function ChurchAuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     if (token) {
-      apiRequest("POST", "/api/churches/logout").catch(() => {});
+      churchApiRequest(token, "POST", "/api/churches/logout").catch(() => {});
     }
     setToken(null);
     setChurch(null);
@@ -79,7 +81,7 @@ export async function churchApiRequest(
   data?: unknown,
 ): Promise<Response> {
   const API_BASE = "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
-  const res = await fetch(`${API_BASE}${url}`, {
+  const res = await requestWithRetry(`${API_BASE}${url}`, {
     method,
     headers: {
       ...(data ? { "Content-Type": "application/json" } : {}),
@@ -88,8 +90,7 @@ export async function churchApiRequest(
     body: data ? JSON.stringify(data) : undefined,
   });
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    throw await responseError(res);
   }
   return res;
 }
