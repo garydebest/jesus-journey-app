@@ -31,6 +31,9 @@ export async function responseError(response: Response): Promise<Error> {
   let message: unknown;
   try {
     const body = JSON.parse(text);
+    if (body.code === "REPORTS_NOT_SAVED") {
+      return new Error("The reports could not all be generated and safely saved. No responses have been deleted and your survey remains open. Please try again, or contact support if the problem continues.");
+    }
     message = body.message ?? body.error ?? body.detail;
   } catch {
     // Do not expose proxy HTML or technical response bodies.

@@ -5,10 +5,7 @@ import { storage } from "./storage";
 import { insertChurchSchema, insertWaveSchema, updateChurchContactSchema, ITEM_CODES, requiredResponsesForClose } from "@shared/schema";
 import { TIMELINE_PHASES, computeTimelineDates, defaultClosesAt } from "@shared/timeline";
 import { buildTimelineIcs } from "./ics";
-import { computeWaveAggregate } from "@shared/aggregate";
-import { generateChurchReportPdf } from "./pdfReport";
-import { buildDebriefingReport } from "@shared/debriefing/engine";
-import { generateDebriefingReportPdf } from "./debriefingPdf";
+import { closeSurvey, saveChurchResponse, SurveyCloseError } from "./closeSurvey";
 import { fetchReportPdf } from "./reportStorage";
 import {
   createSession,
@@ -443,61 +440,12 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       return res.status(409).json({ message: "This survey wave is already closed" });
     }
     if (!acceptsResponses(wave)) return res.status(403).json({ message: "Payment and start-date confirmation are required before closing." });
-    const rows = await storage.getResponsesByWave(wave.id);
-    const requiredResponses = requiredResponsesForClose(wave.minSampleSize);
-    if (rows.length < requiredResponses) {
-      return res.status(400).json({
-        message: `This survey needs at least ${requiredResponses} responses (50% of your total adults of ${wave.minSampleSize}) before it can be closed. You currently have ${rows.length}.`,
-      });
-    }
-    const summary = computeWaveAggregate(rows);
-    const church = await storage.getChurchById(wave.churchId);
-    const pdfResult = await generateChurchReportPdf({
-      waveId: wave.id,
-      churchName: church?.name ?? "Your Church",
-      waveLabel: wave.label,
-      waveCreatedAt: wave.createdAt,
-      rows,
-    });
-    if (!pdfResult.ok) {
-      console.error("Full PDF report generation failed for wave", wave.id, pdfResult.error);
-    }
-    const snapshot = await storage.createAggregateSnapshot({
-      waveId: wave.id,
-      churchId: wave.churchId,
-      respondentCount: summary.respondentCount,
-      summaryJson: JSON.stringify(summary),
-      reportPdfPath: pdfResult.ok ? pdfResult.storageKey ?? null : null,
-      commentsReportPdfPath: pdfResult.ok ? pdfResult.commentsStorageKey ?? null : null,
-    });
     try {
-      const debriefing = buildDebriefingReport({
-        waveId: wave.id,
-        churchId: wave.churchId,
-        churchName: church?.name ?? "Your Church",
-        waveLabel: wave.label,
-        rows,
-      });
-      await storage.createDebriefingReport({
-        waveId: wave.id,
-        churchId: wave.churchId,
-        respondentCount: debriefing.respondentCount,
-        reportJson: JSON.stringify(debriefing),
-        reportPdfPath: null,
-      });
-      const debriefPdf = await generateDebriefingReportPdf(wave.id, debriefing);
-      if (debriefPdf.ok && debriefPdf.storageKey) {
-        await storage.setDebriefingReportPdfPath(wave.id, debriefPdf.storageKey);
-      } else {
-        console.error("Debriefing report PDF generation failed for wave", wave.id, debriefPdf.error);
-      }
+      res.json(await closeSurvey(wave.id));
     } catch (err) {
-      console.error("Debriefing report generation failed for wave", wave.id, err);
+      if (err instanceof SurveyCloseError) return res.status(err.status).json({ message: err.message, code: err.code });
+      throw err;
     }
-    await storage.purgeResponsesByWave(wave.id);
-    await storage.markWaveReportGenerated(wave.id);
-    const closed = await storage.setWaveClosed(wave.id);
-    res.json({ wave: closed, snapshot });
   });
 
   // -------------------------------------------------------------------
@@ -534,17 +482,14 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       return res.status(403).json({ message: "This survey has not been opened by the church yet" });
     }
 
-    const respondent = await storage.createRespondent("church_group", wave.id);
-
     const itemColumns: Record<string, number> = {};
     for (const code of ITEM_CODES) {
       const upper = code.toUpperCase();
       if (typeof items[upper] === "number") itemColumns[code] = items[upper];
     }
 
-    await storage.saveResponse({
-      respondentId: respondent.id,
-      waveId: wave.id,
+    try {
+    await saveChurchResponse(wave.id, {
       ...itemColumns,
       journeyPre: journeyPre ?? null,
       journeyPost: journeyPost ?? null,
@@ -560,6 +505,10 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       raceEthnicity: demographics?.ethnicity ?? null,
       commentText: comment ?? null,
     } as any);
+    } catch (err) {
+      if (err instanceof SurveyCloseError) return res.status(err.status).json({ message: err.message, code: err.code });
+      throw err;
+    }
 
     res.status(201).json({ ok: true });
   });
@@ -709,58 +658,12 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     if (isDemoChurch(wave.churchId)) return res.status(403).json({ message: "The shared demo is read-only." });
     if (!acceptsResponses(wave)) return res.status(409).json({ message: "Only an activated paid survey can be force closed." });
     if (wave.status === "closed") return res.status(409).json({ message: "Already closed" });
-    const rows = await storage.getResponsesByWave(wave.id);
-    if (rows.length === 0) {
-      return res.status(400).json({ message: "Cannot close a wave with zero responses" });
-    }
-    const summary = computeWaveAggregate(rows);
-    const church = await storage.getChurchById(wave.churchId);
-    const pdfResult = await generateChurchReportPdf({
-      waveId: wave.id,
-      churchName: church?.name ?? "Your Church",
-      waveLabel: wave.label,
-      waveCreatedAt: wave.createdAt,
-      rows,
-    });
-    if (!pdfResult.ok) {
-      console.error("Full PDF report generation failed for wave", wave.id, pdfResult.error);
-    }
-    const snapshot = await storage.createAggregateSnapshot({
-      waveId: wave.id,
-      churchId: wave.churchId,
-      respondentCount: summary.respondentCount,
-      summaryJson: JSON.stringify(summary),
-      reportPdfPath: pdfResult.ok ? pdfResult.storageKey ?? null : null,
-      commentsReportPdfPath: pdfResult.ok ? pdfResult.commentsStorageKey ?? null : null,
-    });
     try {
-      const debriefing = buildDebriefingReport({
-        waveId: wave.id,
-        churchId: wave.churchId,
-        churchName: church?.name ?? "Your Church",
-        waveLabel: wave.label,
-        rows,
-      });
-      await storage.createDebriefingReport({
-        waveId: wave.id,
-        churchId: wave.churchId,
-        respondentCount: debriefing.respondentCount,
-        reportJson: JSON.stringify(debriefing),
-        reportPdfPath: null,
-      });
-      const debriefPdf = await generateDebriefingReportPdf(wave.id, debriefing);
-      if (debriefPdf.ok && debriefPdf.storageKey) {
-        await storage.setDebriefingReportPdfPath(wave.id, debriefPdf.storageKey);
-      } else {
-        console.error("Debriefing report PDF generation failed for wave", wave.id, debriefPdf.error);
-      }
+      res.json(await closeSurvey(wave.id, true));
     } catch (err) {
-      console.error("Debriefing report generation failed for wave", wave.id, err);
+      if (err instanceof SurveyCloseError) return res.status(err.status).json({ message: err.message, code: err.code });
+      throw err;
     }
-    await storage.purgeResponsesByWave(wave.id);
-    await storage.markWaveReportGenerated(wave.id);
-    const closed = await storage.setWaveClosed(wave.id);
-    res.json({ wave: closed, snapshot });
   });
 
   app.get("/api/admin/waves/:id/report", requireAdminAuth, async (req, res) => {

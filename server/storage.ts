@@ -186,7 +186,6 @@ export interface IStorage {
   saveResponse(data: InsertResponse): Promise<ResponseRow>;
   getResponsesByWave(waveId: string): Promise<ResponseRow[]>;
   countResponsesByWave(waveId: string): Promise<number>;
-  purgeResponsesByWave(waveId: string): Promise<number>;
 
   // Aggregate snapshots
   createAggregateSnapshot(data: Omit<AggregateSnapshot, "id" | "generatedAt">): Promise<AggregateSnapshot>;
@@ -480,11 +479,6 @@ export class DatabaseStorage implements IStorage {
 
   async countResponsesByWave(waveId: string): Promise<number> {
     const rows = await this.getResponsesByWave(waveId);
-    return rows.length;
-  }
-
-  async purgeResponsesByWave(waveId: string): Promise<number> {
-    const rows = await db.delete(responses).where(eq(responses.waveId, waveId)).returning();
     return rows.length;
   }
 

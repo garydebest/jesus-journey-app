@@ -8,9 +8,8 @@ let cachedClient: SupabaseClient | null | undefined;
 /**
  * Lazily creates the Supabase service-role client used to persist generated
  * church report PDFs. Returns null (and logs once) when the required env
- * vars are missing, so callers can fail soft instead of crashing the whole
- * request — e.g. wave-close should still succeed even if report storage is
- * temporarily misconfigured.
+ * vars are missing. Closing must abort and retain raw responses on any
+ * storage failure; a local scratch PDF is not a durable report.
  */
 function getClient(): SupabaseClient | null {
   if (cachedClient !== undefined) return cachedClient;
@@ -43,11 +42,20 @@ export async function persistReportPdf(
 
   try {
     const buf = await readFile(localPath);
+    if (buf.length < 5 || buf.subarray(0, 5).toString() !== "%PDF-") {
+      return { ok: false, error: "Report renderer did not produce a PDF" };
+    }
     const { error } = await client.storage.from(BUCKET).upload(storageKey, buf, {
       contentType: "application/pdf",
       upsert: true,
     });
     if (error) return { ok: false, error: error.message };
+    // Do not permit raw-response deletion on an upload acknowledgement alone.
+    // Verify the durable object can be downloaded and matches every source byte.
+    const saved = await client.storage.from(BUCKET).download(storageKey);
+    if (saved.error || !saved.data) return { ok: false, error: saved.error?.message ?? "Saved report could not be verified" };
+    const downloaded = Buffer.from(await saved.data.arrayBuffer());
+    if (!buf.equals(downloaded)) return { ok: false, error: "Saved report did not match the generated PDF" };
     await unlink(localPath).catch(() => {});
     return { ok: true, storageKey };
   } catch (err) {

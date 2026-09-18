@@ -133,14 +133,19 @@ export function generateChurchReportPdf(params: GenerateReportParams): Promise<G
           if (uploadedComments.ok) {
             commentsStorageKey = uploadedComments.storageKey;
           } else {
-            // Comments PDF is a bonus artifact — don't fail the whole close if only it fails to persist.
             console.error("Comments report PDF generated but failed to persist to storage for wave", params.waveId, uploadedComments.error);
+            resolve({ ok: false, error: uploadedComments.error });
+            return;
           }
+        }
+        if (params.rows.some(row => row.commentText?.trim()) && !commentsStorageKey) {
+          resolve({ ok: false, error: "Written comments exist but the comments report was not generated and saved" });
+          return;
         }
 
         resolve({ ok: true, storageKey: uploaded.storageKey, commentsStorageKey });
-      } catch {
-        resolve({ ok: false, error: `Could not parse report generator output: ${stdout} ${stderr}` });
+      } catch (error) {
+        resolve({ ok: false, error: `Report generation or storage failed: ${String(error)}` });
       }
     });
 

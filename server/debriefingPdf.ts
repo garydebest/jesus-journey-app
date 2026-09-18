@@ -69,8 +69,8 @@ export function generateDebriefingReportPdf(
           return;
         }
         resolve({ ok: true, storageKey: uploaded.storageKey });
-      } catch {
-        resolve({ ok: false, error: `Could not parse debriefing report generator output: ${stdout} ${stderr}` });
+      } catch (error) {
+        resolve({ ok: false, error: `Debriefing generation or storage failed: ${String(error)}` });
       }
     });
 
