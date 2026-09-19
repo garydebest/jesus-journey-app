@@ -23,7 +23,17 @@ export function PanelResources() {
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-muted-foreground leading-relaxed">{card.body}</p>
-              {card.ctaHref ? (
+              {card.downloads ? (
+                <div className="flex flex-col items-start gap-2">
+                  {card.downloads.map((download, index) => (
+                    <Button key={download.href} variant={index === 0 ? "default" : "outline"} size="sm" className="h-auto min-h-9 w-full whitespace-normal py-2 text-center" asChild>
+                      <a href={download.href} download>
+                        {download.label}
+                      </a>
+                    </Button>
+                  ))}
+                </div>
+              ) : card.ctaHref ? (
                 <Button variant="outline" size="sm" asChild>
                   <a href={card.ctaHref} download target="_blank" rel="noopener noreferrer">
                     {card.ctaLabel}
@@ -34,6 +44,7 @@ export function PanelResources() {
                   {card.ctaLabel}
                 </Button>
               )}
+              {card.downloadNote && <p className="text-xs text-muted-foreground leading-relaxed">{card.downloadNote}</p>}
               {card.fullDocIndex !== undefined && <FullDoc doc={FULL_DOCS[card.fullDocIndex]} label="Read the full message" />}
             </CardContent>
           </Card>

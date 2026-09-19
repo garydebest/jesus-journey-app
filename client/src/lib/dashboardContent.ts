@@ -164,6 +164,8 @@ export interface ResourceCard {
   body: string;
   ctaLabel: string;
   ctaHref?: string;
+  downloads?: Array<{ label: string; href: string }>;
+  downloadNote?: string;
   fullDocIndex?: number;
 }
 
@@ -192,8 +194,14 @@ export const RESOURCE_CARDS: ResourceCard[] = [
   {
     icon: "curriculum",
     title: "Small Group Curriculum",
-    body: "Discussion guides to help groups reflect on their own results together.",
+    body: "Jesus Journey: A Four-Week Small Group Guide. Help people reflect on their individual survey results, choose one faithful next step, and walk with others.",
     ctaLabel: "Download",
+    downloads: [
+      { label: "Digital workbook (PDF)", href: "/resources/small-group/Jesus-Journey-Digital-Workbook.pdf" },
+      { label: "Print workbook (PDF)", href: "/resources/small-group/Jesus-Journey-Print-Workbook.pdf" },
+      { label: "Editable guide (PowerPoint)", href: "/resources/small-group/Jesus-Journey-Editable-Design-Master.pptx" },
+    ],
+    downloadNote: "Save a personal copy of the digital PDF before filling it in. For reliable form saving, use Adobe Acrobat Reader. The print edition is formatted for Letter-size paper.",
   },
   {
     icon: "message",
