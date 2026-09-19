@@ -1091,6 +1091,11 @@ def build_debriefing_report_pdf(out_path: str, report: dict) -> bool:
     """Renders `report` (a DebriefingReport dict, matching
     shared/debriefing/types.ts / debriefing/sample_fixture.json) to a PDF at
     `out_path`. Returns True on success."""
+    if report.get("pairedPresentation"):
+        from paired_debriefing_pdf import build_paired_debriefing_pdf
+        return build_paired_debriefing_pdf(out_path, report)
+    # Legacy standalone callers retain the original renderer; the Node
+    # production bridge always supplies the shared paired presentation.
     church_name = report.get("churchName", "")
     wave_label = report.get("waveLabel", "")
     report_date = _format_date(report.get("generatedAt", "")) or wave_label

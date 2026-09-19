@@ -1,189 +1,64 @@
 import { Badge } from "@/components/ui/badge";
-import type { DebriefingReport, Insight } from "@shared/debriefing/types";
+import type { DebriefingReport } from "@shared/debriefing/types";
+import { buildDebriefingPresentation, type Finding, type PairedTopic } from "@shared/debriefing/presentation";
 
-function InsightRow({ insight }: { insight: Insight }) {
-  return (
-    <div className="space-y-0.5">
-      <div className="flex items-center gap-2">
-        <Badge variant={insight.kind === "strength" ? "outline" : "secondary"} className="text-[10px] uppercase tracking-wide">
-          {insight.kind === "strength" ? "Strength to celebrate" : "Opportunity to explore"}
-        </Badge>
-        {insight.directionalOnly && (
-          <Badge variant="secondary" className="text-[10px]">
-            Directional only
-          </Badge>
-        )}
-      </div>
-      <div className="text-sm font-medium">{insight.headline}</div>
-      <div className="text-xs text-muted-foreground">{insight.detail}</div>
+function Findings({ items, kind }: { items: Finding[]; kind: "strength" | "opportunity" }) {
+  return <div className="min-w-0 p-4 space-y-3">
+    <h5 className={`text-xs font-semibold uppercase tracking-wide ${kind === "strength" ? "text-primary" : "text-amber-800 dark:text-amber-300"}`}>
+      {kind === "strength" ? "Strengths to celebrate" : "Opportunities to explore"}
+    </h5>
+    {items.map((item, i) => <div key={i} className="space-y-1">
+      <p className="text-sm font-medium leading-relaxed">{item.headline}</p>
+      <p className="text-sm text-muted-foreground leading-relaxed">{item.detail}</p>
+      {item.directionalOnly && <Badge variant="secondary" className="text-xs">Directional only · small group</Badge>}
+    </div>)}
+  </div>;
+}
+function Topic({ row }: { row: PairedTopic }) {
+  const both = row.strengths.length > 0 && row.opportunities.length > 0;
+  if (!row.strengths.length && !row.opportunities.length) return null;
+  return <div className="rounded-lg border border-border overflow-hidden" data-paired-topic={row.topic}>
+    <h4 className="bg-muted/50 px-4 py-2 text-sm font-semibold">{row.topic}</h4>
+    <div className={both ? "grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border" : ""}>
+      {row.strengths.length > 0 && <Findings items={row.strengths} kind="strength" />}
+      {row.opportunities.length > 0 && <Findings items={row.opportunities} kind="opportunity" />}
     </div>
-  );
+  </div>;
 }
 
-function SectionHeading({ children }: { children: React.ReactNode }) {
-  return <h3 className="text-sm font-semibold border-b border-border pb-1 mt-6">{children}</h3>;
-}
-
-/** Admin-only internal debriefing report view. Never shown to church accounts. */
+/** Admin-only; shared presentation also drives the downloadable PDF. */
 export function DebriefingReportView({ report }: { report: DebriefingReport }) {
-  return (
-    <div className="space-y-4 text-sm">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="font-semibold">{report.churchName}</div>
-          <div className="text-xs text-muted-foreground">
-            {report.waveLabel} · {report.respondentCount} respondents · generated {new Date(report.generatedAt).toLocaleDateString()}
-          </div>
-        </div>
-        <Badge variant="destructive" className="text-[10px] uppercase tracking-wide">
-          Admin only — internal use
-        </Badge>
+  const model = buildDebriefingPresentation(report);
+  return <div className="min-w-0 w-full space-y-8 text-sm break-words" data-debriefing-layout={model.version}>
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="min-w-0"><h2 className="font-semibold text-lg">{report.churchName}</h2>
+        <p className="text-muted-foreground mt-1">{report.waveLabel}</p>
+        <p className="text-xs text-muted-foreground mt-1">{report.respondentCount} respondents · generated {new Date(report.generatedAt).toLocaleDateString()}</p>
       </div>
-
-      <SectionHeading>Executive summary — strengths</SectionHeading>
-      <div className="space-y-3">
-        {report.executiveSummary.strengths.map((i, idx) => (
-          <InsightRow key={idx} insight={i} />
-        ))}
-      </div>
-
-      <SectionHeading>Executive summary — opportunities</SectionHeading>
-      <div className="space-y-3">
-        {report.executiveSummary.opportunities.map((i, idx) => (
-          <InsightRow key={idx} insight={i} />
-        ))}
-      </div>
-
-      <SectionHeading>Demographics</SectionHeading>
-      {report.demographics.map((section) => (
-        <div key={section.id} className="space-y-2">
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mt-3">{section.title}</div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="text-left text-muted-foreground">
-                  <th className="py-1 pr-3">Group</th>
-                  <th className="py-1 pr-3">n</th>
-                  <th className="py-1 pr-3">% of church</th>
-                  <th className="py-1 pr-3">Avg maturity</th>
-                  <th className="py-1 pr-3">vs church</th>
-                  <th className="py-1 pr-3">Growing %</th>
-                </tr>
-              </thead>
-              <tbody>
-                {section.breakdown.map((row) => (
-                  <tr key={row.group} className="border-t border-border">
-                    <td className="py-1 pr-3">
-                      {row.group}
-                      {row.directionalOnly && <span className="text-muted-foreground"> (directional)</span>}
-                    </td>
-                    <td className="py-1 pr-3">{row.n}</td>
-                    <td className="py-1 pr-3">{row.pctOfChurch.toFixed(0)}%</td>
-                    <td className="py-1 pr-3">{row.avgMaturity.toFixed(2)}</td>
-                    <td className="py-1 pr-3">{row.maturityVsChurch >= 0 ? "+" : ""}{row.maturityVsChurch.toFixed(2)}</td>
-                    <td className="py-1 pr-3">{row.growingPct.toFixed(0)}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="space-y-2">
-            {section.insights.map((i, idx) => (
-              <InsightRow key={idx} insight={i} />
-            ))}
-          </div>
-        </div>
-      ))}
-
-      <SectionHeading>Demographic assessment</SectionHeading>
-      <div className="text-xs text-muted-foreground">
-        Every age group, the singles/married split, and children-in-household — each with an explicit verdict, not just standout cases.
-      </div>
-      <div className="space-y-3">
-        {report.demographicAssessment.map((i, idx) => (
-          <InsightRow key={idx} insight={i} />
-        ))}
-      </div>
-
-      <SectionHeading>Engagement</SectionHeading>
-      <div className="space-y-3">
-        {report.engagement.insights.map((i, idx) => (
-          <InsightRow key={idx} insight={i} />
-        ))}
-      </div>
-
-      <SectionHeading>Spiritual maturity & change</SectionHeading>
-      <div className="text-xs text-muted-foreground">Church average maturity: {report.maturityAndChange.averageMaturity.toFixed(2)}</div>
-      <div className="space-y-3">
-        {report.maturityAndChange.insights.map((i, idx) => (
-          <InsightRow key={idx} insight={i} />
-        ))}
-      </div>
-
-      <SectionHeading>Maturity stage assessment</SectionHeading>
-      <div className="text-xs text-muted-foreground">
-        Exploring, Believing, Trusting, and God Centered — each with an explicit verdict.
-      </div>
-      <div className="space-y-3">
-        {report.maturityStageAssessment.map((i, idx) => (
-          <InsightRow key={idx} insight={i} />
-        ))}
-      </div>
-
-      <SectionHeading>Pathways by goal</SectionHeading>
-      {report.pathwaysByGoal.map((goal) => (
-        <div key={goal.goal} className="space-y-1">
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mt-3">
-            {goal.goal} · avg {goal.goalAverage.toFixed(2)}
-          </div>
-          <ul className="text-xs list-disc list-inside">
-            {goal.pathways.map((p) => (
-              <li key={p.num}>
-                {p.num}. {p.name} — {p.churchAverage.toFixed(2)} ({p.band})
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
-
-      <SectionHeading>Dimension-level view</SectionHeading>
-      <div className="space-y-3">
-        {report.dimensions.insights.map((i, idx) => (
-          <InsightRow key={idx} insight={i} />
-        ))}
-      </div>
-
-      <SectionHeading>Discipleship bottleneck map</SectionHeading>
-      <div className="space-y-3">
-        {report.bottleneckMap.insights.map((i, idx) => (
-          <InsightRow key={idx} insight={i} />
-        ))}
-      </div>
-
-      <SectionHeading>Cross-cutting insights</SectionHeading>
-      <div className="space-y-3">
-        {report.crossCutting.insights.map((i, idx) => (
-          <InsightRow key={idx} insight={i} />
-        ))}
-      </div>
-
-      <SectionHeading>Suggested debrief questions</SectionHeading>
-      <ol className="text-xs list-decimal list-inside space-y-1">
-        {report.suggestedDebriefQuestions.map((q, idx) => (
-          <li key={idx}>{q}</li>
-        ))}
-      </ol>
-
-      {report.dataNotes.length > 0 && (
-        <>
-          <SectionHeading>Data notes & caveats</SectionHeading>
-          <ul className="text-xs list-disc list-inside space-y-1 text-muted-foreground">
-            {report.dataNotes.map((n, idx) => (
-              <li key={idx}>{n}</li>
-            ))}
-          </ul>
-        </>
-      )}
+      <Badge variant="outline">Admin only · internal use</Badge>
     </div>
-  );
+    {model.sections.map(s => <section key={s.id} className="space-y-4" aria-labelledby={`debrief-${s.id}`}>
+      <div className="border-b border-border pb-2">
+        <h3 id={`debrief-${s.id}`} className="text-base font-semibold">{s.title}</h3>
+        {s.intro && <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{s.intro}</p>}
+      </div>
+      {s.topics.map((row, i) => <Topic key={i} row={row} />)}
+      {s.tables.filter(t => t.rows.length).map((table, i) => <div key={i} className="space-y-2">
+        <h4 className="text-sm font-medium">{table.title}</h4>
+        <div className="overflow-x-auto rounded-md border border-border" role="region" aria-label={table.title} tabIndex={0}>
+          <table className="w-full text-xs text-left">
+            <thead className="bg-muted/60"><tr>{table.headers.map((h, j) => <th key={j} scope="col" className="px-3 py-2 font-medium whitespace-nowrap">{h}</th>)}</tr></thead>
+            <tbody>{table.rows.map((row, j) => <tr key={j} className="border-t border-border even:bg-muted/20">
+              {row.map((value, k) => <td key={k} className="px-3 py-2 align-top tabular-nums">{value}</td>)}
+            </tr>)}</tbody>
+          </table>
+        </div>
+      </div>)}
+      {s.notes.map((note, i) => <p key={i} className="text-xs leading-relaxed text-muted-foreground">{note}</p>)}
+    </section>)}
+    <section className="border-t border-border pt-4 space-y-2">
+      <h3 className="font-semibold">Data notes and caveats</h3>
+      {model.notes.map((note, i) => <p key={i} className="text-xs leading-relaxed text-muted-foreground">{note}</p>)}
+    </section>
+  </div>;
 }

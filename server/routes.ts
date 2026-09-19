@@ -7,6 +7,7 @@ import { TIMELINE_PHASES, computeTimelineDates, defaultClosesAt } from "@shared/
 import { buildTimelineIcs } from "./ics";
 import { closeSurvey, saveChurchResponse, SurveyCloseError } from "./closeSurvey";
 import { fetchReportPdf } from "./reportStorage";
+import { renderDebriefingPdfBuffer } from "./debriefingPdf";
 import {
   createSession,
   destroySession,
@@ -622,7 +623,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
                   hasReportPdf: !!snapshot?.reportPdfPath,
                   hasCommentsReportPdf: !!snapshot?.commentsReportPdfPath,
                   hasDebriefingReport: !!debriefing,
-                  hasDebriefingReportPdf: !!debriefing?.reportPdfPath,
+                  hasDebriefingReportPdf: !!debriefing,
                 };
               }),
           );
@@ -709,13 +710,17 @@ export async function registerRoutes(httpServer: Server, app: Express) {
 
   app.get("/api/admin/waves/:id/debriefing.pdf", requireAdminAuth, async (req, res) => {
     const debriefing = await storage.getDebriefingReportByWave(String(req.params.id));
-    if (!debriefing?.reportPdfPath) {
+    if (!debriefing) {
       return res.status(404).json({ message: "Debriefing report PDF is not available for this wave" });
     }
-    const pdfBuffer = await fetchReportPdf(debriefing.reportPdfPath);
-    if (!pdfBuffer) {
-      return res.status(404).json({ message: "Debriefing report PDF is not available for this wave" });
+    let pdfBuffer: Buffer;
+    try {
+      pdfBuffer = await renderDebriefingPdfBuffer(JSON.parse(debriefing.reportJson));
+    } catch (error) {
+      console.error("Debriefing PDF render failed", error);
+      return res.status(503).json({ message: "The paired PDF could not be prepared. Your saved report is unchanged; please try again." });
     }
+    res.setHeader("Cache-Control", "private, no-store");
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", 'attachment; filename="Debriefing-Report.pdf"');
     res.send(pdfBuffer);

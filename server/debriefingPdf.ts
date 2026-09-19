@@ -1,84 +1,94 @@
 import { spawn } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { resolveModuleDir } from "./paths";
 import { persistReportPdf } from "./reportStorage";
 import type { DebriefingReport } from "@shared/debriefing/types";
+import { buildDebriefingPresentation, DEBRIEFING_LAYOUT_VERSION } from "@shared/debriefing/presentation";
 
-// See server/paths.ts for why this can't just be `fileURLToPath(import.meta.url)`
-// (breaks once script/build.ts bundles this file to CommonJS for production).
 const moduleDir = resolveModuleDir(
   typeof import.meta !== "undefined" ? import.meta.url : undefined,
   typeof __dirname !== "undefined" ? __dirname : undefined,
 );
-
 const REPORT_ENGINE_DIR = path.resolve(moduleDir, "report-engine");
-const REPORTS_DIR = path.resolve(moduleDir, "..", "generated-reports");
+export interface GenerateDebriefingPdfResult { ok: boolean; storageKey?: string; error?: string }
 
-export interface GenerateDebriefingPdfResult {
-  ok: boolean;
-  /** Durable Supabase Storage object key (e.g. "<waveId>-debrief.pdf"), set only when persistence succeeded. */
-  storageKey?: string;
-  error?: string;
+async function renderLocal(report: DebriefingReport): Promise<{ directory: string; outPath: string }> {
+  const directory = await mkdtemp(path.join(tmpdir(), "jj-debrief-"));
+  const outPath = path.join(directory, "debrief.pdf");
+  try {
+    const payload = { out_path: outPath, report: { ...report, pairedPresentation: buildDebriefingPresentation(report) } };
+    await new Promise<void>((resolve, reject) => {
+      const proc = spawn("python3", ["generate_debriefing_report.py"], {
+        cwd: REPORT_ENGINE_DIR, stdio: ["pipe", "pipe", "pipe"],
+      });
+      let stdout = "", stderr = "";
+      const timeout = setTimeout(() => { proc.kill("SIGKILL"); reject(new Error("Debriefing PDF generation timed out")); }, 90_000);
+      proc.stdout.on("data", d => { stdout = (stdout + d.toString()).slice(-100_000); });
+      proc.stderr.on("data", d => { stderr = (stderr + d.toString()).slice(-100_000); });
+      proc.once("error", error => { clearTimeout(timeout); reject(error); });
+      proc.once("close", code => {
+        clearTimeout(timeout);
+        if (code !== 0) return reject(new Error(stderr || stdout || `Renderer exited ${code}`));
+        try {
+          const result = JSON.parse(stdout.trim().split("\n").pop() ?? "");
+          if (!result.ok) throw new Error(result.error || "Debriefing PDF generation failed");
+          resolve();
+        } catch (error) { reject(error); }
+      });
+      proc.stdin.on("error", error => { clearTimeout(timeout); proc.kill("SIGKILL"); reject(error); });
+      proc.stdin.end(JSON.stringify(payload));
+    });
+    return { directory, outPath };
+  } catch (error) {
+    await rm(directory, { recursive: true, force: true });
+    throw error;
+  }
 }
 
-/**
- * Invokes the Python debriefing report renderer as a subprocess, then
- * uploads the resulting PDF to Supabase Storage (same "church-reports"
- * bucket used by the client-facing report pipeline, per the build spec's
- * "reuse the existing PDF pipeline" requirement). The report JSON passed in
- * is already fully computed by shared/debriefing/engine.ts — this function
- * only renders and persists it.
- */
-export function generateDebriefingReportPdf(
-  waveId: string,
-  report: DebriefingReport,
-): Promise<GenerateDebriefingPdfResult> {
-  return new Promise((resolve) => {
-    mkdirSync(REPORTS_DIR, { recursive: true });
-    const outPath = path.join(REPORTS_DIR, `${waveId}-debrief.pdf`);
-
-    const payload = { out_path: outPath, report };
-
-    const proc = spawn("python3", ["generate_debriefing_report.py"], {
-      cwd: REPORT_ENGINE_DIR,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-
-    let stdout = "";
-    let stderr = "";
-    proc.stdout.on("data", (d) => (stdout += d.toString()));
-    proc.stderr.on("data", (d) => (stderr += d.toString()));
-
-    proc.on("close", async (code) => {
-      if (code !== 0) {
-        resolve({ ok: false, error: stderr || stdout || `Python process exited with code ${code}` });
-        return;
+// Re-render archived aggregate JSON without overwriting the archived object
+// or revisiting raw responses. Bound the cache and coalesce duplicate clicks.
+const cache = new Map<string, Buffer>();
+const pending = new Map<string, Promise<Buffer>>();
+let rendering: Promise<unknown> = Promise.resolve();
+export async function renderDebriefingPdfBuffer(report: DebriefingReport): Promise<Buffer> {
+  const key = createHash("sha256").update(DEBRIEFING_LAYOUT_VERSION).update(JSON.stringify(report)).digest("hex");
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const current = pending.get(key);
+  if (current) return current;
+  if (pending.size >= 8) throw new Error("Several debriefing downloads are being prepared. Please try again shortly.");
+  const job = rendering.catch(() => {}).then(async () => {
+    const { directory, outPath } = await renderLocal(report);
+    try {
+      const buffer = await readFile(outPath);
+      if (buffer.subarray(0, 5).toString() !== "%PDF-") throw new Error("Renderer did not return a PDF");
+      if (buffer.length <= 8 * 1024 * 1024) {
+        while (cache.size >= 4) cache.delete(cache.keys().next().value!);
+        cache.set(key, buffer);
       }
-      const lastLine = stdout.trim().split("\n").pop() ?? "";
-      try {
-        const parsed = JSON.parse(lastLine);
-        if (!parsed.ok) {
-          resolve({ ok: false, error: parsed.error || "Unknown debriefing report generation error" });
-          return;
-        }
-        const uploaded = await persistReportPdf(waveId, parsed.out_path, `${waveId}-debrief.pdf`);
-        if (!uploaded.ok) {
-          console.error("Debriefing report PDF generated but failed to persist to storage for wave", waveId, uploaded.error);
-          resolve({ ok: false, error: uploaded.error });
-          return;
-        }
-        resolve({ ok: true, storageKey: uploaded.storageKey });
-      } catch (error) {
-        resolve({ ok: false, error: `Debriefing generation or storage failed: ${String(error)}` });
-      }
-    });
-
-    proc.on("error", (err) => {
-      resolve({ ok: false, error: String(err) });
-    });
-
-    proc.stdin.write(JSON.stringify(payload));
-    proc.stdin.end();
+      return buffer;
+    } finally { await rm(directory, { recursive: true, force: true }); }
   });
+  rendering = job;
+  pending.set(key, job);
+  try { return await job; } finally { pending.delete(key); }
+}
+
+/** Closing still requires upload + byte-for-byte verification before raw-data deletion. */
+export async function generateDebriefingReportPdf(waveId: string, report: DebriefingReport): Promise<GenerateDebriefingPdfResult> {
+  let directory: string | undefined;
+  try {
+    const local = await renderLocal(report);
+    directory = local.directory;
+    const uploaded = await persistReportPdf(waveId, local.outPath, `${waveId}-debrief.pdf`);
+    if (!uploaded.ok) return { ok: false, error: uploaded.error };
+    return { ok: true, storageKey: uploaded.storageKey };
+  } catch (error) {
+    return { ok: false, error: `Debriefing generation or storage failed: ${String(error)}` };
+  } finally {
+    if (directory) await rm(directory, { recursive: true, force: true });
+  }
 }

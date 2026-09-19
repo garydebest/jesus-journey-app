@@ -462,7 +462,7 @@ export function AdminOverview() {
       </Dialog>
 
       <Dialog open={!!debriefingWaveEntry} onOpenChange={(open) => !open && setDebriefingWaveEntry(null)}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100%_-_2rem)] max-w-5xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Debriefing report — {debriefingWaveEntry?.wave.label}</DialogTitle>
           </DialogHeader>
