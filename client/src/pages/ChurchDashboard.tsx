@@ -19,6 +19,7 @@ import { PanelInterpret } from "@/components/dashboard/PanelInterpret";
 import { PanelAct } from "@/components/dashboard/PanelAct";
 import { PanelResources } from "@/components/dashboard/PanelResources";
 import type { SizeTier } from "@shared/schema";
+import { PARTICIPANT_DEMO_CODE } from "@shared/participantDemo";
 
 const CURRENCY_SYMBOLS: Record<string, string> = { cad: "CA$", usd: "US$", gbp: "£", eur: "€" };
 function formatPrice(price: number, currency: string): string {
@@ -322,6 +323,24 @@ export function ChurchDashboard() {
       </header>
 
       <main className="flex-1 max-w-6xl mx-auto px-4 py-8 w-full space-y-6">
+        {church.isDemo && (
+          <section className="rounded-xl border border-primary/20 bg-primary/5 p-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between" aria-labelledby="participant-demo-heading" data-testid="dashboard-participant-demo">
+            <div className="space-y-1">
+              <h2 id="participant-demo-heading" className="text-base font-semibold">See the participant experience</h2>
+              <p className="text-sm text-muted-foreground">
+                Walk through the church survey. Practice answers are not saved and will not change Grace's sample results.
+              </p>
+            </div>
+            <div className="shrink-0 space-y-1 text-center">
+              <Button asChild className="w-full sm:w-auto">
+                <a href={`#/join/${PARTICIPANT_DEMO_CODE}`} target="_blank" rel="noopener noreferrer" data-testid="button-try-participant-survey">
+                  Try the participant survey
+                </a>
+              </Button>
+              <p className="text-xs text-muted-foreground">Opens in a new tab</p>
+            </div>
+          </section>
+        )}
         {checkoutBanner && (
           <Alert
             variant={checkoutBanner.kind === "cancelled" ? "destructive" : "default"}

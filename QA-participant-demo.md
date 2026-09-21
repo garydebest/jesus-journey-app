@@ -24,3 +24,9 @@ Reserved code: `GRACEDEMO`. Uses the existing church participant flow, not the i
 - Code-field entry and lowercase direct URL passed. Desktop introduction and 375px mobile question, comment and completion screenshots inspected. No horizontal overflow.
 - A second complete browser run used a mocked ordinary church wave and intercepted submission. It retained the normal button, no demo banner, a 63-item/nine-demographic payload, and normal Thank you screen. No real survey response was created.
 - Production release verification is recorded in the Project deployment wiki and handoff.
+
+## Grace dashboard launch button
+
+The Grace demo dashboard now includes “Try the participant survey” near the top, above its tabs. It uses the shared reserved-code constant and a native link that opens a new tab with `noopener noreferrer`, preserving the signed-in dashboard. The panel is rendered only when the server-supplied church account has `isDemo: true`.
+
+Local checks passed: desktop/mobile placement and no horizontal overflow; actual link click opens the demo in a new tab with no opener access; original dashboard stays signed in; button persists across dashboard tabs; a separately mocked ordinary church dashboard has no demo panel. TypeScript, production build and isolated participant-demo HTTP safeguards also passed. Production Grace login and button launch are recorded in the handoff.
