@@ -24,6 +24,7 @@ import { createCheckoutSession, retrieveCheckoutSession, verifyStripeWebhookSign
 import { currencyForRequest } from "./currency";
 import { runReminderSweep } from "./reminders";
 import { acceptsResponses, calendarDate, emptySurveyPlan, isDemoChurch, surveyPlanSchema } from "@shared/surveyAccess";
+import { isParticipantDemoCode, PARTICIPANT_DEMO_META } from "@shared/participantDemo";
 
 function sanitizeChurch(church: { passwordHash?: string; [k: string]: any }): Record<string, any> {
   const { passwordHash, surveyPlanJson, ...rest } = church;
@@ -453,6 +454,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   // Public: join a survey by code, submit a response
   // -------------------------------------------------------------------
   app.get("/api/join/:code", async (req, res) => {
+    if (isParticipantDemoCode(req.params.code)) return res.json(PARTICIPANT_DEMO_META);
     const wave = await storage.getWaveByJoinCode(String(req.params.code));
     if (!wave) return res.status(404).json({ message: "No survey found with that code" });
     if (wave.status === "closed") {
@@ -470,6 +472,11 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   });
 
   app.post("/api/responses", async (req, res) => {
+    // Defense in depth: even a direct or stale-client demo submission cannot
+    // look up a wave or write to the database.
+    if (isParticipantDemoCode(req.body?.joinCode)) {
+      return res.status(403).json({ message: "The participant demo does not collect responses.", code: "PARTICIPANT_DEMO_READ_ONLY" });
+    }
     const parsed = submitResponseSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ message: "Invalid response data", errors: parsed.error.flatten() });

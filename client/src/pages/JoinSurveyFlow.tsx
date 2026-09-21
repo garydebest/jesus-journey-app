@@ -11,6 +11,7 @@ import { SURVEY_ITEMS } from "@shared/surveyItems";
 import { DEMOGRAPHICS, MATURITY_OPTIONS_PRE, MATURITY_OPTIONS_POST } from "@shared/questions";
 import { emptyState, TOTAL_STEPS, TOTAL_ITEM_STEPS, type SurveyState } from "@/lib/surveyState";
 import { apiRequest } from "@/lib/queryClient";
+import { isParticipantDemoCode, PARTICIPANT_DEMO_META } from "@shared/participantDemo";
 
 type Screen =
   | "loading"
@@ -27,16 +28,32 @@ type Screen =
 
 export function JoinSurveyFlow() {
   const [, params] = useRoute("/join/:code");
-  const [, setLocation] = useLocation();
   const code = params?.code ?? "";
+  const isDemo = isParticipantDemoCode(code);
+  return (
+    <>
+      {isDemo && (
+        <div className="sticky top-0 z-50 border-b border-primary/20 bg-background px-4 py-3 text-center text-sm" data-testid="participant-demo-banner">
+          <span className="font-semibold text-primary">Participant demo.</span>{" "}
+          Practice answers stay on this screen only and are never submitted or saved.
+        </div>
+      )}
+      <JoinSurveyContent key={code} code={code} isDemo={isDemo} />
+    </>
+  );
+}
 
-  const [screen, setScreen] = useState<Screen>("loading");
+function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) {
+  const [, setLocation] = useLocation();
+
+  const [screen, setScreen] = useState<Screen>(isDemo ? "intro" : "loading");
   const [state, setState] = useState<SurveyState>(emptyState());
   const [comment, setComment] = useState("");
-  const [meta, setMeta] = useState<{ waveLabel: string; churchName: string } | null>(null);
+  const [meta, setMeta] = useState<{ waveLabel: string; churchName: string } | null>(isDemo ? PARTICIPANT_DEMO_META : null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isDemo) return;
     let cancelled = false;
     async function checkCode() {
       try {
@@ -54,7 +71,7 @@ export function JoinSurveyFlow() {
     return () => {
       cancelled = true;
     };
-  }, [code]);
+  }, [code, isDemo]);
 
   function progressFor(s: Screen): number {
     const total = TOTAL_STEPS + 1; // + comment step
@@ -75,6 +92,13 @@ export function JoinSurveyFlow() {
   }
 
   async function handleFinalSubmit() {
+    if (isDemo) {
+      // No network request, respondent row, response, or report is created.
+      setState(emptyState());
+      setComment("");
+      setScreen("done");
+      return;
+    }
     setScreen("submitting");
     setSubmitError(null);
     try {
@@ -139,9 +163,13 @@ export function JoinSurveyFlow() {
             {meta?.churchName} — {meta?.waveLabel}
           </h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            This survey gives you and your church a picture of where your community is on its spiritual journey.
+            {isDemo ? (
+              <>Try the same questions and screens that people see when taking their church's survey.
+              This is a practice walkthrough, not an active church survey. No answers or comments
+              are sent to the church, and Grace's sample results will not change.</>
+            ) : (<>This survey gives you and your church a picture of where your community is on its spiritual journey.
             Answer honestly — your responses are anonymous and only combined, aggregate results are ever shared with
-            your church leadership.
+            your church leadership.</>)}
           </p>
           <p className="text-sm text-muted-foreground leading-relaxed">
             Takes about 10-15 minutes.
@@ -265,7 +293,7 @@ export function JoinSurveyFlow() {
               Back
             </Button>
             <Button onClick={handleFinalSubmit} disabled={screen === "submitting"} data-testid="button-submit-survey">
-              {screen === "submitting" ? "Submitting..." : "Submit my response"}
+              {screen === "submitting" ? "Submitting..." : isDemo ? "Finish demo" : "Submit my response"}
             </Button>
           </div>
         </div>
@@ -277,11 +305,20 @@ export function JoinSurveyFlow() {
     <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-background">
       <div className="max-w-xl w-full text-center space-y-6">
         <div className="flex justify-center"><JJLogo className="h-16 w-16" /></div>
-        <h1 className="text-xl font-semibold tracking-tight" data-testid="text-thank-you">Thank you</h1>
+        <h1 className="text-xl font-semibold tracking-tight" data-testid="text-thank-you">{isDemo ? "Demo complete" : "Thank you"}</h1>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Your response has been recorded anonymously as part of {meta?.churchName}'s {meta?.waveLabel}. Your church
-          will receive a combined, aggregate report once the survey closes — individual answers are never shared.
+          {isDemo ? (
+            <>You've reached the end of the church participant survey. Your practice answers and comments
+            have been discarded, nothing was submitted, and Grace's sample results are unchanged.</>
+          ) : (<>Your response has been recorded anonymously as part of {meta?.churchName}'s {meta?.waveLabel}. Your church
+          will receive a combined, aggregate report once the survey closes — individual answers are never shared.</>)}
         </p>
+        {isDemo && (
+          <div className="flex flex-wrap justify-center gap-3">
+            <Button onClick={() => setScreen("intro")} data-testid="button-restart-demo">Try the demo again</Button>
+            <Button variant="outline" onClick={() => setLocation("/")} data-testid="button-demo-home">Back to home</Button>
+          </div>
+        )}
       </div>
     </div>
   );
