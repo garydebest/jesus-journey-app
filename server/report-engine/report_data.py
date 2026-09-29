@@ -43,7 +43,7 @@ class ReportData:
     sample_size_engagement: int  # page 9 restates sample size; usually same as sample_size
 
     # --- Demographics (pages 7-8) ---
-    gender_pct_female: float
+    gender_pct_female: float | None
     age_rows: list
     relationship_rows: list
     children_rows: list
@@ -81,6 +81,7 @@ class ReportData:
     maturity_line_trusting: list
     maturity_line_centered: list
     reflection: dict = None  # optional; never inferred for historical fixtures
+    demographic_privacy_version: str | None = None
 
 
 # ------------------------------------------------------------------

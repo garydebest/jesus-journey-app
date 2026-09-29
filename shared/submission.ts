@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { surveyItemsFor } from "./shortForm";
+import { ETHNICITY_PRESETS, ETHNICITY_IDS, ethnicityIds, PREFER_NOT_TO_SAY } from "./demographicPolicy";
+
+const ethnicAnswer = z.string().refine(v => v === PREFER_NOT_TO_SAY || ETHNICITY_IDS.includes(v) ||
+  Object.values(ETHNICITY_PRESETS).some(options => options.includes(v)) || ethnicityIds(v).length > 0,
+  "Please choose a listed background.");
 
 const answer = z.number().int().min(1).max(5);
 export const submitResponseSchema = z.object({
@@ -17,7 +22,8 @@ export const submitResponseSchema = z.object({
     smallgroup: z.string().optional(),
     volunteer: z.string().optional(),
     children: z.array(z.string()).optional(),
-    ethnicity: z.string().optional(),
+    // Accept old clients' single text value; new clients submit a selection array.
+    ethnicity: z.union([ethnicAnswer, z.array(ethnicAnswer).max(20)]).optional(),
   }).optional(),
   comment: z.string().optional(),
 }).superRefine((data, ctx) => {

@@ -6,6 +6,8 @@ import { ITEM_CODES, type ResponseRow } from "@shared/schema";
 import { persistReportPdf } from "./reportStorage";
 import { buildCohortReporting, needsCohortReporting } from "@shared/cohortReporting";
 import { classifyStoredResponse } from "@shared/shortForm";
+import { ethnicityLabels } from "@shared/demographicPolicy";
+import { parseChildren } from "@shared/reportMetrics";
 
 // See server/paths.ts for why this can't just be `fileURLToPath(import.meta.url)`
 // (breaks once script/build.ts bundles this file to CommonJS for production).
@@ -16,17 +18,6 @@ const moduleDir = resolveModuleDir(
 
 const REPORT_ENGINE_DIR = path.resolve(moduleDir, "report-engine");
 const REPORTS_DIR = path.resolve(moduleDir, "..", "generated-reports");
-
-function parseChildren(raw: string | null): string[] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed;
-  } catch {
-    // not JSON — fall through to treat as a plain delimited string
-  }
-  return raw ? [raw] : [];
-}
 
 function toReportRow(row: ResponseRow): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -45,7 +36,7 @@ function toReportRow(row: ResponseRow): Record<string, unknown> {
   out.small_group_frequency = row.smallGroupFrequency;
   out.volunteer_frequency = row.volunteerFrequency;
   out.children_in_household = parseChildren(row.childrenInHousehold);
-  out.race_ethnicity = row.raceEthnicity;
+  out.race_ethnicity = ethnicityLabels(row.raceEthnicity);
   out.comment_text = row.commentText;
   return out;
 }

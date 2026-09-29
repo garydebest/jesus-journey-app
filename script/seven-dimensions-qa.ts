@@ -20,7 +20,7 @@ assert(!("dimensions" in projected));
 assert.equal(JSON.stringify(legacy), original);
 assert.deepEqual(projectReportForDisplay(projected), projected);
 assert.deepEqual(projected.pathwaysByGoal, legacy.pathwaysByGoal);
-assert.deepEqual(projected.demographics, legacy.demographics);
+assert(projected.demographics.every(d => d.breakdown.every(r => r.n >= 10)));
 assert.equal(projected.pathwaysByGoal.length, 4);
 assert.equal(projected.pathwaysByGoal.flatMap(g => g.pathways).length, 16);
 for (const input of [legacy, projected, { ...legacy, dimensions: null }, { ...legacy, dimensions: {} }]) {
@@ -48,10 +48,10 @@ for (const rows of [params.rows, mixedRows, Array.from({ length: 15 }, (_, i) =>
 }
 console.log("PASS: new full, mixed, short-only and privacy-suppressed reports omit legacy analysis");
 current.generatedAt = "2026-09-29T05:00:00.000Z";
-writeFileSync("server/report-engine/debriefing/sample_fixture.json", JSON.stringify(current, null, 2) + "\n");
+writeFileSync("qa-output/regional-sample-fixture.json", JSON.stringify(current, null, 2) + "\n");
 writeFileSync("qa-output/current-report.json", JSON.stringify(current));
 writeFileSync("qa-output/saved-report.json", JSON.stringify(projected));
-writeFileSync("script/fixtures/saved-projection.json", JSON.stringify(projected, null, 2) + "\n");
+writeFileSync("qa-output/saved-projection.json", JSON.stringify(projected, null, 2) + "\n");
 for (const [name, report] of [["current", current], ["saved", legacy]] as const) {
   writeFileSync(`qa-output/${name}-debrief.pdf`, await renderDebriefingPdfBuffer(report));
   const result = spawnSync("python3", ["generate_debriefing_report.py"], {

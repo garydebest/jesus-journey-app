@@ -3,6 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from "recharts";
 import type { WaveAggregateSummary } from "@shared/aggregate";
 import { CohortReportView } from "./CohortReportView";
+import { projectDemographicSummary } from "@shared/demographicProjection";
+import { DEMOGRAPHIC_PRIVACY_NOTE } from "@shared/demographicPolicy";
 
 const GOAL_COLORS: Record<string, string> = {
   "Trusting Jesus": "hsl(200 45% 42%)",
@@ -22,6 +24,7 @@ function formatKey(key: string): string {
 }
 
 export function WaveReportView({ summary, churchName }: { summary: WaveAggregateSummary; churchName: string }) {
+  summary = projectDemographicSummary(summary);
   if (summary.cohortReporting) return <CohortReportView report={summary.cohortReporting} />;
   const agreement = summary.agreement;
   const pathwayRows = agreement
@@ -147,13 +150,14 @@ export function WaveReportView({ summary, churchName }: { summary: WaveAggregate
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm">Demographics</CardTitle>
+          <p className="text-xs text-muted-foreground">{DEMOGRAPHIC_PRIVACY_NOTE}</p>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4 text-xs">
           {Object.entries(summary.demographics).map(([key, counts]) => (
             <div key={key}>
               <div className="font-medium mb-1">{formatKey(key)}</div>
               {Object.entries(counts).length === 0 ? (
-                <div className="text-muted-foreground">No data</div>
+                <div className="text-muted-foreground">No reportable categories. Results may be absent or withheld for confidentiality.</div>
               ) : (
                 Object.entries(counts).map(([label, count]) => (
                   <div key={label} className="flex justify-between text-muted-foreground">

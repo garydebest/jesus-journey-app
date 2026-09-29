@@ -5,6 +5,8 @@ to a journey stage, demographic, row ID or timestamp. Full-only church reports
 continue using the established full report renderer.
 """
 import re
+from copy import deepcopy
+from demographic_privacy import safe_counts, NOTE, PDF_POLICY
 from xml.sax.saxutils import escape
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
 from reportlab.lib.styles import ParagraphStyle
@@ -27,6 +29,14 @@ def styles():
 
 def cohort_story(report, include_profiles=True):
     from build_comments_report import TEAL_DARK, SURFACE, BORDER
+    report = deepcopy(report)
+    for name, distribution in report.get("profiles", {}).items():
+        if name in ("Journey after reflection", "Faith change"):
+            continue
+        safe = safe_counts({v["label"]: v["count"] for v in distribution["values"]},
+                           report.get("respondentCount") or 0, name in ("Children in household", "Race / ethnicity"))
+        distribution["values"] = [v for v in distribution["values"] if v["label"] in safe]
+        distribution["suppressed"] = not distribution["values"]
     s = styles()
     def p(text, kind="body"):
         return Paragraph(escape(str(text)), s[kind])
@@ -59,7 +69,7 @@ def cohort_story(report, include_profiles=True):
             ]))
             story.extend([table, Spacer(1, 8)])
     if include_profiles:
-        story.extend([PageBreak(), p("Combined journey and demographic profiles", "heading")])
+        story.extend([PageBreak(), p("Combined journey and demographic profiles", "heading"), p(NOTE, "muted")])
         for name, distribution in report["profiles"].items():
             if distribution.get("note"):
                 story.append(p(distribution["note"], "muted"))
@@ -87,6 +97,11 @@ def build_document(out_path, title, church_name, report_date, story):
 
 def build_cohort_report(out_path, church_name, report_date, report):
     build_document(out_path, "Our Journey with Jesus", church_name, report_date, cohort_story(report))
+    from pypdf import PdfReader, PdfWriter
+    writer = PdfWriter(clone_from=PdfReader(out_path))
+    writer.add_metadata({"/Subject": PDF_POLICY})
+    with open(out_path, "wb") as handle:
+        writer.write(handle)
 
 
 def redact_comment(text):

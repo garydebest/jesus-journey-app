@@ -1,6 +1,7 @@
 import { PATHWAYS } from "./pathways";
 import { DEMOGRAPHICS } from "./questions";
 import type { ResponseRow } from "./schema";
+import { safeDemographicCounts } from "./demographicPolicy";
 
 const rounded = (v: number) => Math.round(v * 10) / 10;
 export function agreementMetrics(rows: ResponseRow[]) {
@@ -31,11 +32,14 @@ export function parseChildren(raw: string | null | undefined): string[] {
 }
 export function childrenProfile(rows: ResponseRow[]) {
   const answers = rows.map(row => parseChildren(row.childrenInHousehold));
+  const counts = Object.fromEntries(CHILD_BANDS.map(label => [label, answers.filter(values => values.includes(label)).length]));
+  const safe = safeDemographicCounts(counts, rows.length, true);
   return {
     denominator: rows.length,
-    missing: answers.filter(values => !values.length).length,
-    values: CHILD_BANDS.map(label => {
-      const count = answers.filter(values => values.includes(label)).length;
+    // Do not expose exact missing counts, which can reveal a suppressed complement.
+    missing: 0,
+    values: Object.keys(safe).map(label => {
+      const count = safe[label];
       return { label, count, pct: rows.length ? rounded(100 * count / rows.length) : 0 };
     }),
   };

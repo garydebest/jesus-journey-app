@@ -64,10 +64,10 @@ def main():
         return
 
     from church_report import aggregate_church, score_respondent
-    from church_profile_report import demographics_profile, maturity_profile, change_profile, comments_report
+    from church_profile_report import demographics_profile, maturity_profile, change_profile
     from report_builder import build_from_aggregates
     import build_full_report as tmpl
-    from build_comments_report import build_comments_report_pdf
+    from cohort_report import build_private_comments
 
     norm_rows = [normalize_row(r) for r in rows]
 
@@ -94,8 +94,9 @@ def main():
     result = {"ok": True, "out_path": out_path, "comments_out_path": None}
 
     if comments_out_path:
-        comments_data = comments_report(norm_rows)
-        wrote = build_comments_report_pdf(comments_out_path, church_name, report_date, comments_data)
+        # Demographic answers are used only in aggregate reporting, never
+        # attached to an individual comment. Match the mixed-wave privacy path.
+        wrote = build_private_comments(comments_out_path, church_name, report_date, norm_rows, payload.get("had_comments", False))
         if wrote:
             result["comments_out_path"] = comments_out_path
 

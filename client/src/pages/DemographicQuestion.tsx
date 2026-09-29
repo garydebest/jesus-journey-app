@@ -3,12 +3,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { QuestionShell } from "@/components/QuestionShell";
 import type { Demographic } from "@shared/questions";
+import { toggleExclusive } from "@shared/demographicPolicy";
 
 export function DemographicQuestion({
   demo,
   value,
   onChange,
   onNext,
+  onSkip,
   onBack,
   progress,
   showIntroNote,
@@ -17,6 +19,7 @@ export function DemographicQuestion({
   value?: string | string[];
   onChange: (v: string | string[]) => void;
   onNext: () => void;
+  onSkip: () => void;
   onBack: () => void;
   progress: number;
   showIntroNote?: boolean;
@@ -25,11 +28,7 @@ export function DemographicQuestion({
 
   function toggleMulti(option: string) {
     const current = Array.isArray(value) ? value : [];
-    if (current.includes(option)) {
-      onChange(current.filter((v) => v !== option));
-    } else {
-      onChange([...current, option]);
-    }
+    onChange(toggleExclusive(current, option, demo.id === "children" ? "None" : undefined));
   }
 
   return (
@@ -38,9 +37,12 @@ export function DemographicQuestion({
       onBack={onBack}
       showBack
       footer={
+        <div className="flex flex-wrap items-center justify-end gap-3">
+        <Button variant="outline" onClick={onSkip} data-testid="button-demo-skip">Skip this question</Button>
         <Button onClick={onNext} disabled={!isAnswered} data-testid="button-demo-next">
           Continue
         </Button>
+        </div>
       }
     >
       {showIntroNote && (
@@ -48,14 +50,16 @@ export function DemographicQuestion({
           className="text-sm text-muted-foreground leading-relaxed rounded-lg bg-muted border border-border p-4"
           data-testid="text-demo-intro-note"
         >
-          The following questions are optional for those taking the survey as an individual. If you
-          are participating in the survey as part of a larger group, these questions are essential
-          for fully understanding your faith community's journey.
+          These questions are voluntary. You may skip any question, including ethnic or cultural
+          background, without affecting your personal report. Answers are used only in aggregate
+          church reporting. Categories with fewer than 10 respondents are not shown, and skipped
+          answers and “Prefer not to say” are excluded from comparisons.
         </p>
       )}
       <h2 className="text-lg font-semibold leading-snug" data-testid="text-demo-question">
         {demo.question}
       </h2>
+      <p className="text-sm text-muted-foreground">Optional. You can skip this question.</p>
       {demo.type === "single" ? (
         <RadioGroup
           value={typeof value === "string" ? value : undefined}

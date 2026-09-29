@@ -1,6 +1,8 @@
 import type { ResponseRow } from "../schema";
 import type { DemographicBreakdownRow, DemographicSection, Insight } from "./types";
 import { mean, round2, pct, meetsSampleFloor, isMaterial } from "./helpers";
+import { disclosed, ethnicityLabels, safeDemographicCounts, DEMOGRAPHIC_MIN_N } from "../demographicPolicy";
+import { parseChildren } from "../reportMetrics";
 
 interface DemoFieldDef {
   id: string;
@@ -18,26 +20,30 @@ const SIMPLE_FIELDS: DemoFieldDef[] = [
   { id: "tenure", title: "Tenure at Church", field: "tenure" },
   { id: "smallGroupFrequency", title: "Small Group Participation", field: "smallGroupFrequency" },
   { id: "volunteerFrequency", title: "Volunteering Frequency", field: "volunteerFrequency" },
-  { id: "raceEthnicity", title: "Race / Ethnicity", field: "raceEthnicity" },
 ];
 
 const GROWING_VALUES = new Set([1, 2]); // "growing significantly" / "growing a little"
 const FADING_VALUES = new Set([4, 5]); // "fading somewhat" / "fading a lot"
 
-function buildBreakdown(rows: ResponseRow[], groupValue: (r: ResponseRow) => string | null, churchAvgMaturity: number): DemographicBreakdownRow[] {
+function buildBreakdown(rows: ResponseRow[], groupValue: (r: ResponseRow) => string | string[] | null, churchAvgMaturity: number, multi = false): DemographicBreakdownRow[] {
   const groups = new Map<string, ResponseRow[]>();
   for (const r of rows) {
-    const g = groupValue(r);
-    if (!g) continue;
-    if (!groups.has(g)) groups.set(g, []);
-    groups.get(g)!.push(r);
+    const value = groupValue(r);
+    for (const g of Array.from(new Set(Array.isArray(value) ? value : [value]))) {
+      if (!disclosed(g)) continue;
+      if (!groups.has(g)) groups.set(g, []);
+      groups.get(g)!.push(r);
+    }
   }
   const total = rows.length;
   const out: DemographicBreakdownRow[] = [];
+  const safe = safeDemographicCounts(Object.fromEntries(Array.from(groups, ([g, rs]) => [g, rs.length])), total, multi);
   for (const [group, groupRows] of Array.from(groups.entries())) {
+    if (!(group in safe)) continue;
     const n = groupRows.length;
     const maturityValues = groupRows.map((r) => r.journeyPost).filter((v): v is number => typeof v === "number");
     const changeValues = groupRows.map((r) => r.spiritualChange).filter((v): v is number => typeof v === "number");
+    if (maturityValues.length < DEMOGRAPHIC_MIN_N || changeValues.length < DEMOGRAPHIC_MIN_N) continue;
     const avgMaturity = maturityValues.length > 0 ? round2(mean(maturityValues)) : 0;
     out.push({
       group,
@@ -69,6 +75,8 @@ function insightsForSection(sectionTitle: string, breakdown: DemographicBreakdow
       corroboration: 1,
       directionalOnly: row.directionalOnly,
       section: `Demographics — ${sectionTitle}`,
+      demographicN: row.n,
+      demographicGroup: row.group,
     });
   }
   return insights;
@@ -90,6 +98,9 @@ export function analyzeDemographics(rows: ResponseRow[]): DemographicSection[] {
       insights: insightsForSection(def.title, breakdown),
     });
   }
+
+  const ethnicity = buildBreakdown(rows, r => ethnicityLabels(r.raceEthnicity), churchAvgMaturity, true);
+  if (ethnicity.length) sections.push({ id: "raceEthnicity", title: "Race / Ethnicity", breakdown: ethnicity, insights: insightsForSection("Race / Ethnicity", ethnicity) });
 
   // Singles vs. married — combine the two "single" relationship-status
   // options into one group, keep "Married" as its own group. Separated,
@@ -121,15 +132,9 @@ export function analyzeDemographics(rows: ResponseRow[]): DemographicSection[] {
   // "has children in household" as a boolean group rather than exploding into
   // every combination of ages.
   const childrenGroups = rows.map((r) => {
-    let hasChildren = false;
-    if (r.childrenInHousehold) {
-      try {
-        const parsed = JSON.parse(r.childrenInHousehold);
-        hasChildren = Array.isArray(parsed) && parsed.length > 0 && !parsed.every((v) => String(v).toLowerCase() === "none");
-      } catch {
-        hasChildren = r.childrenInHousehold.length > 0 && r.childrenInHousehold.toLowerCase() !== "none";
-      }
-    }
+    const parsed = parseChildren(r.childrenInHousehold);
+    if (!parsed.length) return null;
+    const hasChildren = parsed.some(v => v !== "None");
     return hasChildren ? "Has children in household" : "No children in household";
   });
   const childrenBreakdown = buildBreakdown(

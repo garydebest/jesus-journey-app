@@ -161,7 +161,7 @@ export function PanelYourSurveys(props: Props) {
             <p className="text-sm text-muted-foreground">Breakdown of respondents only, not participation rates within church groups. No individual answers or identities are shown.</p>
             {!groups ? <p role="status">Loading breakdown…</p> : <div className="grid sm:grid-cols-2 gap-6">{[["Gender", ["Male", "Female"], groups.gender], ["Age", ageLabels, groups.age]].map(([heading, labels, rows]: any) =>
               <div key={heading}><h3 className="text-sm font-semibold mb-2">{heading}</h3>
-                {groups.suppressed?.[heading === "Gender" ? "gender" : "age"] ? <p className="text-sm text-muted-foreground">Insufficient responses to protect confidentiality</p> : [...labels, ...rows.map((r: any) => r.label).filter((label: string) => !labels.includes(label))].map((label: string) => {
+                {groups.suppressed?.[heading === "Gender" ? "gender" : "age"] ? <p className="text-sm text-muted-foreground">Insufficient responses to protect confidentiality</p> : rows.filter((r: any) => r.count >= 10 && r.label !== "Prefer not to say").map(({ label }: { label: string }) => {
                   const n = rows.find((r: any) => r.label === label)?.count ?? 0;
                   return <div key={label} className="flex justify-between gap-2 py-1 text-sm"><span>{label}</span><span className="tabular-nums">{n} · {Math.round(n / Math.max(1, groups.total) * 100)}%</span></div>;
                 })}
