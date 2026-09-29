@@ -33,6 +33,24 @@ export const SCALE_LABELS = [
   { value: 5, label: "Always true of what I believe" },
 ];
 
+export const PRACTICE_SCALE_LABELS = [
+  { value: 1, label: "Never or not yet true" },
+  { value: 2, label: "Occasionally true" },
+  { value: 3, label: "Quite often true" },
+  { value: 4, label: "Most of the time true" },
+  { value: 5, label: "Always true" },
+];
+
+// Use stable instrument codes, never the displayed short-form item number.
+export function questionScale(code: string) {
+  const belief = /^[BK][1-9]$/.test(code);
+  return {
+    prompt: belief ? "How often do you believe this to be true?" : "How true is this of you now?",
+    labels: belief ? SCALE_LABELS : PRACTICE_SCALE_LABELS,
+    kind: belief ? "belief" : "practice",
+  };
+}
+
 export interface Demographic {
   id: string;
   question: string;

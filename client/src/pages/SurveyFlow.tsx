@@ -68,6 +68,7 @@ export function SurveyFlow() {
     return (
       <ItemQuestion
         key={item.code}
+        code={item.code}
         text={item.text}
         value={state.items[item.code]}
         onChange={(v) => setState((s) => ({ ...s, items: { ...s.items, [item.code]: v } }))}

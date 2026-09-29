@@ -1,6 +1,6 @@
 import { ACT_STEPS } from "@/lib/dashboardContent";
 import { FullDoc } from "./FullDoc";
-import { FULL_DOCS } from "@/lib/fullDocs.generated";
+import { FULL_DOCS } from "@/lib/reportGuidance";
 
 export function PanelAct() {
   return (

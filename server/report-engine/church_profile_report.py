@@ -17,7 +17,7 @@ IMPORTANT — confirmed against 4 real church reports (Canyonview 2017,
 Durango 2017, Abby Vineyard 2017, Saint Philip's 2020):
   - The church report shows a SINGLE maturity distribution, from
     `journey_post` only (Gary's confirmed decision: "use the second self
-    assessment"). No pre/post pair, no shift statistic.
+    assessment"). The reflection panel separately compares opening/closing answers.
   - Maturity cross-tab covers exactly 7 dimensions: gender, age_group,
     children_in_household (has-children, single %), tenure,
     attendance_frequency, small_group_frequency, volunteer_frequency.
@@ -173,17 +173,17 @@ def _pct_breakdown(values: list, category_order: Optional[list] = None) -> dict:
 
 
 def _multiselect_pct(values_lists: list, category_order: Optional[list] = None) -> dict:
-    """% of respondents (denominator = all respondents who answered this
-    question at all) whose multi-select answer includes each band. Matches
+    """% of respondents (denominator = all completed respondents)
+    whose multi-select answer includes each band. Matches
     the real report's 'children in household' treatment: '% of church' per
     band, not a single mutually-exclusive breakdown."""
     respondents_with_answer = [vs for vs in values_lists if vs]
-    n = len(respondents_with_answer)
+    n = len(values_lists)
     if n == 0:
         return {"n": 0, "breakdown": {}}
     counts = OrderedDict()
     for vs in respondents_with_answer:
-        for v in vs:
+        for v in dict.fromkeys(vs):
             counts[v] = counts.get(v, 0) + 1
 
     ordered_keys = []
@@ -260,9 +260,8 @@ def demographics_profile(rows: list) -> dict:
 def maturity_profile(rows: list) -> dict:
     """% breakdown of journey_post into the 5 named maturity bands, plus a
     cross-tab against exactly the 7 confirmed dimensions. Uses journey_post
-    ONLY (Gary's confirmed decision: 'use the second self assessment') --
-    no pre/post pair, no shift statistic, per church-report-extended-
-    design.md section 2."""
+    ONLY for maturity categories. A separate reflection panel compares valid
+    opening/closing pairs without calling the change spiritual growth."""
     norm_rows = [_norm_row(r) for r in rows]
 
     def maturity_label(r):
@@ -336,13 +335,14 @@ def maturity_profile(rows: list) -> dict:
 
     return {
         "sample_size": len(valid_labels),
+        "reflection": reflection_profile(norm_rows),
         "distribution": overall,
         "crosstab_by_dimension": crosstab,
         "note": (
             "Single distribution from journey_post only (the post-survey "
             "restatement, per Gary's confirmed decision to use 'the second "
-            "self assessment'). No pre/post shift statistic -- no real "
-            "church report reviewed shows one. Cross-tab covers exactly 7 "
+            "self assessment'). A separate same-session reflection panel "
+            "compares valid pairs. Cross-tab covers exactly 7 "
             "dimensions (gender, age_group, children_in_household, tenure, "
             "attendance_frequency, small_group_frequency, "
             "volunteer_frequency); relationship_status and race_ethnicity "
@@ -355,6 +355,23 @@ def maturity_profile(rows: list) -> dict:
             "orientation (rows=demographic values, columns=maturity groups)."
         ),
     }
+
+
+def reflection_profile(rows):
+    def valid(value):
+        return isinstance(value, (int, float)) and value in (1, 2, 3, 4, 5)
+    pairs = [(r.get("journey_pre"), r.get("journey_post")) for r in rows
+             if valid(r.get("journey_pre")) and valid(r.get("journey_post"))]
+    counts = [sum(post > pre for pre, post in pairs),
+              sum(post == pre for pre, post in pairs),
+              sum(post < pre for pre, post in pairs)]
+    missing = len(rows) - len(pairs)
+    if len(pairs) < 5 or any(0 < n < 5 for n in counts) or 0 < missing < 5:
+        return {"suppressed": True, "values": []}
+    return {"suppressed": False, "values": [
+        {"label": label, "pct": round(100 * n / len(pairs), 1)}
+        for label, n in zip(("Selected a later stage", "Selected the same stage",
+                             "Selected an earlier stage"), counts)]}
 
 
 # ---------------------------------------------------------------------------

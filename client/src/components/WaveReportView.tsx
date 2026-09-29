@@ -23,7 +23,14 @@ function formatKey(key: string): string {
 
 export function WaveReportView({ summary, churchName }: { summary: WaveAggregateSummary; churchName: string }) {
   if (summary.cohortReporting) return <CohortReportView report={summary.cohortReporting} />;
-  const chartData = summary.pathwayAverages.map((p) => ({
+  const agreement = summary.agreement;
+  const pathwayRows = agreement
+    ? agreement.pathways.map(p => ({ ...p, score: p.pct, band: undefined }))
+    : summary.pathwayAverages;
+  const goalValues = agreement ? agreement.goals : summary.goalAverages;
+  const formatScore = (score: number | null) => score === null ? "Not measured"
+    : agreement ? (score > 0 && score < 1 ? "<1%" : `${score.toFixed(1)}%`) : `${score.toFixed(2)} / 5`;
+  const chartData = pathwayRows.map((p) => ({
     name: `P${p.num}`,
     fullName: p.name,
     score: p.score,
@@ -66,16 +73,19 @@ export function WaveReportView({ summary, churchName }: { summary: WaveAggregate
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm">Goal averages</CardTitle>
+          <CardTitle className="text-sm">Goal averages {agreement ? "(% agreement)" : "(1–5 scores)"}</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-3">
-          {Object.entries(summary.goalAverages).map(([goal, score]) => (
-            <div key={goal} className="flex items-center justify-between text-sm p-3 rounded-md border border-border">
+        <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <p className="sm:col-span-2 text-xs text-muted-foreground">{agreement
+            ? "Average of the four pathway agreement percentages within each goal. Agreement means an answer of 4 or 5."
+            : "This saved summary contains historical 1–5 averages, not agreement percentages. Percentages cannot be reconstructed from these averages."}</p>
+          {Object.entries(goalValues).map(([goal, score]) => (
+            <div key={goal} className="flex items-center justify-between gap-3 text-sm p-3 rounded-md border border-border">
               <span className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: GOAL_COLORS[goal] ?? "hsl(0 0% 50%)" }} />
+                <span className="h-4 w-4 shrink-0 rounded-sm" style={{ backgroundColor: GOAL_COLORS[goal] ?? "hsl(0 0% 50%)" }} />
                 {goal}
               </span>
-              <span className="font-mono tabular-nums">{score.toFixed(2)}</span>
+              <span className="font-mono tabular-nums shrink-0">{formatScore(score)}</span>
             </div>
           ))}
         </CardContent>
@@ -83,15 +93,15 @@ export function WaveReportView({ summary, churchName }: { summary: WaveAggregate
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm">Pathway averages</CardTitle>
+          <CardTitle className="text-sm">Pathway averages {agreement ? "(% agreement)" : "(1–5 scores)"}</CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={360}>
             <BarChart data={chartData} layout="vertical" margin={{ left: 8, right: 24 }}>
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" domain={[0, 5]} tick={{ fontSize: 11 }} />
-              <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={28} />
-              <Bar dataKey="score" radius={[0, 3, 3, 0]}>
+              <XAxis type="number" domain={agreement ? [0, 100] : [0, 5]} tick={{ fontSize: 11 }} />
+              <YAxis type="category" dataKey="name" interval={0} tick={{ fontSize: 11 }} width={28} />
+              <Bar dataKey="score" isAnimationActive={false} radius={[0, 3, 3, 0]}>
                 {chartData.map((entry, i) => (
                   <Cell key={i} fill={GOAL_COLORS[entry.goal] ?? "hsl(0 0% 50%)"} />
                 ))}
@@ -99,14 +109,14 @@ export function WaveReportView({ summary, churchName }: { summary: WaveAggregate
             </BarChart>
           </ResponsiveContainer>
           <div className="mt-3 space-y-1">
-            {summary.pathwayAverages.map((p) => {
-              const style = BAND_STYLES[p.band];
+            {pathwayRows.map((p) => {
+              const style = p.band ? BAND_STYLES[p.band] : null;
               return (
                 <div key={p.num} className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">P{p.num} · {p.name}</span>
+                  <span className="text-muted-foreground flex items-center gap-2"><span className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: GOAL_COLORS[p.goal] }} />P{p.num} · {p.name}</span>
                   <span className="flex items-center gap-2">
-                    <span className="font-mono tabular-nums">{p.score.toFixed(2)}</span>
-                    <Badge style={{ backgroundColor: style.bg, color: "white" }} className="border-0">{style.text}</Badge>
+                    <span className="font-mono tabular-nums">{formatScore(p.score)}</span>
+                    {style && <Badge style={{ backgroundColor: style.bg, color: "white" }} className="border-0">{style.text}</Badge>}
                   </span>
                 </div>
               );
@@ -114,6 +124,25 @@ export function WaveReportView({ summary, churchName }: { summary: WaveAggregate
           </div>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader className="pb-3"><CardTitle className="text-sm">Children in household</CardTitle></CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          {summary.children ? <>
+            <p className="text-xs text-muted-foreground">Percentage of all {summary.children.denominator} completed respondents in each age band. People may select more than one band, so totals can exceed 100%.</p>
+            {summary.children.values.map(row => <div key={row.label} className="flex justify-between gap-4"><span>{row.label}</span><span className="tabular-nums">{row.count} ({row.pct}%)</span></div>)}
+            {summary.children.missing > 0 && <p className="text-xs text-muted-foreground">{summary.children.missing} respondents did not provide this answer.</p>}
+          </> : <p className="text-muted-foreground">Age-band counts are not available in this saved summary. Refer to the saved church PDF; these figures cannot be recovered from the other demographics.</p>}
+        </CardContent>
+      </Card>
+
+      {summary.reflection && <Card>
+        <CardHeader className="pb-3"><CardTitle className="text-sm">Reflection during the survey</CardTitle></CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          <p className="text-xs text-muted-foreground">Opening versus closing self-assessment, using respondents who answered both. This is a change in self-description during the survey, not spiritual growth over time.</p>
+          {summary.reflection.suppressed ? <p>Insufficient responses to protect confidentiality.</p> : summary.reflection.values.map(row => <div key={row.label} className="flex justify-between"><span>{row.label}</span><span>{row.pct}%</span></div>)}
+        </CardContent>
+      </Card>}
 
       <Card>
         <CardHeader className="pb-3">

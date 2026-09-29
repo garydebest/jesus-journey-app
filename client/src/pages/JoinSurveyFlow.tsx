@@ -208,6 +208,7 @@ function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) 
     return (
       <ItemQuestion
         key={item.code}
+        code={item.code}
         text={item.text}
         value={state.items[item.code]}
         onChange={(v) => setState((s) => ({ ...s, items: { ...s.items, [item.code]: v } }))}
@@ -305,10 +306,12 @@ function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) 
     );
   }
 
-  if (!isDemo && isShortForm(state.preMaturity)) {
-    return <Report items={state.items} preMaturity={state.preMaturity}
+  if (!isDemo) {
+    return <><div className="border-b bg-primary/5 px-4 py-3 text-center text-sm print:hidden" data-testid="group-report-confirmation">
+      Your response has been submitted to {meta?.churchName}. Print or save your private report before leaving this page.
+    </div><Report items={state.items} preMaturity={state.preMaturity}
       postMaturity={state.postMaturity} change={state.change}
-      onRestart={() => { setState(emptyState()); setComment(""); setLocation("/"); }} />;
+      onRestart={() => { setState(emptyState()); setComment(""); setLocation("/"); }} /></>;
   }
 
   return (

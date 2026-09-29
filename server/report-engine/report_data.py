@@ -80,6 +80,7 @@ class ReportData:
     maturity_line_believing: list
     maturity_line_trusting: list
     maturity_line_centered: list
+    reflection: dict = None  # optional; never inferred for historical fixtures
 
 
 # ------------------------------------------------------------------
