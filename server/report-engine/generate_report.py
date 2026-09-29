@@ -53,6 +53,15 @@ def main():
     out_path = payload["out_path"]
     comments_out_path = payload.get("comments_out_path")
     rows = payload["rows"]
+    cohort_report = payload.get("cohort_report")
+    if cohort_report:
+        from cohort_report import build_cohort_report, build_private_comments
+        build_cohort_report(out_path, church_name, report_date, cohort_report)
+        comments_path = None
+        if comments_out_path and build_private_comments(comments_out_path, church_name, report_date, rows, payload.get("had_comments", False)):
+            comments_path = comments_out_path
+        print(json.dumps({"ok": True, "out_path": out_path, "comments_out_path": comments_path}))
+        return
 
     from church_report import aggregate_church, score_respondent
     from church_profile_report import demographics_profile, maturity_profile, change_profile, comments_report

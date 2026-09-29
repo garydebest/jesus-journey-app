@@ -27,6 +27,7 @@ import { runReminderSweep } from "./reminders";
 import { acceptsResponses, calendarDate, emptySurveyPlan, isDemoChurch, surveyPlanSchema } from "@shared/surveyAccess";
 import { isParticipantDemoCode, PARTICIPANT_DEMO_META } from "@shared/participantDemo";
 import { DASHBOARD_DEMO_WAVE_ID } from "@shared/dashboardDemo";
+import { submitResponseSchema } from "@shared/submission";
 
 function sanitizeChurch(church: { passwordHash?: string; [k: string]: any }): Record<string, any> {
   const { passwordHash, surveyPlanJson, ...rest } = church;
@@ -36,28 +37,6 @@ function sanitizeChurch(church: { passwordHash?: string; [k: string]: any }): Re
 function sanitizeWave(wave: any) {
   return wave ? { ...wave, joinCode: wave.paymentStatus === "paid" ? wave.joinCode : null } : wave;
 }
-
-const submitResponseSchema = z.object({
-  joinCode: z.string().min(1),
-  items: z.record(z.string(), z.number().min(1).max(5)),
-  journeyPre: z.number().min(1).max(5).optional(),
-  journeyPost: z.number().min(1).max(5).optional(),
-  spiritualChange: z.number().min(1).max(5).optional(),
-  demographics: z
-    .object({
-      gender: z.string().optional(),
-      age: z.string().optional(),
-      relationship: z.string().optional(),
-      attendance: z.string().optional(),
-      tenure: z.string().optional(),
-      smallgroup: z.string().optional(),
-      volunteer: z.string().optional(),
-      children: z.array(z.string()).optional(),
-      ethnicity: z.string().optional(),
-    })
-    .optional(),
-  comment: z.string().optional(),
-});
 
 export async function registerRoutes(httpServer: Server, app: Express) {
   app.use("/api", restrictPublicDashboardDemo);

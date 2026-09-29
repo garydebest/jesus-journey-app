@@ -4,9 +4,9 @@ import { MaturityQuestion } from "./MaturityQuestion";
 import { ItemQuestion } from "./ItemQuestion";
 import { ChangeQuestion } from "./ChangeQuestion";
 import { Report } from "./Report";
-import { SURVEY_ITEMS } from "@shared/surveyItems";
+import { surveyItemsFor, retainedAnswers } from "@shared/shortForm";
 import { MATURITY_OPTIONS_PRE, MATURITY_OPTIONS_POST } from "@shared/questions";
-import { emptyState, TOTAL_STEPS_INDIVIDUAL, TOTAL_ITEM_STEPS, type SurveyState } from "@/lib/surveyState";
+import { emptyState, type SurveyState } from "@/lib/surveyState";
 
 // The individual (anonymous, ephemeral) survey path intentionally skips the
 // demographic questions — we don't keep any data from this flow, so there's
@@ -23,6 +23,9 @@ type Screen =
 export function SurveyFlow() {
   const [screen, setScreen] = useState<Screen>("intro");
   const [state, setState] = useState<SurveyState>(emptyState());
+  const surveyItems = surveyItemsFor(state.preMaturity);
+  const TOTAL_ITEM_STEPS = surveyItems.length;
+  const TOTAL_STEPS_INDIVIDUAL = TOTAL_ITEM_STEPS + 3;
 
   function restart() {
     setState(emptyState());
@@ -51,7 +54,7 @@ export function SurveyFlow() {
         title="Which of the following statements best describes where you are now in your faith journey with Jesus?"
         options={MATURITY_OPTIONS_PRE}
         value={state.preMaturity}
-        onChange={(v) => setState((s) => ({ ...s, preMaturity: v }))}
+        onChange={(v) => setState((s) => ({ ...s, preMaturity: v, items: retainedAnswers(s.items, v) }))}
         onNext={() => setScreen("item-0")}
         progress={progressFor(screen)}
         testIdPrefix="pre-maturity"
@@ -61,7 +64,7 @@ export function SurveyFlow() {
 
   if (screen.startsWith("item-")) {
     const idx = Number(screen.split("-")[1]);
-    const item = SURVEY_ITEMS[idx];
+    const item = surveyItems[idx];
     return (
       <ItemQuestion
         key={item.code}
@@ -69,7 +72,7 @@ export function SurveyFlow() {
         value={state.items[item.code]}
         onChange={(v) => setState((s) => ({ ...s, items: { ...s.items, [item.code]: v } }))}
         onNext={() => {
-          if (idx + 1 < SURVEY_ITEMS.length) setScreen(`item-${idx + 1}`);
+          if (idx + 1 < surveyItems.length) setScreen(`item-${idx + 1}`);
           else setScreen("post-maturity");
         }}
         onBack={() => {
@@ -78,7 +81,7 @@ export function SurveyFlow() {
         }}
         progress={progressFor(screen)}
         itemNumber={idx + 1}
-        totalItems={SURVEY_ITEMS.length}
+        totalItems={surveyItems.length}
       />
     );
   }
@@ -91,7 +94,7 @@ export function SurveyFlow() {
         value={state.postMaturity}
         onChange={(v) => setState((s) => ({ ...s, postMaturity: v }))}
         onNext={() => setScreen("change")}
-        onBack={() => setScreen(`item-${SURVEY_ITEMS.length - 1}`)}
+        onBack={() => setScreen(`item-${surveyItems.length - 1}`)}
         showBack
         progress={progressFor(screen)}
         testIdPrefix="post-maturity"

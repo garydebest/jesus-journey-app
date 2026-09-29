@@ -9,6 +9,7 @@ import { analyzeBottlenecks } from "./bottlenecks";
 import { buildDemographicAssessment, buildMaturityStageAssessment } from "./systematicAssessment";
 import type { DebriefingReport, Insight } from "./types";
 import { round2, mean } from "./helpers";
+import { buildCohortReporting, needsCohortReporting, splitResponseCohorts } from "../cohortReporting";
 
 /**
  * Groups insights that describe essentially the same underlying finding
@@ -51,6 +52,33 @@ export function buildDebriefingReport(params: {
   waveLabel: string;
   rows: ResponseRow[];
 }): DebriefingReport {
+  if (needsCohortReporting(params.rows)) {
+    const cohortReporting = buildCohortReporting(params.rows);
+    const { full } = splitResponseCohorts(params.rows);
+    const suppressed = cohortReporting.cohorts[0].suppressed;
+    const report = buildDebriefingReport({ ...params, rows: suppressed ? [] : full });
+    report.cohortReporting = cohortReporting;
+    report.analysisSuppressed = suppressed;
+    report.analysisScope = suppressed
+      ? "Full-survey analysis withheld to protect confidentiality. Short-form results are reported separately as retained-item percentages, without full-survey diagnoses."
+      : "The analytical findings below describe full-survey participants only, not the whole church. Distant/Exploring short-form results are reported separately and are not used in pathway, dimension, or bottleneck analysis.";
+    if (suppressed) {
+      report.executiveSummary = { strengths: [], opportunities: [] };
+      report.demographics = [];
+      report.demographicAssessment = [];
+      report.engagement = { insights: [] };
+      report.maturityAndChange = { distribution: [], averageMaturity: 0, funnel: [], changeByMaturity: [], plateauAtTopFlag: false, insights: [] };
+      report.maturityStageAssessment = [];
+      report.pathwaysByGoal = [];
+      report.dimensions = { rollups: [], beliefPracticeGaps: [], insights: [] };
+      report.bottleneckMap = { weakestPathways: [], reciprocityChecks: [], insights: [] };
+      report.crossCutting = { insights: [] };
+      report.suggestedDebriefQuestions = [];
+      report.dataNotes = [];
+    }
+    report.dataNotes.unshift(report.analysisScope);
+    return report;
+  }
   const { waveId, churchId, churchName, waveLabel, rows } = params;
   const respondentCount = rows.length;
 

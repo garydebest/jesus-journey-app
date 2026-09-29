@@ -118,6 +118,7 @@ function pathwayTopic(path: PathwayAnalysis, report: DebriefingReport): PairedTo
 }
 
 export function buildDebriefingPresentation(report: DebriefingReport): DebriefingPresentation {
+  if (report.analysisSuppressed) return { version: DEBRIEFING_LAYOUT_VERSION, sections: [], notes: report.dataNotes };
   const sections: PairedSection[] = [];
   const summary = fromInsights([
     ...(report.executiveSummary?.strengths ?? []),

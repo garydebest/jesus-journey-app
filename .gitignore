@@ -3,7 +3,10 @@ dist/
 *.db
 *.db-shm
 *.db-wal
-.env
-generated-reports/*.pdf
+dist-review/
+generated-reports/
+qa-output/
 __pycache__/
 *.pyc
+.env
+.env.*

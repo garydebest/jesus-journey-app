@@ -32,6 +32,7 @@ export function acceptsResponses(wave: { status: string; paymentStatus: string }
 }
 
 export interface ResponseBreakdown {
+  suppressed?: { gender: boolean; age: boolean };
   total: number;
   gender: { label: string; count: number }[];
   age: { label: string; count: number }[];

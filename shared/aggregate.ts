@@ -1,8 +1,10 @@
 import { computePathwayScores, computeGoalScores, type ItemResponses } from "./scoring";
 import { ITEM_CODES, type ResponseRow } from "./schema";
 import { MATURITY_LABELS } from "./questions";
+import { buildCohortReporting, needsCohortReporting, splitResponseCohorts, type CohortReporting } from "./cohortReporting";
 
 export interface WaveAggregateSummary {
+  cohortReporting?: CohortReporting;
   respondentCount: number;
   generatedAt: string;
   pathwayAverages: { num: number; name: string; goal: string; score: number; band: "high" | "medium" | "low" }[];
@@ -32,6 +34,20 @@ function tally(values: (string | null | undefined)[]): Record<string, number> {
  * stored forever in aggregate_snapshots; the raw rows that produced it are not.
  */
 export function computeWaveAggregate(rows: ResponseRow[]): WaveAggregateSummary {
+  if (needsCohortReporting(rows)) {
+    const { full, short } = splitResponseCohorts(rows);
+    const cohortReporting = buildCohortReporting(rows);
+    // Legacy fields are empty for mixed waves: an older consumer must not
+    // display full-cohort values as an unlabelled church-wide average.
+    return {
+      respondentCount: full.length + short.length, generatedAt: new Date().toISOString(),
+      pathwayAverages: [],
+      goalAverages: {},
+      maturityDistribution: [], averageMaturity: 0,
+      demographics: { gender: {}, ageGroup: {}, attendanceFrequency: {}, tenure: {} },
+      cohortReporting,
+    };
+  }
   const n = rows.length;
 
   // Average each of the 63 items across all respondents, then run the shared
