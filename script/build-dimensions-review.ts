@@ -6,7 +6,7 @@ const root = path.resolve(import.meta.dirname, "..");
 const out = path.join(root, "dist-dimensions-review");
 await build(mergeConfig(config, {
   base: "./",
-  build: { outDir: out, rollupOptions: { input: path.join(root, "client/dimensions-review.html") } },
+  build: { outDir: out, copyPublicDir: false, rollupOptions: { input: path.join(root, "client/dimensions-review.html") } },
 }));
 renameSync(path.join(out, "dimensions-review.html"), path.join(out, "index.html"));
 mkdirSync(path.join(out, "samples"), { recursive: true });
