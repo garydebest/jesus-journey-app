@@ -76,9 +76,10 @@ migration, credential, hosting configuration, payment, or email change is requir
 - Five comment-privacy tests and existing report/projection tests passed.
 - The production Python bridge generated the synthetic 38-page church PDF.
   Corrected explanations and affected-page rendering were checked.
-- Fourteen browser scenario groups passed, covering full/short individual,
+- Sixteen browser scenario/check groups passed, covering full/short individual,
   full/short church, failed submit/retry, refresh, printing, both reserved demos,
-  invalid join metadata, navigation, and old/new summaries.
+  invalid join metadata, navigation, old/new summaries, final mobile layout,
+  and all five downloadable PDF links.
 - Desktop/mobile screenshots and paper/PDF visual checks were reviewed.
   No runtime errors were observed. No production participant submissions,
   database reads, wave closing, payments, email, or saved-report writes occurred.
