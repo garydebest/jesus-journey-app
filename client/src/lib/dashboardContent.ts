@@ -77,7 +77,8 @@ export const COLLECT_CARDS: InfoCard[] = [
   {
     icon: "paper",
     title: "Paper survey option",
-    body: "For anyone who finds a screen difficult. Every question must be answered by hand, then entered online by a volunteer — blank answers can't be entered.",
+    body: "Use the church paper survey and your active church join-code link. An authorized volunteer enters the required answers exactly as written and prints the personal report immediately. Written comments are optional.",
+    note: "Read the entry instructions before starting. Never use the free individual survey for church paper responses.",
     ctaLabel: "Download paper survey",
     ctaHref: "/jesus-journey-paper-survey.pdf",
     fullDocIndexes: [6],

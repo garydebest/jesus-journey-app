@@ -13,3 +13,5 @@ mkdirSync(path.join(out, "samples"), { recursive: true });
 for (const name of ["current-debrief", "saved-debrief", "saved-church"]) {
   cpSync(path.join(root, `qa-output/${name}.pdf`), path.join(out, `samples/${name}.pdf`));
 }
+cpSync(path.join(root, "qa-output/dennis-church.pdf"), path.join(out, "samples/dennis-church.pdf"));
+cpSync(path.join(root, "client/public/jesus-journey-paper-survey.pdf"), path.join(out, "samples/paper-survey.pdf"));

@@ -61,6 +61,8 @@ def cohort_story(report, include_profiles=True):
     if include_profiles:
         story.extend([PageBreak(), p("Combined journey and demographic profiles", "heading")])
         for name, distribution in report["profiles"].items():
+            if distribution.get("note"):
+                story.append(p(distribution["note"], "muted"))
             story.append(p(name, "heading"))
             if distribution["suppressed"]:
                 story.append(p(PRIVACY_MESSAGE, "muted"))

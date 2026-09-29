@@ -26,6 +26,7 @@ export function CohortReportView({ report }: { report: CohortReporting }) {
       <h2 className="text-base font-semibold">Combined journey and demographic profiles</h2>
       {Object.entries(report.profiles).map(([label, distribution]) => <div key={label} className="space-y-2">
         <h3 className="text-sm font-semibold">{label}</h3>
+        {distribution.note && <p className="text-sm text-muted-foreground">{distribution.note}</p>}
         {distribution.suppressed ? <p className="text-sm text-muted-foreground">{PRIVACY_MESSAGE}</p> : distribution.values.map(row => <div key={row.label} className="flex justify-between gap-4 text-sm"><span>{row.label}</span><span>{row.count} ({row.pct}%)</span></div>)}
       </div>)}
     </section>

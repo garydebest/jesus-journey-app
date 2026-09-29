@@ -3,9 +3,11 @@ import { PATHWAYS } from "./pathways";
 import { SURVEY_ITEMS } from "./surveyItems";
 import { MATURITY_LABELS } from "./questions";
 import { classifyStoredResponse, SHORT_PATHWAY_ITEMS, PRIVACY_MINIMUM, PRIVACY_MESSAGE } from "./shortForm";
+import { childrenProfile } from "./reportMetrics";
 
 export interface SafeDistribution {
   suppressed: boolean;
+  note?: string;
   values: { label: string; count: number; pct: number }[];
 }
 export interface CohortSection {
@@ -84,9 +86,15 @@ export function buildCohortReporting(rows: ResponseRow[]): CohortReporting {
     ["smallGroupFrequency", "Small-group participation"], ["volunteerFrequency", "Volunteering"],
     ["raceEthnicity", "Race / ethnicity"],
   ] as const) profiles[label] = safeDistribution(eligible.map(row => row[field]));
-  profiles["Children in household"] = safeDistribution(eligible.map(row => {
-    try { const v = JSON.parse(row.childrenInHousehold ?? "[]"); return Array.isArray(v) && v.length ? v.join(", ") : null; } catch { return row.childrenInHousehold; }
-  }));
+  const children = childrenProfile(eligible);
+  const small = (n: number) => n > 0 && n < PRIVACY_MINIMUM;
+  const childSuppressed = eligible.length < PRIVACY_MINIMUM || small(children.missing)
+    || children.values.some(v => small(v.count) || small(eligible.length - v.count));
+  profiles["Children in household"] = {
+    suppressed: childSuppressed,
+    values: childSuppressed ? [] : children.values,
+    note: "Percentage of all completed respondents in each age band. People may select more than one band, so totals can exceed 100%.",
+  };
   profiles["Journey after reflection"] = safeDistribution(eligible.map(row => row.journeyPost ? MATURITY_LABELS[row.journeyPost] : null));
   const changes = ["", "Growing significantly", "Growing a little", "About the same", "Fading somewhat", "Fading a lot"];
   profiles["Faith change"] = safeDistribution(eligible.map(row => row.spiritualChange ? changes[row.spiritualChange] : null));

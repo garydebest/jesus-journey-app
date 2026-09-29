@@ -2,8 +2,12 @@ import { computePathwayScores, computeGoalScores, type ItemResponses } from "./s
 import { ITEM_CODES, type ResponseRow } from "./schema";
 import { MATURITY_LABELS } from "./questions";
 import { buildCohortReporting, needsCohortReporting, splitResponseCohorts, type CohortReporting } from "./cohortReporting";
+import { agreementMetrics, childrenProfile, reflectionProfile } from "./reportMetrics";
 
 export interface WaveAggregateSummary {
+  agreement?: ReturnType<typeof agreementMetrics>;
+  children?: ReturnType<typeof childrenProfile>;
+  reflection?: ReturnType<typeof reflectionProfile>;
   cohortReporting?: CohortReporting;
   respondentCount: number;
   generatedAt: string;
@@ -82,6 +86,9 @@ export function computeWaveAggregate(rows: ResponseRow[]): WaveAggregateSummary 
 
   return {
     respondentCount: n,
+    agreement: agreementMetrics(rows),
+    children: childrenProfile(rows),
+    reflection: reflectionProfile(rows),
     generatedAt: new Date().toISOString(),
     pathwayAverages,
     goalAverages,

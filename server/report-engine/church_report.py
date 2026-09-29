@@ -301,7 +301,9 @@ def individual_report(r: RespondentScore) -> dict:
 def _pct_always_mostly(values: list) -> Optional[dict]:
     if not values:
         return None
-    return {"n": len(values), "pct": round(100 * sum(1 for v in values if v >= ALWAYS_MOSTLY_CUTPOINT) / len(values), 1)}
+    agreed = sum(1 for v in values if v >= ALWAYS_MOSTLY_CUTPOINT)
+    pct = 100 * agreed / len(values)
+    return {"n": len(values), "agreed": agreed, "pct": pct if 0 < pct < 1 else round(pct, 1)}
 
 
 def aggregate_church(respondents: list) -> dict:

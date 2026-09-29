@@ -123,8 +123,35 @@ def _maturity_row(dim_crosstab, value_key):
     entry = dim_crosstab.get(value_key)
     if not entry:
         return [0, 0, 0, 0]
-    breakdown = entry.get("breakdown", {})
-    return [round(_pct(breakdown, label)) for label in MATURITY_LABEL_ORDER_4COL]
+    return _pooled_row([entry], MATURITY_LABEL_ORDER_4COL, combine_exploring=True)
+
+
+def _pooled_row(entries, labels, combine_exploring=False):
+    """Pool respondent counts before dividing; never average percentages."""
+    n = sum(entry.get("n", 0) for entry in entries)
+    if not n:
+        return [0] * len(labels)
+    result = []
+    for label in labels:
+        keys = ["Distant", "Exploring"] if combine_exploring and label == "Exploring" else [label]
+        count = sum(entry.get("breakdown", {}).get(key, {}).get("n", 0)
+                    for entry in entries for key in keys)
+        result.append(round(100 * count / n))
+    return result
+
+
+def _item_pct(by_mat, label):
+    """The Exploring column includes Distant; no observation remains None."""
+    labels = ["Distant", "Exploring"] if label == "Exploring" else [label]
+    stats = [by_mat[key] for key in labels if key in by_mat]
+    n = sum(stat["n"] for stat in stats)
+    if not n:
+        return None
+    # New aggregates retain exact positive counts. Compatibility fallback for
+    # older in-memory fixtures, not a reconstruction of saved reports.
+    agreed = sum(stat.get("agreed", stat["pct"] * stat["n"] / 100) for stat in stats)
+    pct = 100 * agreed / n
+    return pct if 0 < pct < 1 else round(pct)
 
 
 def _change_row(dim_crosstab, value_key):
@@ -223,13 +250,10 @@ def build_from_aggregates(
         ("FREQUENCY OF ATTENDING CHURCH GATHERINGS", None),
         ("Every week", mat_dim("attendance_frequency", "Every week")),
         ("Few times per month", mat_dim("attendance_frequency", "A few times/month")),
-        ("Monthly or less", [
-            round(sum(_pct(mat_xtab.get("attendance_frequency", {}).get(v, {}).get("breakdown", {}), lbl)
-                      for v in ("Monthly", "Every few months", "Infrequently or never")) / 3)
-            if any(v in mat_xtab.get("attendance_frequency", {}) for v in ("Monthly", "Every few months", "Infrequently or never"))
-            else 0
-            for lbl in MATURITY_LABEL_ORDER_4COL
-        ]),
+        ("Monthly or less", _pooled_row([
+            mat_xtab.get("attendance_frequency", {}).get(v, {})
+            for v in ("Monthly", "Every few months", "Infrequently or never")
+        ], MATURITY_LABEL_ORDER_4COL, combine_exploring=True)),
         ("FREQUENCY OF SMALL GROUP INVOLVEMENT", None),
         ("Every week", mat_dim("small_group_frequency", "Every week")),
         ("Few times per month", mat_dim("small_group_frequency", "A few times/month")),
@@ -278,13 +302,10 @@ def build_from_aggregates(
         ("Less than 1 year", chg_dim("tenure", "Less than 1 year")),
         ("1\u20132 years", chg_dim("tenure", "1-2 years")),
         ("3\u20135 years", chg_dim("tenure", "3-5 years")),
-        ("6 or more years", [
-            round(sum(_pct(chg_xtab.get("tenure", {}).get(v, {}).get("breakdown", {}), lbl)
-                      for v in ("6-10 years", "11 or more years")) / 2)
-            if any(v in chg_xtab.get("tenure", {}) for v in ("6-10 years", "11 or more years"))
-            else 0
-            for lbl in CHANGE_LABEL_ORDER_4BAND
-        ]),
+        ("6 or more years", _pooled_row([
+            chg_xtab.get("tenure", {}).get(v, {})
+            for v in ("6-10 years", "11 or more years")
+        ], CHANGE_LABEL_ORDER_4BAND)),
         ("LEVEL OF SPIRITUAL MATURITY", None),
         *[(maturity_4band_display[m], chg_dim("maturity_4band", m)) for m in maturity_4band_order],
         ("ATTENDANCE", None),
@@ -310,8 +331,7 @@ def build_from_aggregates(
                 by_mat = aggregate["item_pct_always_mostly_by_maturity"].get(code, {})
                 values = []
                 for label in MATURITY_LABEL_ORDER_4COL:
-                    stat = by_mat.get(label)
-                    values.append(round(stat["pct"]) if stat else None)
+                    values.append(_item_pct(by_mat, label))
                 item_rows.append((ITEM_TEXT[code], values))
             goal_list.append((str(pnum), meta["name"], meta["statement"], item_rows))
         pathway_results[goal_num] = goal_list
@@ -326,9 +346,11 @@ def build_from_aggregates(
     for goal_num, pathway_numbers in GOAL_PATHWAY_NUMBERS.items():
         labels = []
         values = []
+        precise_values = []
         for pnum in pathway_numbers:
             agg_pathway = aggregate["pathways"][pnum]
             churchwide = agg_pathway["pct_always_mostly_churchwide"]
+            precise_values.append(churchwide["pct"] if churchwide else None)
             pct = round(churchwide["pct"]) if churchwide else 0
             labels.append(f"{pnum}. {PATHWAY_META[pnum]['name']}")
             values.append(pct)
@@ -342,7 +364,9 @@ def build_from_aggregates(
             maturity_line_trusting[pnum - 1] = round(trusting["pct"]) if trusting else 0
             maturity_line_centered[pnum - 1] = round(centered["pct"]) if centered else 0
 
-        goal_summaries[goal_num] = {"labels": labels, "values": values}
+        average = (round(sum(precise_values) / len(precise_values), 1)
+                   if all(value is not None for value in precise_values) else None)
+        goal_summaries[goal_num] = {"labels": labels, "values": values, "average": average}
 
     return ReportData(
         church_name=church_name,
@@ -374,4 +398,5 @@ def build_from_aggregates(
         maturity_line_believing=maturity_line_believing,
         maturity_line_trusting=maturity_line_trusting,
         maturity_line_centered=maturity_line_centered,
+        reflection=maturity.get("reflection"),
     )

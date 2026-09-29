@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { RESOURCE_CARDS } from "@/lib/dashboardContent";
 import { ResourceCardIcon } from "./icons";
 import { FullDoc } from "./FullDoc";
-import { FULL_DOCS } from "@/lib/fullDocs.generated";
+import { FULL_DOCS } from "@/lib/reportGuidance";
 
 export function PanelResources() {
   return (

@@ -529,11 +529,14 @@ def page_demographics_2(c):
     c.drawString(MARGIN, y, "Children in Household (%)")
     c.setFont("Inter", 9)
     c.setFillColor(INK_MUTED)
-    c.drawString(MARGIN + 2.6 * inch, y, "(% of church with children in each age category)")
+    c.drawString(MARGIN + 2.6 * inch, y, "(% of all respondents in each age category)")
     y -= 0.32 * inch
     child_rows = REPORT_DATA.children_rows
     child_max = max(v for _, v in child_rows)
     y = hbar_list(c, MARGIN, y, PAGE_W - 2 * MARGIN, child_rows, child_max, SAND)
+    y = draw_body_paragraph(c, MARGIN, y - 8,
+                            "People may select more than one age band, so totals can exceed 100%.",
+                            PAGE_W - 2 * MARGIN, size=9, leading=12)
 
     y -= 0.25 * inch
     c.setFont("Inter-SemiBold", 11.5)
@@ -803,7 +806,7 @@ def page_maturity_donut(c):
     make_maturity_donut(chart_path)
 
     footer_top = 0.62 * inch
-    available_bottom = footer_top + 0.55 * inch
+    available_bottom = footer_top + (1.65 if REPORT_DATA.reflection else 0.55) * inch
     available_top = y - 0.15 * inch
     available_h = available_top - available_bottom
 
@@ -838,6 +841,20 @@ def page_maturity_donut(c):
     c.setFillColor(INK_MUTED)
     c.drawString(card_x + 0.22 * inch, callout_y + 0.14 * inch,
                  "Note: if a category is missing, it indicates zero percent of respondents.")
+    if REPORT_DATA.reflection:
+        reflection = REPORT_DATA.reflection
+        ry = callout_y - 0.28 * inch
+        c.setFont("Inter-SemiBold", 10)
+        c.setFillColor(TEAL_DARK)
+        c.drawString(MARGIN, ry, "Reflection during the survey")
+        ry -= 0.22 * inch
+        text = ("Insufficient responses to protect confidentiality." if reflection["suppressed"]
+                else " | ".join(f'{row["label"]}: {row["pct"]:g}%' for row in reflection["values"]))
+        ry = draw_body_paragraph(c, MARGIN, ry, text, PAGE_W - 2 * MARGIN, size=9, leading=12)
+        draw_body_paragraph(c, MARGIN, ry - 6,
+                            "Opening versus closing self-assessment among people who answered both. "
+                            "This is reflection during the survey, not spiritual growth over time.",
+                            PAGE_W - 2 * MARGIN, size=9, leading=12)
 
 
 def cross_tab_page(c, page_num, subtitle, col_labels, col_colors, sections, note=True, max_value=100):
@@ -904,7 +921,7 @@ def page_maturity_diversity_1(c):
     col_labels = ["Exploring\nJesus", "Believing\nin Jesus", "Trusting\nJesus", "Jesus\nCentered"]
     col_colors = [SAND, TEAL_LIGHT, TEAL, TEAL_DARK]
     sections = REPORT_DATA.maturity_crosstab_1
-    cross_tab_page(c, 11, "Note: if a category is missing, it indicates zero percent of respondents.",
+    cross_tab_page(c, 11, "Percent within each row. Exploring Jesus includes Distant and Exploring respondents.",
                    col_labels, col_colors, sections)
 
 
@@ -912,7 +929,7 @@ def page_maturity_diversity_2(c):
     col_labels = ["Exploring\nJesus", "Believing\nin Jesus", "Trusting\nJesus", "Jesus\nCentered"]
     col_colors = [SAND, TEAL_LIGHT, TEAL, TEAL_DARK]
     sections = REPORT_DATA.maturity_crosstab_2
-    cross_tab_page(c, 12, "Note: if a category is missing, it indicates zero percent of respondents.",
+    cross_tab_page(c, 12, "Percent within each row. Exploring Jesus includes Distant and Exploring respondents.",
                    col_labels, col_colors, sections)
 
 
@@ -1206,6 +1223,13 @@ def page_jj_goals_overview(c):
                                   size=9.6, leading=13.5)
         y = y2 - 0.1 * inch
 
+    text = ("The following pages show the statements associated with each Goal and Pathway, "
+            "and compare the percentage answering 4 or 5 within four self-described groups: "
+            "Distant and Exploring Jesus; Believing in Jesus; Trusting Jesus; and Jesus Centered. "
+            "The final self-assessment determines each person's group. Distant and Exploring "
+            "are combined in the Exploring Jesus column.")
+    y = draw_body_paragraph(c, MARGIN, y - 8, text, PAGE_W - 2 * MARGIN, size=10, leading=14)
+
     # Flow diagram
     y -= 0.25 * inch
     labels = ["My Life\nNow", "Jesus Journey\nPathways", "Jesus Journey\nGoals"]
@@ -1343,14 +1367,15 @@ def pathway_result_page(c, page_num, goal_name, items, col_labels=("Exploring\nJ
                 cx = MARGIN + left_w + 0.2 * inch + i * col_w + col_w / 2
                 c.setFont("Inter-SemiBold", 9.3)
                 c.setFillColor(TEAL_DARK if (v is not None and v > 0) else INK_MUTED)
-                c.drawCentredString(cx, vy, str(v) if v is not None else "\u2014")
+                text = "" if v is None else "<1" if 0 < v < 1 else str(v)
+                c.drawCentredString(cx, vy, text)
             y = row_top - row_h - 3
         y -= 0.14 * inch
 
     c.setFont("Inter", 7.6)
     c.setFillColor(INK_MUTED)
-    footnote = ("* Percent within each maturity group who said this is always or most of the time true "
-                "of me.")
+    footnote = ("* Percent answering 4 or 5 among valid answers in each final maturity group. Exploring includes Distant. "
+                "Blank = no valid answers for this statement/group; 0 = answered, but nobody selected 4 or 5.")
     lines = wrapped_lines(c, footnote, "Inter", 7.6, PAGE_W - 2 * MARGIN)
     yy = 0.9 * inch
     for ln in lines:
@@ -1458,25 +1483,19 @@ def page_summary_intro(c):
     items = [
         (None, "On the next page, a summary value is given for each of the 16 Pathways measured in the "
                 "Journey survey. The values represent the average % who agreed that this is true for "
-                "them across the questions on each Pathway."),
+                "them across the questions on each Pathway. A value of 50% means that, averaged "
+                "across its statements, half of respondents selected 4 or 5. It does not mean "
+                "the same half agreed with every statement."),
         (None, "The following page provides a picture of the differences across the 3 Christian "
                 "spiritual maturity groups on the 16 Pathways: people who are \u201cBelieving in "
-                "Jesus,\u201d \u201cTrusting in Jesus,\u201d and \u201cJesus Centered.\u201d"),
+                "Jesus,\u201d \u201cTrusting in Jesus,\u201d and \u201cJesus Centered.\u201d "
+                "Note: People who are Distant or Exploring Jesus are excluded from this comparison "
+                "chart only, not from the preceding whole-survey chart. Examine their answers to "
+                "the statements they did answer to understand where they are in their journey with Jesus."),
     ]
     y = draw_bullet_block(c, MARGIN, y, items, PAGE_W - 2 * MARGIN, size=10.4, leading=15, gap=14)
 
-    y -= 0.1 * inch
-    c.setFillColor(SURFACE)
-    card_h = 1.1 * inch
-    c.roundRect(MARGIN, y - card_h, PAGE_W - 2 * MARGIN, card_h, 6, fill=1, stroke=0)
-    c.setStrokeColor(TEAL)
-    c.setLineWidth(2.4)
-    c.line(MARGIN, y - card_h, MARGIN, y)
-    note = ("Note: People who are \u201cExploring Jesus\u201d (including pre-Christian groups) are not "
-            "included here. They are smaller in number and answered fewer survey questions, making "
-            "their data less comparable. It's best to examine their responses individually.")
-    draw_body_paragraph(c, MARGIN + 0.22 * inch, y - 0.28 * inch, note,
-                         PAGE_W - 2 * MARGIN - 0.4 * inch, size=9.4, leading=13.5)
+    # Exclusion note belongs to the second bullet, never to both charts.
 
 
 ALL_16 = [
@@ -1519,6 +1538,19 @@ def page_all16_chart(c):
     c.setFont("Inter", 10.2)
     c.setFillColor(INK_MUTED)
     c.drawString(MARGIN, y, "Average % who agree this is true of them across all questions on each pathway.")
+    if any("average" in summary for summary in REPORT_DATA.goal_summaries.values()):
+        y -= 0.3 * inch
+        names = ["Trusting Jesus", "Experiencing Jesus", "Reflecting Jesus", "Serving Jesus"]
+        for index, name in enumerate(names):
+            value = REPORT_DATA.goal_summaries[index + 1].get("average")
+            text = "Not measured" if value is None else f"{value:g}%"
+            c.setFont("Inter-SemiBold", 9.5)
+            c.drawString(MARGIN + (index % 2) * 3.5 * inch, y - (index // 2) * 0.23 * inch,
+                         f"{name}: {text}")
+        y -= 0.49 * inch
+        c.setFont("Inter", 9)
+        c.drawString(MARGIN, y, "Goal averages: equal-weight average of the four pathway percentages within each goal.")
+        y -= 0.18 * inch
     chart_path = f"{ASSET_DIR}/all16_chart.png"
     make_all16_chart(chart_path)
     chart_w = PAGE_W - 2 * MARGIN

@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { InfoCardIcon } from "./icons";
 import { FullDoc } from "./FullDoc";
-import { FULL_DOCS } from "@/lib/fullDocs.generated";
+import { FULL_DOCS } from "@/lib/reportGuidance";
 import type { InfoCard } from "@/lib/dashboardContent";
 
 export function InfoCardView({ card }: { card: InfoCard }) {
