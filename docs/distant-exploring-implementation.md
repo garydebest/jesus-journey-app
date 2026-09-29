@@ -2,6 +2,9 @@
 
 The short-form branch is implemented for review on `feature/distant-exploring-short-form`, based on production commit `59b60e94e3c9164fbf19902d0994235b1896fff8`. This work is not a production release. No production data, schema, credentials, payments, email settings, or deployment settings were changed.
 
+- **Draft pull request:** [Distant/Exploring: 38-item short survey and private reports](https://github.com/garydebest/jesus-journey-app/pull/1)
+- **Implementation commit:** `8448add272581964c049a7d341425c3573c6eed0`
+
 ## Confirmed instrument
 
 - **Opening response:** 1 or 2 selects the short form. The final self-assessment never changes the variant.
@@ -60,3 +63,5 @@ Release requires explicit approval, then a fresh comparison with `master` to det
 ## Test evidence
 
 See `docs/short-form-qa.md` for the reusable inventory and commands. Testing uses synthetic responses, a throwaway localhost PostgreSQL database, and a localhost object-storage emulator. No real payment or email delivery was tested.
+
+The deployed private preview also passed a complete 38-question group flow, proxy API submission, private six-pathway report and return to review home. The preview backend is `script/short-review-server.ts` on port 5000 and validates/discards practice submissions; it imports no production storage, payment or email services.

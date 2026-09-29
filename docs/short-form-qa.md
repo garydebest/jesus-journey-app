@@ -66,6 +66,7 @@ All of the following passed in the isolated environment:
 | Responsive review | Seven review screens at desktop and 375px, 14 viewport checks; no horizontal overflow |
 | Private report lifecycle | Print controls, four-page print output, restart, refresh and full-to-short-to-full back navigation checked |
 | Runtime errors | None observed in browser tests |
+| Deployed private preview | Additional complete 38-item group flow passed, including proxy API, private report and review-home return |
 | PDF layout | Ten generated/printed PDFs, all pages checked for text outside page bounds; church report pages also visually inspected |
 | Protected core files | Survey statements, pathway definitions/full narratives, full scoring, question definitions, database schema, close transaction and storage verification have no diff from the baseline |
 
