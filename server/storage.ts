@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, desc, and, sql } from "drizzle-orm";
 import type { SurveyPlan, ResponseBreakdown } from "@shared/surveyAccess";
 import { randomUUID } from "node:crypto";
+import { safeDemographicCounts } from "@shared/demographicPolicy";
 import * as schema from "@shared/schema";
 import {
   churches,
@@ -350,15 +351,17 @@ export class DatabaseStorage implements IStorage {
       .from(responses).where(eq(responses.waveId, waveId)).groupBy(responses.gender);
     const age = await db.select({ label: responses.ageGroup, count: sql<number>`count(*)::int` })
       .from(responses).where(eq(responses.waveId, waveId)).groupBy(responses.ageGroup);
-    const suppressed = {
-      gender: gender.some(group => group.count < 5),
-      age: age.some(group => group.count < 5),
-    };
+    const total = gender.reduce((sum, group) => sum + group.count, 0);
+    const safe = (groups: typeof gender) => Object.entries(safeDemographicCounts(
+      Object.fromEntries(groups.filter(g => g.label).map(g => [g.label!, g.count])), total
+    )).map(([label, count]) => ({ label, count }));
+    const safeGender = safe(gender), safeAge = safe(age);
+    const suppressed = { gender: !safeGender.length, age: !safeAge.length };
     return {
-      total: gender.reduce((sum, group) => sum + group.count, 0),
+      total,
       suppressed,
-      gender: suppressed.gender ? [] : gender.map((group) => ({ ...group, label: group.label ?? "Not provided" })),
-      age: suppressed.age ? [] : age.map((group) => ({ ...group, label: group.label ?? "Not provided" })),
+      gender: safeGender,
+      age: safeAge,
     };
   }
 

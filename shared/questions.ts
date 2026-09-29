@@ -1,3 +1,4 @@
+import { ETHNICITY_PRESETS, PREFER_NOT_TO_SAY } from "./demographicPolicy";
 // Maturity self-report options (used for Q1 pre-survey and Q9 post-survey restatement)
 export const MATURITY_OPTIONS_PRE = [
   { value: 1, label: "I do not presently see Jesus as important to my life." },
@@ -59,13 +60,13 @@ export interface Demographic {
 }
 
 export const DEMOGRAPHICS: Demographic[] = [
-  { id: "gender", question: "Gender", type: "single", options: ["Male", "Female"] },
+  { id: "gender", question: "Gender", type: "single", options: ["Male", "Female", PREFER_NOT_TO_SAY] },
   { id: "age", question: "Your age group", type: "single", options: ["16-19", "20-29", "30-39", "40-49", "50-59", "60 and older"] },
-  { id: "relationship", question: "Relationship status", type: "single", options: ["Independent single", "Single in relationship", "Married", "Married but separated", "Civil legal partnership", "Divorced"] },
+  { id: "relationship", question: "Relationship status", type: "single", options: ["Independent single", "Single in relationship", "Married", "Married but separated", "Civil legal partnership", "Divorced", PREFER_NOT_TO_SAY] },
   { id: "attendance", question: "How often are you now attending formal church gatherings (e.g. weekly meetings, Sunday services)?", type: "single", options: ["Every week", "A few times/month", "Monthly", "Every few months", "Infrequently or never"] },
   { id: "tenure", question: "Time involved in this church", type: "single", options: ["Less than 1 year", "1-2 years", "3-5 years", "6-10 years", "11 or more years"] },
   { id: "smallgroup", question: "How often do you gather with a small group of other Christians for encouragement on your spiritual journey?", type: "single", options: ["Every week", "A few times/month", "Monthly", "Every few months", "Infrequently or never"] },
   { id: "volunteer", question: "How often do you volunteer in one or more of the ministries of the church?", type: "single", options: ["Every week", "A few times/month", "Monthly", "Every few months", "Infrequently or never"] },
   { id: "children", question: "Presence of children in your household (check all that apply)", type: "multi", options: ["None", "0-2 year old(s)", "3-5 year old(s)", "6-10 year old(s)", "11-18 year old(s)", "19 or older"] },
-  { id: "ethnicity", question: "What race or ethnicity do you most closely identify for yourself?", type: "single", options: ["White/Caucasian", "Black/African descent", "Native People/First Nations", "Asian descent", "East Indian descent", "Hispanic descent", "From multiple races"] },
+  { id: "ethnicity", question: "Which ethnic, cultural, or racial background(s) best describe you? Select all that apply.", type: "multi", options: ETHNICITY_PRESETS.international },
 ];

@@ -150,7 +150,7 @@ export const responses = pgTable("responses", {
   smallGroupFrequency: text("small_group_frequency"),
   volunteerFrequency: text("volunteer_frequency"),
   childrenInHousehold: text("children_in_household"), // JSON-encoded string array
-  raceEthnicity: text("race_ethnicity"),
+  raceEthnicity: text("race_ethnicity"), // new: JSON stable-ID array; legacy: single display label
   commentText: text("comment_text"), // church mode only, never shown per-respondent
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
 });

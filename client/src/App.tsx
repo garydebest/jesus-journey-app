@@ -15,6 +15,7 @@ import { AdminOverview } from "@/pages/AdminOverview";
 import { AdminLogin } from "@/pages/AdminLogin";
 import { ChurchAuthProvider } from "@/lib/churchAuth";
 import { AdminAuthProvider } from "@/lib/adminAuth";
+import { Privacy } from "@/pages/Privacy";
 
 function LandingRoute() {
   const [, setLocation] = useLocation();
@@ -26,6 +27,7 @@ function AppRouter() {
     <Switch>
       <Route path="/" component={LandingRoute} />
       <Route path="/survey" component={SurveyFlow} />
+      <Route path="/privacy" component={Privacy} />
       <Route path="/join/:code" component={JoinSurveyFlow} />
       <Route path="/church">{() => <ChurchAuth />}</Route>
       <Route path="/church/login">{() => <ChurchAuth />}</Route>

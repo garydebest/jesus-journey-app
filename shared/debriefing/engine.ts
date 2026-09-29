@@ -7,6 +7,7 @@ import { analyzeBottlenecks } from "./bottlenecks";
 import { buildDemographicAssessment, buildMaturityStageAssessment } from "./systematicAssessment";
 import type { DebriefingReport, Insight } from "./types";
 import { round2, mean } from "./helpers";
+import { DEMOGRAPHIC_PRIVACY_NOTE } from "../demographicPolicy";
 import { buildCohortReporting, needsCohortReporting, splitResponseCohorts } from "../cohortReporting";
 
 /**
@@ -96,38 +97,8 @@ export function buildDebriefingReport(params: {
   });
 
   const engagementInsights: Insight[] = [];
-  // Engagement section: attendance/small-group/volunteer frequency vs. maturity,
-  // already covered under demographics — this section adds the cross-cutting
-  // "engagement compound effect" read: are people high on ALL three engagement
-  // markers meaningfully different from people low on all three?
-  const engagementScore = (r: ResponseRow): number => {
-    const rank = (v: string | null, order: string[]): number => (v ? order.indexOf(v) : -1);
-    // Best-effort: use presence of a value as engaged=1, absence as 0; the exact
-    // ordering of category labels varies by field and isn't critical here since
-    // we only need a coarse "high/low engagement" split.
-    let score = 0;
-    if (r.attendanceFrequency) score++;
-    if (r.smallGroupFrequency) score++;
-    if (r.volunteerFrequency) score++;
-    return score;
-  };
-  const highEngagement = rows.filter((r) => engagementScore(r) >= 3);
-  const lowEngagement = rows.filter((r) => engagementScore(r) <= 1);
-  if (highEngagement.length >= 15 && lowEngagement.length >= 15) {
-    const highMaturity = mean(highEngagement.map((r) => r.journeyPost).filter((v): v is number => typeof v === "number"));
-    const lowMaturity = mean(lowEngagement.map((r) => r.journeyPost).filter((v): v is number => typeof v === "number"));
-    const gap = round2(highMaturity - lowMaturity);
-    if (Math.abs(gap) >= 0.3) {
-      engagementInsights.push({
-        kind: "strength",
-        headline: "Engagement across attendance, small groups, and volunteering compounds together.",
-        detail: `Respondents engaged across all three (attendance, small group, volunteering) average ${round2(highMaturity)} on the maturity scale vs. ${round2(lowMaturity)} for those engaged in one or none — a ${Math.abs(gap)}-point gap.`,
-        corroboration: 1,
-        directionalOnly: false,
-        section: "Engagement",
-      });
-    }
-  }
+  // Do not cross-tab demographic answers or interpret missing optional
+  // participation answers as low engagement. Each field is analyzed alone.
 
   const crossCuttingInsights: Insight[] = [];
   // Merge all insights across sections, then bump corroboration for any pair
@@ -154,7 +125,7 @@ export function buildDebriefingReport(params: {
     opportunities: dedupeAndRank(allInsights, "opportunity", 7),
   };
 
-  const dataNotes: string[] = [];
+  const dataNotes: string[] = [DEMOGRAPHIC_PRIVACY_NOTE];
   if (respondentCount < 15) {
     dataNotes.push(`This wave has only ${respondentCount} respondents. Every finding in this report should be read as directional, not statistically firm.`);
   }

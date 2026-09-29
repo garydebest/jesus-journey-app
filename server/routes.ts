@@ -30,6 +30,12 @@ import { acceptsResponses, calendarDate, emptySurveyPlan, isDemoChurch, surveyPl
 import { isParticipantDemoCode, PARTICIPANT_DEMO_META } from "@shared/participantDemo";
 import { DASHBOARD_DEMO_WAVE_ID } from "@shared/dashboardDemo";
 import { submitResponseSchema } from "@shared/submission";
+import { ethnicityPresetForCountry, encodeEthnicity } from "@shared/demographicPolicy";
+import { projectDemographicSummary } from "@shared/demographicProjection";
+
+function safeSnapshot<T extends { summaryJson: string } | undefined>(snapshot: T) {
+  return snapshot ? { ...snapshot, summaryJson: JSON.stringify(projectDemographicSummary(JSON.parse(snapshot.summaryJson))) } : snapshot;
+}
 
 function sanitizeChurch(church: { passwordHash?: string; [k: string]: any }): Record<string, any> {
   const { passwordHash, surveyPlanJson, ...rest } = church;
@@ -251,7 +257,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       waves.map(async (w) => ({
         ...sanitizeWave(w),
         responseCount: w.status === "closed" ? undefined : await storage.countResponsesByWave(w.id),
-        snapshot: await storage.getSnapshotByWave(w.id),
+        snapshot: safeSnapshot(await storage.getSnapshotByWave(w.id)),
       })),
     );
     res.json({ waves: withCounts });
@@ -265,7 +271,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     res.json({
       wave: sanitizeWave(wave),
       responseCount: await storage.countResponsesByWave(wave.id),
-      snapshot: await storage.getSnapshotByWave(wave.id),
+      snapshot: safeSnapshot(await storage.getSnapshotByWave(wave.id)),
     });
   });
 
@@ -457,6 +463,11 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   // -------------------------------------------------------------------
   // Public: join a survey by code, submit a response
   // -------------------------------------------------------------------
+  app.get("/api/survey-display", (req, res) => {
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("Vary", "CF-IPCountry");
+    res.json({ ethnicityPreset: ethnicityPresetForCountry(req.get("CF-IPCountry")) });
+  });
   app.get("/api/join/:code", async (req, res) => {
     if (isParticipantDemoCode(req.params.code)) return res.json(PARTICIPANT_DEMO_META);
     const wave = await storage.getWaveByJoinCode(String(req.params.code));
@@ -513,8 +524,8 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       tenure: demographics?.tenure ?? null,
       smallGroupFrequency: demographics?.smallgroup ?? null,
       volunteerFrequency: demographics?.volunteer ?? null,
-      childrenInHousehold: demographics?.children ? JSON.stringify(demographics.children) : null,
-      raceEthnicity: demographics?.ethnicity ?? null,
+      childrenInHousehold: demographics?.children?.length ? JSON.stringify(demographics.children) : null,
+      raceEthnicity: encodeEthnicity(demographics?.ethnicity),
       commentText: comment ?? null,
     } as any);
     } catch (err) {
@@ -536,9 +547,9 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     const snapshot = await storage.getSnapshotByWave(wave.id);
     if (!snapshot) return res.status(404).json({ message: "Report not yet available" });
     if (req.isPublicDemo) {
-      return res.json({ snapshot: { respondentCount: snapshot.respondentCount, summary: JSON.parse(snapshot.summaryJson) } });
+      return res.json({ snapshot: { respondentCount: snapshot.respondentCount, summary: projectDemographicSummary(JSON.parse(snapshot.summaryJson)) } });
     }
-    res.json({ snapshot: { ...snapshot, summary: JSON.parse(snapshot.summaryJson) } });
+    res.json({ snapshot: { ...safeSnapshot(snapshot), summary: projectDemographicSummary(JSON.parse(snapshot.summaryJson)) } });
   });
 
   app.get("/api/waves/:id/report.pdf", requireChurchAuth, async (req: AuthedRequest, res) => {
@@ -652,7 +663,8 @@ export async function registerRoutes(httpServer: Server, app: Express) {
             .map((s) => ({
               id: s.id,
               respondentCount: s.respondentCount,
-              summary: JSON.parse(s.summaryJson),
+              // Imported printed percentages cannot establish a category count.
+              summary: { ...JSON.parse(s.summaryJson), demographics: {} },
               sourceFileNote: s.sourceFileNote,
               createdAt: s.createdAt,
             }));
@@ -684,7 +696,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   app.get("/api/admin/waves/:id/report", requireAdminAuth, async (req, res) => {
     const snapshot = await storage.getSnapshotByWave(String(req.params.id));
     if (!snapshot) return res.status(404).json({ message: "Report not yet available" });
-    res.json({ snapshot: { ...snapshot, summary: JSON.parse(snapshot.summaryJson) } });
+    res.json({ snapshot: { ...safeSnapshot(snapshot), summary: projectDemographicSummary(JSON.parse(snapshot.summaryJson)) } });
   });
 
   app.get("/api/admin/waves/:id/report.pdf", requireAdminAuth, async (req, res) => {

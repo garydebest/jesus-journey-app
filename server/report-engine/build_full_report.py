@@ -470,27 +470,32 @@ def stat_card(c, x, y, w, h, label, value, sub=None):
         c.drawCentredString(x + w / 2, y + 0.16 * inch, sub)
 
 
-def hbar_list(c, x, y, w, rows, max_value, color, value_suffix="%"):
+def hbar_list(c, x, y, w, rows, max_value, color, value_suffix="%", row_h=0.32 * inch):
     """rows: list of (label, value). Draws horizontal bars top-down, returns new y."""
-    row_h = 0.32 * inch
+    if not rows:
+        return draw_body_paragraph(c, x, y, "No reportable categories. Results may be absent or withheld for confidentiality.", w, size=8, leading=11) - 10
     label_w = w * 0.4
     bar_zone = w - label_w - 0.4 * inch
     for label, val in rows:
-        c.setFont("Inter", 9.6)
+        font_size = min(9.6, 9.6 * (label_w - 8) / max(1, c.stringWidth(label, "Inter", 9.6)))
+        c.setFont("Inter", font_size)
         c.setFillColor(INK)
         c.drawString(x, y - row_h + 10, label)
         bx = x + label_w
         c.setFillColor(SURFACE)
-        c.roundRect(bx, y - row_h + 6, bar_zone, row_h - 12, 2, fill=1, stroke=0)
+        c.roundRect(bx, y - row_h + 6, bar_zone, max(2, row_h - 12), 2, fill=1, stroke=0)
         bw = (val / max_value) * bar_zone if max_value else 0
         c.setFillColor(color)
         if bw > 2:
-            c.roundRect(bx, y - row_h + 6, max(bw, 3), row_h - 12, 2, fill=1, stroke=0)
+            c.roundRect(bx, y - row_h + 6, max(bw, 3), max(2, row_h - 12), 2, fill=1, stroke=0)
         c.setFont("Inter-SemiBold", 9.2)
         c.setFillColor(TEAL_DARK)
         c.drawString(bx + bar_zone + 0.08 * inch, y - row_h + 10, f"{val}{value_suffix}")
         y -= row_h
     return y
+
+
+from demographic_privacy import NOTE as DEMOGRAPHIC_NOTE, PDF_POLICY
 
 
 def page_demographics_1(c):
@@ -499,7 +504,9 @@ def page_demographics_1(c):
 
     card_w = (PAGE_W - 2 * MARGIN - 0.3 * inch) / 2
     stat_card(c, MARGIN, y - 0.9 * inch, card_w, 0.9 * inch, "Church Sample Size", str(REPORT_DATA.sample_size))
-    stat_card(c, MARGIN + card_w + 0.3 * inch, y - 0.9 * inch, card_w, 0.9 * inch, "Gender (% Female)", f"{REPORT_DATA.gender_pct_female}%")
+    if REPORT_DATA.gender_pct_female is not None:
+        stat_card(c, MARGIN + card_w + 0.3 * inch, y - 0.9 * inch, card_w, 0.9 * inch, "Gender (% Female)", f"{REPORT_DATA.gender_pct_female}%")
+    draw_body_paragraph(c, MARGIN, y + 12, DEMOGRAPHIC_NOTE, PAGE_W - 2 * MARGIN, size=8, leading=10)
 
     y -= 1.25 * inch
     c.setFont("Inter-SemiBold", 11.5)
@@ -507,7 +514,7 @@ def page_demographics_1(c):
     c.drawString(MARGIN, y, "Ages (%)")
     y -= 0.3 * inch
     age_rows = REPORT_DATA.age_rows
-    age_max = max(v for _, v in age_rows)
+    age_max = max((v for _, v in age_rows), default=100)
     y = hbar_list(c, MARGIN, y, PAGE_W - 2 * MARGIN, age_rows, age_max, TEAL)
 
     y -= 0.2 * inch
@@ -516,7 +523,7 @@ def page_demographics_1(c):
     c.drawString(MARGIN, y, "Relationship Status (%)")
     y -= 0.3 * inch
     rel_rows = REPORT_DATA.relationship_rows
-    rel_max = max(v for _, v in rel_rows)
+    rel_max = max((v for _, v in rel_rows), default=100)
     hbar_list(c, MARGIN, y, PAGE_W - 2 * MARGIN, rel_rows, rel_max, CORAL)
 
 
@@ -532,7 +539,7 @@ def page_demographics_2(c):
     c.drawString(MARGIN + 2.6 * inch, y, "(% of all respondents in each age category)")
     y -= 0.32 * inch
     child_rows = REPORT_DATA.children_rows
-    child_max = max(v for _, v in child_rows)
+    child_max = max((v for _, v in child_rows), default=100)
     y = hbar_list(c, MARGIN, y, PAGE_W - 2 * MARGIN, child_rows, child_max, SAND)
     y = draw_body_paragraph(c, MARGIN, y - 8,
                             "People may select more than one age band, so totals can exceed 100%.",
@@ -544,8 +551,9 @@ def page_demographics_2(c):
     c.drawString(MARGIN, y, "Race / Ethnicity (%)")
     y -= 0.32 * inch
     race_rows = REPORT_DATA.race_rows
-    race_max = max(v for _, v in race_rows)
-    hbar_list(c, MARGIN, y, PAGE_W - 2 * MARGIN, race_rows, race_max, OLIVE)
+    race_max = max((v for _, v in race_rows), default=100)
+    y = draw_body_paragraph(c, MARGIN, y, "Multiple backgrounds may be selected; percentages use all respondents and can total more than 100%.", PAGE_W - 2 * MARGIN, size=8, leading=10) - 8
+    hbar_list(c, MARGIN, y, PAGE_W - 2 * MARGIN, race_rows, race_max, OLIVE, row_h=min(20, max(12, (y - MARGIN - 30) / max(1, len(race_rows)))))
 
 
 def page_engagement(c):
@@ -559,7 +567,7 @@ def page_engagement(c):
         ("Time Involved in this Church (%)", REPORT_DATA.tenure_rows, TEAL),
         ("Frequency of Attending Church Gatherings (%)", REPORT_DATA.attendance_rows, TEAL_DARK),
     ]
-    shared_max = max(v for _, rows, _ in sections for _, v in rows)
+    shared_max = max((v for _, rows, _ in sections for _, v in rows), default=100)
     for title, rows, color in sections:
         c.setFont("Inter-SemiBold", 10.8)
         c.setFillColor(TEAL_DARK)
@@ -574,7 +582,7 @@ def page_engagement(c):
     ]
     col_w = (PAGE_W - 2 * MARGIN - 0.3 * inch) / 2
     top_y = y
-    shared_max_2col = max(v for _, rows, _ in two_col_sections for _, v in rows)
+    shared_max_2col = max((v for _, rows, _ in two_col_sections for _, v in rows), default=100)
     for i, (title, rows, color) in enumerate(two_col_sections):
         cx = MARGIN + i * (col_w + 0.3 * inch)
         c.setFont("Inter-SemiBold", 10)
@@ -912,9 +920,8 @@ def cross_tab_page(c, page_num, subtitle, col_labels, col_colors, sections, note
         y -= row_h
 
     if note:
-        c.setFont("Inter", 7.8)
-        c.setFillColor(INK_MUTED)
-        c.drawString(MARGIN, y - 0.1 * inch, subtitle)
+        draw_body_paragraph(c, MARGIN, y - 0.1 * inch, subtitle + " " + DEMOGRAPHIC_NOTE,
+                            PAGE_W - 2 * MARGIN, size=7.8, leading=10)
 
 
 def page_maturity_diversity_1(c):
@@ -1112,7 +1119,7 @@ def page_diversity_table(c):
 
     c.setFont("Inter", 8.2)
     c.setFillColor(INK_MUTED)
-    c.drawString(MARGIN, y - 0.12 * inch, "Note: if a category is missing, it indicates zero percent of respondents in that group.")
+    draw_body_paragraph(c, MARGIN, y - 0.12 * inch, DEMOGRAPHIC_NOTE, PAGE_W - 2 * MARGIN, size=8, leading=10)
 
 
 def page_change_diversity_2(c):
@@ -1660,6 +1667,7 @@ def main():
     c = canvas.Canvas(out_path, pagesize=letter)
     c.setTitle(f"Our Journey with Jesus Report — {REPORT_DATA.church_name}")
     c.setAuthor("Jesus Journey Survey")
+    c.setSubject(REPORT_DATA.demographic_privacy_version or "")
 
     # Cover + TOC
     page_cover(c); c.showPage()

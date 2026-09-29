@@ -13,6 +13,7 @@
 
 import type { DemographicSection, MaturityChangeCrosstab, Insight } from "./types";
 import { round2, meetsSampleFloor } from "./helpers";
+import { DEMOGRAPHIC_MIN_N } from "../demographicPolicy";
 
 // Which demographic sections (by id, matching demographics.ts) and, for
 // "ageGroup" only, which specific groups get a systematic verdict. Other
@@ -57,6 +58,8 @@ function demographicVerdict(sectionTitle: string, row: {
     corroboration: 1,
     directionalOnly: row.directionalOnly,
     section: `Demographic Assessment — ${sectionTitle}`,
+    demographicN: row.n,
+    demographicGroup: row.group,
   };
 }
 
@@ -76,23 +79,14 @@ export function buildDemographicAssessment(demographics: DemographicSection[]): 
       // fill every bracket.
       for (const label of AGE_GROUP_LABELS) {
         const row = section.breakdown.find((b) => b.group === label);
-        if (!row) {
-          out.push({
-            kind: "opportunity",
-            headline: `No respondents in the ${label} age group this wave — an opportunity to explore reaching this group.`,
-            detail: "This age bracket had zero responses, so no maturity comparison is available for it yet.",
-            corroboration: 1,
-            directionalOnly: true,
-            section: "Demographic Assessment — Age Group",
-          });
-          continue;
-        }
+        if (!row || row.n < DEMOGRAPHIC_MIN_N) continue;
         out.push(demographicVerdict(`${label} age group`, row));
       }
     } else {
       // Singles vs. Married, Children in Household: verdict for every group
       // actually present.
       for (const row of section.breakdown) {
+        if (row.n < DEMOGRAPHIC_MIN_N) continue;
         out.push(demographicVerdict(row.group, row));
       }
     }

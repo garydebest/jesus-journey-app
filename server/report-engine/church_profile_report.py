@@ -136,7 +136,7 @@ def _clean(v) -> Optional[str]:
     if v is None:
         return None
     v = str(v).strip()
-    return v if v else None
+    return v if disclosed(v) else None
 
 
 def _pct_breakdown(values: list, category_order: Optional[list] = None) -> dict:
@@ -205,21 +205,18 @@ def _multiselect_pct(values_lists: list, category_order: Optional[list] = None) 
 
 def _parse_multiselect(raw) -> list:
     """children_in_household is a multi-select; accept either a real list
-    (JSON input) or a delimited string (CSV input, '|' or ',' separated)."""
-    if raw is None:
-        return []
-    if isinstance(raw, list):
-        return [_clean(v) for v in raw if _clean(v)]
-    s = str(raw).strip()
-    if not s:
-        return []
-    sep = "|" if "|" in s else ","
-    return [p.strip() for p in s.split(sep) if p.strip()]
+    (JSON input), a JSON string array, or legacy pipe/comma-separated ages."""
+    if isinstance(raw, str) and not raw.lstrip().startswith("[") and "," in raw:
+        raw = raw.split(",")
+    return parse_multi(raw)
 
 
 # ---------------------------------------------------------------------------
 # 1. Demographics profile
 # ---------------------------------------------------------------------------
+
+from demographic_privacy import disclosed, parse_multi, safe_breakdown, safe_outcome_groups, MIN_N
+
 
 def demographics_profile(rows: list) -> dict:
     """% breakdown for each of the 9 demographic dimensions reported
@@ -236,10 +233,11 @@ def demographics_profile(rows: list) -> dict:
     tenure_vals = col("tenure")
     small_group_vals = col("small_group_frequency")
     volunteer_vals = col("volunteer_frequency")
-    race_vals = col("race_ethnicity")
+    # Ethnicity labels contain commas; do not use the legacy children parser.
+    race_vals = [parse_multi(r.get("race_ethnicity")) for r in norm_rows]
     children_lists = [_parse_multiselect(r.get("children_in_household")) for r in norm_rows]
 
-    return {
+    profiles = {
         "sample_size": len(norm_rows),
         "gender": _pct_breakdown(gender_vals),
         "age_group": _pct_breakdown(age_vals, AGE_BANDS),
@@ -249,8 +247,10 @@ def demographics_profile(rows: list) -> dict:
         "small_group_frequency": _pct_breakdown(small_group_vals, FREQUENCY_BANDS),
         "volunteer_frequency": _pct_breakdown(volunteer_vals, FREQUENCY_BANDS),
         "children_in_household": _multiselect_pct(children_lists, CHILDREN_BANDS),
-        "race_ethnicity": _pct_breakdown(race_vals, RACE_ETHNICITY_CATEGORIES),
+        "race_ethnicity": _multiselect_pct(race_vals),
     }
+    return {k: safe_breakdown(v, len(norm_rows), k in ("children_in_household", "race_ethnicity"))
+            if isinstance(v, dict) else v for k, v in profiles.items()}
 
 
 # ---------------------------------------------------------------------------
@@ -303,7 +303,7 @@ def maturity_profile(rows: list) -> dict:
                     continue
                 if lst != ["None"]:
                     has_children_labels.append(l)
-            if has_children_labels:
+            if len(has_children_labels) >= MIN_N and not 0 < len(norm_rows) - len(has_children_labels) < MIN_N:
                 dim_crosstab["Have children"] = _pct_breakdown(has_children_labels, maturity_label_order)
             if dim_crosstab:
                 crosstab[dim] = dim_crosstab
@@ -331,7 +331,7 @@ def maturity_profile(rows: list) -> dict:
             if subset_labels:
                 dim_crosstab[value] = _pct_breakdown(subset_labels, maturity_label_order)
         if dim_crosstab:
-            crosstab[dim] = dim_crosstab
+            crosstab[dim] = safe_outcome_groups(dim_crosstab, len(norm_rows))
 
     return {
         "sample_size": len(valid_labels),
@@ -450,7 +450,7 @@ def change_profile(rows: list) -> dict:
             ["Every week", "Less than every week"],
         ),
     }
-    crosstab = {k: v for k, v in crosstab.items() if v}
+    crosstab = {k: (v if k == "maturity_4band" else safe_outcome_groups(v, len(norm_rows))) for k, v in crosstab.items() if v}
 
     return {
         "sample_size": len(valid_labels),

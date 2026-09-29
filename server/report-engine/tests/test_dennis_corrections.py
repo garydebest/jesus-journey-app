@@ -32,12 +32,13 @@ class DennisCorrections(unittest.TestCase):
     def test_children_multiselect(self):
         rows = [{"children_in_household": ["0-2 year old(s)", "3-5 year old(s)"]},
                 {"children_in_household": ["None"]}]
+        rows = rows * 10
         profile = demographics_profile(rows)["children_in_household"]
-        self.assertEqual(profile["n"], 2)
+        self.assertEqual(profile["n"], 20)
         self.assertEqual(sum(v["pct"] for v in profile["breakdown"].values()), 150)
-        rows.append({"children_in_household": []})
+        rows.extend([{"children_in_household": []}] * 10)
         profile = demographics_profile(rows)["children_in_household"]
-        self.assertEqual(profile["n"], 3)
+        self.assertEqual(profile["n"], 30)
         self.assertEqual(profile["breakdown"]["None"]["pct"], 33.3)
 
     def test_reflection(self):

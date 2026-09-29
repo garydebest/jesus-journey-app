@@ -4,6 +4,7 @@ import { SURVEY_ITEMS } from "./surveyItems";
 import { MATURITY_LABELS } from "./questions";
 import { classifyStoredResponse, SHORT_PATHWAY_ITEMS, PRIVACY_MINIMUM, PRIVACY_MESSAGE } from "./shortForm";
 import { childrenProfile } from "./reportMetrics";
+import { demographicCounts, ethnicityLabels, safeDemographicCounts } from "./demographicPolicy";
 
 export interface SafeDistribution {
   suppressed: boolean;
@@ -84,12 +85,22 @@ export function buildCohortReporting(rows: ResponseRow[]): CohortReporting {
     ["gender", "Gender"], ["ageGroup", "Age"], ["relationshipStatus", "Relationship status"],
     ["attendanceFrequency", "Attendance"], ["tenure", "Time involved"],
     ["smallGroupFrequency", "Small-group participation"], ["volunteerFrequency", "Volunteering"],
-    ["raceEthnicity", "Race / ethnicity"],
-  ] as const) profiles[label] = safeDistribution(eligible.map(row => row[field]));
+  ] as const) {
+    const counts = demographicCounts(eligible.map(row => row[field]));
+    profiles[label] = { suppressed: !Object.keys(counts).length, values: Object.entries(counts).map(([label, count]) => ({
+      label, count, pct: Math.round(1000 * count / eligible.length) / 10,
+    })) };
+  }
+  const ethnicityCounts: Record<string, number> = {};
+  eligible.forEach(row => ethnicityLabels(row.raceEthnicity).forEach(label => { ethnicityCounts[label] = (ethnicityCounts[label] ?? 0) + 1; }));
+  const safeEthnicity = safeDemographicCounts(ethnicityCounts, eligible.length, true);
+  profiles["Race / ethnicity"] = {
+    suppressed: !Object.keys(safeEthnicity).length,
+    values: Object.entries(safeEthnicity).map(([label, count]) => ({ label, count, pct: Math.round(1000 * count / eligible.length) / 10 })),
+    note: "Percentage of all completed respondents. Multiple selections are counted once per person per category; totals can exceed 100%.",
+  };
   const children = childrenProfile(eligible);
-  const small = (n: number) => n > 0 && n < PRIVACY_MINIMUM;
-  const childSuppressed = eligible.length < PRIVACY_MINIMUM || small(children.missing)
-    || children.values.some(v => small(v.count) || small(eligible.length - v.count));
+  const childSuppressed = children.values.length === 0;
   profiles["Children in household"] = {
     suppressed: childSuppressed,
     values: childSuppressed ? [] : children.values,

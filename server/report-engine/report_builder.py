@@ -108,12 +108,15 @@ def _pct(breakdown_dict, key):
     return entry["pct"] if entry else 0
 
 
+from demographic_privacy import MIN_N, visible_rows, PDF_POLICY
+
+
 def _rows_from_breakdown(profile_dict, category_order, display_map):
     """Build a list[(display_label, pct)] in category_order, defaulting
     missing categories to 0, using display_map to translate the raw
     category key to the template's display string."""
     breakdown = profile_dict.get("breakdown", {})
-    return [(display_map.get(cat, cat), round(_pct(breakdown, cat))) for cat in category_order]
+    return [(display_map.get(cat, cat), round(_pct(breakdown, cat))) for cat in category_order if cat in breakdown]
 
 
 def _maturity_row(dim_crosstab, value_key):
@@ -122,15 +125,15 @@ def _maturity_row(dim_crosstab, value_key):
     defaulting missing maturity groups to 0."""
     entry = dim_crosstab.get(value_key)
     if not entry:
-        return [0, 0, 0, 0]
+        return [None, None, None, None]
     return _pooled_row([entry], MATURITY_LABEL_ORDER_4COL, combine_exploring=True)
 
 
 def _pooled_row(entries, labels, combine_exploring=False):
     """Pool respondent counts before dividing; never average percentages."""
     n = sum(entry.get("n", 0) for entry in entries)
-    if not n:
-        return [0] * len(labels)
+    if n < MIN_N:
+        return [None] * len(labels)
     result = []
     for label in labels:
         keys = ["Distant", "Exploring"] if combine_exploring and label == "Exploring" else [label]
@@ -160,7 +163,7 @@ def _change_row(dim_crosstab, value_key):
     crosstab_by_dimension_4band[dim][value_key]."""
     entry = dim_crosstab.get(value_key)
     if not entry:
-        return [0, 0, 0, 0]
+        return [None, None, None, None]
     breakdown = entry.get("breakdown", {})
     return [round(_pct(breakdown, label)) for label in CHANGE_LABEL_ORDER_4BAND]
 
@@ -187,7 +190,7 @@ def build_from_aggregates(
 
     # ---------------- Demographics (pages 7-8) ----------------
     gender_breakdown = demographics["gender"]["breakdown"]
-    gender_pct_female = round(_pct(gender_breakdown, "Female"))
+    gender_pct_female = round(_pct(gender_breakdown, "Female")) if "Female" in gender_breakdown else None
 
     age_group_order = ["16-19", "20-29", "30-39", "40-49", "50-59", "60 and older"]
     age_rows = _rows_from_breakdown(demographics["age_group"], age_group_order, AGE_DISPLAY)
@@ -199,10 +202,7 @@ def build_from_aggregates(
     children_order = ["None", "0-2 year old(s)", "3-5 year old(s)", "6-10 year old(s)", "11-18 year old(s)", "19 or older"]
     children_rows = _rows_from_breakdown(demographics["children_in_household"], children_order, CHILDREN_DISPLAY)
 
-    race_order = [
-        "White/Caucasian", "Black/African descent", "Native People/First Nations",
-        "Asian descent", "East Indian descent", "Hispanic descent", "From multiple races",
-    ]
+    race_order = list(demographics["race_ethnicity"]["breakdown"])
     race_rows = _rows_from_breakdown(demographics["race_ethnicity"], race_order, RACE_DISPLAY)
 
     # ---------------- Engagement (page 9) ----------------
@@ -385,13 +385,13 @@ def build_from_aggregates(
         volunteer_rows=volunteer_rows,
         maturity_donut_values=maturity_donut_values,
         maturity_combined_stat=maturity_combined_stat,
-        maturity_crosstab_1=maturity_crosstab_1,
-        maturity_crosstab_2=maturity_crosstab_2,
+        maturity_crosstab_1=visible_rows(maturity_crosstab_1),
+        maturity_crosstab_2=visible_rows(maturity_crosstab_2),
         change_donut_values=change_donut_values,
         change_donut_combined_stat=change_donut_combined_stat,
         change_callout_combined_stat=change_callout_combined_stat,
-        change_crosstab_diversity_table=change_crosstab_diversity_table,
-        change_crosstab_2=change_crosstab_2,
+        change_crosstab_diversity_table=visible_rows(change_crosstab_diversity_table),
+        change_crosstab_2=visible_rows(change_crosstab_2),
         pathway_results=pathway_results,
         goal_summaries=goal_summaries,
         all16_values=all16_values,
@@ -399,4 +399,5 @@ def build_from_aggregates(
         maturity_line_trusting=maturity_line_trusting,
         maturity_line_centered=maturity_line_centered,
         reflection=maturity.get("reflection"),
+        demographic_privacy_version=PDF_POLICY,
     )

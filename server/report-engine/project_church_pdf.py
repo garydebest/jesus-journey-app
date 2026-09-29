@@ -7,11 +7,58 @@ import io
 import re
 import sys
 from pypdf import PdfReader, PdfWriter
+from demographic_privacy import PDF_POLICY
+
+
+def protect_archived_demographics(data):
+    """Old PDFs lack exact cell n. Replace demographic pages, not stored bytes."""
+    reader = PdfReader(io.BytesIO(data))
+    if reader.metadata and reader.metadata.get("/Subject") == PDF_POLICY:
+        return data
+    if len(reader.pages) != 38:
+        # Legacy mixed layouts cannot be safely reconstructed from percentages.
+        raise ValueError("Privacy review required before downloading this archived layout; original file remains preserved.")
+    expected = {6: "Our Church Demographics", 7: "More Church Demographics",
+                8: "Engagement in Our Church", 10: "Diversity in Church",
+                11: "Diversity in Church", 14: "My Faith and Trust", 15: "My Faith and Trust"}
+    for index, heading in expected.items():
+        if heading not in (reader.pages[index].extract_text() or ""):
+            raise ValueError("Unrecognised archived demographic layout; privacy review required")
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.utils import simpleSplit
+    writer = PdfWriter()
+    for i, page in enumerate(reader.pages):
+        if i in expected:
+            replacement = io.BytesIO()
+            c = canvas.Canvas(replacement, pagesize=letter)
+            c.setFont("Helvetica-Bold", 16)
+            c.drawString(54, 720, "Archived demographic section withheld")
+            c.setFont("Helvetica", 11)
+            text = ("This saved report predates the 10-person demographic privacy rule. "
+                    "Exact category counts are not available to verify every result safely. "
+                    "This section is withheld on download; the stored original has not been changed. "
+                    "Other report sections retain their original results.")
+            y = 684
+            for line in simpleSplit(text, "Helvetica", 11, 500):
+                c.drawString(54, y, line)
+                y -= 17
+            c.drawString(54, 40, f"Page {i + 1}")
+            c.save()
+            page = PdfReader(replacement).pages[0]
+        writer.add_page(page)
+    if reader.metadata:
+        writer.add_metadata({k: str(v) for k, v in reader.metadata.items() if v is not None})
+    writer.add_metadata({"/Subject": PDF_POLICY})
+    out = io.BytesIO()
+    writer.write(out)
+    return out.getvalue()
 
 LEGACY = re.compile(r"(?:7|seven)\s+(?:core\s+|underlying\s+)?dimensions", re.I)
 
 
 def project_church_pdf(data):
+    data = protect_archived_demographics(data)
     reader = PdfReader(io.BytesIO(data))
     targets = [i for i, page in enumerate(reader.pages) if LEGACY.search(page.extract_text() or "")]
     if not targets:

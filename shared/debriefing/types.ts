@@ -11,6 +11,8 @@ export type InsightKind = "strength" | "opportunity";
  *  strength used to rank Executive Summary items and to mark "directional
  *  only" findings from small subgroups. */
 export interface Insight {
+  demographicN?: number;
+  demographicGroup?: string;
   kind: InsightKind;
   headline: string; // one sentence, plain language
   detail: string; // the number + comparison + "so what"

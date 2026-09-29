@@ -3,6 +3,7 @@ import { ITEM_CODES, type ResponseRow } from "./schema";
 import { MATURITY_LABELS } from "./questions";
 import { buildCohortReporting, needsCohortReporting, splitResponseCohorts, type CohortReporting } from "./cohortReporting";
 import { agreementMetrics, childrenProfile, reflectionProfile } from "./reportMetrics";
+import { demographicCounts } from "./demographicPolicy";
 
 export interface WaveAggregateSummary {
   agreement?: ReturnType<typeof agreementMetrics>;
@@ -24,12 +25,7 @@ export interface WaveAggregateSummary {
 }
 
 function tally(values: (string | null | undefined)[]): Record<string, number> {
-  const out: Record<string, number> = {};
-  for (const v of values) {
-    if (!v) continue;
-    out[v] = (out[v] ?? 0) + 1;
-  }
-  return out;
+  return demographicCounts(values);
 }
 
 /**

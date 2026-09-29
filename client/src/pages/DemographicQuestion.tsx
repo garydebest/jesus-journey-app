@@ -3,6 +3,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { QuestionShell } from "@/components/QuestionShell";
 import type { Demographic } from "@shared/questions";
+import { toggleExclusive } from "@shared/demographicPolicy";
 
 export function DemographicQuestion({
   demo,
@@ -25,11 +26,7 @@ export function DemographicQuestion({
 
   function toggleMulti(option: string) {
     const current = Array.isArray(value) ? value : [];
-    if (current.includes(option)) {
-      onChange(current.filter((v) => v !== option));
-    } else {
-      onChange([...current, option]);
-    }
+    onChange(toggleExclusive(current, option, demo.id === "children" ? "None" : undefined));
   }
 
   return (
@@ -48,14 +45,17 @@ export function DemographicQuestion({
           className="text-sm text-muted-foreground leading-relaxed rounded-lg bg-muted border border-border p-4"
           data-testid="text-demo-intro-note"
         >
-          The following questions are optional for those taking the survey as an individual. If you
-          are participating in the survey as part of a larger group, these questions are essential
-          for fully understanding your faith community's journey.
+          Please select an answer to each demographic question to continue. For gender,
+          relationship status, and ethnic or cultural background, you may choose “Prefer not
+          to say”. Demographic answers are used only in aggregate church reporting. Categories
+          with fewer than 10 respondents are not shown, and missing answers and “Prefer not to
+          say” are excluded from comparisons.
         </p>
       )}
       <h2 className="text-lg font-semibold leading-snug" data-testid="text-demo-question">
         {demo.question}
       </h2>
+      <p className="text-sm text-muted-foreground">Select {demo.type === "multi" ? "one or more answers" : "an answer"} to continue.</p>
       {demo.type === "single" ? (
         <RadioGroup
           value={typeof value === "string" ? value : undefined}

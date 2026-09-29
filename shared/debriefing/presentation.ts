@@ -2,7 +2,7 @@ import type { DebriefingReport, Insight, PathwayAnalysis } from "./types";
 import { projectReportForDisplay } from "./reportProjection";
 
 // One presentation model for React and Python. Never changes persisted scores.
-export const DEBRIEFING_LAYOUT_VERSION = "paired-v2-goals-pathways";
+export const DEBRIEFING_LAYOUT_VERSION = "paired-v3-demographic-privacy";
 export interface Finding {
   headline: string;
   detail: string;

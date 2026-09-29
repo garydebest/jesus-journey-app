@@ -13,6 +13,7 @@ import { DEMOGRAPHICS, MATURITY_OPTIONS_PRE, MATURITY_OPTIONS_POST } from "@shar
 import { emptyState, type SurveyState } from "@/lib/surveyState";
 import { apiRequest } from "@/lib/queryClient";
 import { isParticipantDemoCode, PARTICIPANT_DEMO_META } from "@shared/participantDemo";
+import { ETHNICITY_PRESETS, type EthnicityPreset } from "@shared/demographicPolicy";
 
 type Screen =
   | "loading"
@@ -52,9 +53,18 @@ function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) 
   const [comment, setComment] = useState("");
   const [meta, setMeta] = useState<{ waveLabel: string; churchName: string } | null>(isDemo ? PARTICIPANT_DEMO_META : null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [ethnicityPreset, setEthnicityPreset] = useState<EthnicityPreset>("international");
   const surveyItems = surveyItemsFor(state.preMaturity);
   const TOTAL_ITEM_STEPS = surveyItems.length;
   const TOTAL_STEPS = TOTAL_ITEM_STEPS + 3 + DEMOGRAPHICS.length;
+
+  useEffect(() => {
+    let cancelled = false;
+    apiRequest("GET", "/api/survey-display").then(res => res.json()).then(data => {
+      if (!cancelled && Object.hasOwn(ETHNICITY_PRESETS, data.ethnicityPreset)) setEthnicityPreset(data.ethnicityPreset);
+    }).catch(() => { /* Safe international fallback; never block the survey. */ });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     if (isDemo) return;
@@ -125,7 +135,7 @@ function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) 
           smallgroup: state.demographics.smallgroup as string | undefined,
           volunteer: state.demographics.volunteer as string | undefined,
           children: state.demographics.children as string[] | undefined,
-          ethnicity: state.demographics.ethnicity as string | undefined,
+          ethnicity: state.demographics.ethnicity as string[] | undefined,
         },
         comment: comment || undefined,
       });
@@ -172,12 +182,13 @@ function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) 
               This is a practice walkthrough, not an active church survey. No answers or comments
               are sent to the church, and Grace's sample results will not change.</>
             ) : (<>This survey gives you and your church a picture of where your community is on its spiritual journey.
-            Answer honestly — your responses are anonymous and only combined, aggregate results are ever shared with
-            your church leadership.</>)}
+            No name is requested. Your survey answers are combined for reporting to church leadership.
+            Optional written comments may appear separately, so please avoid identifying details.</>)}
           </p>
           <p className="text-sm text-muted-foreground leading-relaxed">
             Takes about 10-15 minutes.
           </p>
+          <p className="text-sm text-muted-foreground">Demographic questions require a selection; sensitive questions include “Prefer not to say”. <a className="underline" href="#/privacy" target="_blank" rel="noopener noreferrer">Read the survey privacy notice</a>.</p>
           <div className="pt-2">
             <Button size="lg" onClick={() => setScreen("pre-maturity")} data-testid="button-start-join-survey">
               Begin the survey
@@ -257,7 +268,8 @@ function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) 
 
   if (screen.startsWith("demo-")) {
     const idx = Number(screen.split("-")[1]);
-    const demo = DEMOGRAPHICS[idx];
+    const baseDemo = DEMOGRAPHICS[idx];
+    const demo = baseDemo.id === "ethnicity" ? { ...baseDemo, options: ETHNICITY_PRESETS[ethnicityPreset] } : baseDemo;
     return (
       <DemographicQuestion
         key={demo.id}

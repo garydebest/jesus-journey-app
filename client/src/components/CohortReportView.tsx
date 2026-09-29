@@ -1,7 +1,10 @@
 import type { CohortReporting } from "@shared/cohortReporting";
 import { PRIVACY_MESSAGE } from "@shared/shortForm";
+import { projectCohortDemographics } from "@shared/demographicProjection";
+import { DEMOGRAPHIC_PRIVACY_NOTE } from "@shared/demographicPolicy";
 
 export function CohortReportView({ report }: { report: CohortReporting }) {
+  report = projectCohortDemographics(report);
   return <div className="space-y-6" data-testid="cohort-report-view">
     <section className="rounded-lg border p-5 space-y-3">
       <h2 className="text-lg font-semibold">Your church survey results</h2>
@@ -24,6 +27,7 @@ export function CohortReportView({ report }: { report: CohortReporting }) {
     </section>)}
     <section className="rounded-lg border p-5 space-y-5">
       <h2 className="text-base font-semibold">Combined journey and demographic profiles</h2>
+      <p className="text-sm text-muted-foreground">{DEMOGRAPHIC_PRIVACY_NOTE}</p>
       {Object.entries(report.profiles).map(([label, distribution]) => <div key={label} className="space-y-2">
         <h3 className="text-sm font-semibold">{label}</h3>
         {distribution.note && <p className="text-sm text-muted-foreground">{distribution.note}</p>}

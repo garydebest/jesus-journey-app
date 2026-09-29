@@ -40,8 +40,8 @@ check("children denominator is people and duplicates count once", () => {
   assert.equal(profile.denominator, 60);
   assert.equal(profile.values.reduce((n, v) => n + v.count, 0), 100);
   const row = { ...rows[0], childrenInHousehold: '["0-2 year old(s)","0-2 year old(s)"]' };
-  assert.equal(childrenProfile([row]).values[1].count, 1);
-  assert.equal(childrenProfile([{ ...row, childrenInHousehold: "" }]).missing, 1);
+  assert.equal(childrenProfile(Array(10).fill(row)).values[0].count, 10);
+  assert.deepEqual(childrenProfile([{ ...row, childrenInHousehold: "" }]).values, []);
 });
 check("percent agreement differs from 1–5 mean", () => {
   const inputs = Array.from({ length: 10 }, (_, i) => {
@@ -76,14 +76,14 @@ check("mixed layout and cohort calculations remain separate", () => {
   assert.equal(result.cohortReporting.cohorts[0].respondentCount, 30);
   assert.equal(result.cohortReporting.cohorts[1].respondentCount, 15);
 });
-check("mixed children uses age bands, not combinations; privacy unchanged", () => {
+check("mixed children uses age bands, not combinations; demographic privacy at 10", () => {
   const mixed = mixedRows.map((r, i) => ({ ...r, childrenInHousehold: JSON.stringify(i < 15 ? ["None"] : ["0-2 year old(s)", "3-5 year old(s)"]) }));
   const profile = buildCohortReporting(mixed).profiles["Children in household"];
   assert(!profile.suppressed);
   assert.equal(profile.values[1].count, 30);
   assert(profile.values.reduce((n, v) => n + v.pct, 0) > 100);
   mixed[0].childrenInHousehold = '["19 or older"]';
-  assert(buildCohortReporting(mixed).profiles["Children in household"].suppressed);
+  assert(!buildCohortReporting(mixed).profiles["Children in household"].values.some(v => v.label === "19 or older"));
   assert(buildCohortReporting([mixedRows[0], ...rows]).cohorts.every(c => c.suppressed));
 });
 check("paper instructions cover actual workflow and privacy", () => {
