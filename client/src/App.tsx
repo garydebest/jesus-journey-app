@@ -30,6 +30,11 @@ function AppRouter() {
       <Route path="/church">{() => <ChurchAuth />}</Route>
       <Route path="/church/login">{() => <ChurchAuth />}</Route>
       <Route path="/church/signup">{() => <ChurchAuth initialMode="signup" />}</Route>
+      <Route path="/demo">{() => (
+        <ChurchAuthProvider publicDemo>
+          <ChurchDashboard />
+        </ChurchAuthProvider>
+      )}</Route>
       <Route path="/dashboard" component={ChurchDashboard} />
       <Route path="/settings" component={ChurchSettings} />
       <Route path="/admin/login" component={AdminLogin} />

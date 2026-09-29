@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 import { apiRequest } from "./queryClient";
 import { requestWithRetry, responseError } from "./apiTransport";
+import { DASHBOARD_DEMO_ACCOUNT, DASHBOARD_DEMO_TOKEN } from "@shared/dashboardDemo";
 
 export interface ChurchAccount {
   isDemo?: boolean;
@@ -34,31 +35,33 @@ const ChurchAuthContext = createContext<ChurchAuthState | undefined>(undefined);
 // Token is held only in React state — never localStorage/cookies, which are
 // blocked in the sandboxed preview iframe. Signing out or refreshing the page
 // clears it, which is an acceptable tradeoff for this preview environment.
-export function ChurchAuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(null);
-  const [church, setChurch] = useState<ChurchAccount | null>(null);
+export function ChurchAuthProvider({ children, publicDemo = false }: { children: ReactNode; publicDemo?: boolean }) {
+  const [token, setToken] = useState<string | null>(publicDemo ? DASHBOARD_DEMO_TOKEN : null);
+  const [church, setChurch] = useState<ChurchAccount | null>(publicDemo ? DASHBOARD_DEMO_ACCOUNT : null);
 
   const signup: ChurchAuthState["signup"] = useCallback(async (data) => {
+    if (publicDemo) throw new Error("Exit the demo to create your own church account.");
     const res = await apiRequest("POST", "/api/churches/signup", data);
     const json = await res.json();
     setToken(json.token);
     setChurch(json.church);
-  }, []);
+  }, [publicDemo]);
 
   const login: ChurchAuthState["login"] = useCallback(async (email, password) => {
+    if (publicDemo) throw new Error("Exit the demo to sign into your own church account.");
     const res = await apiRequest("POST", "/api/churches/login", { email, password });
     const json = await res.json();
     setToken(json.token);
     setChurch(json.church);
-  }, []);
+  }, [publicDemo]);
 
   const logout = useCallback(() => {
-    if (token) {
+    if (token && !publicDemo) {
       churchApiRequest(token, "POST", "/api/churches/logout").catch(() => {});
     }
     setToken(null);
     setChurch(null);
-  }, [token]);
+  }, [token, publicDemo]);
 
   return (
     <ChurchAuthContext.Provider value={{ token, church, signup, login, logout, setChurch }}>

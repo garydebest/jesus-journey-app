@@ -14,7 +14,7 @@ export interface WaveWithMeta {
   id: string; label: string; joinCode: string | null; status: string; paymentStatus?: string;
   minSampleSize: number; opensAt: string | null; closesAt: string | null; closedAt?: string | null;
   responseCount?: number;
-  snapshot?: { respondentCount: number; summaryJson: string; reportPdfPath?: string | null; commentsReportPdfPath?: string | null } | null;
+  snapshot?: { respondentCount: number; summaryJson?: string; reportPdfPath?: string | null; commentsReportPdfPath?: string | null; hasReportPdf?: boolean; hasCommentsReportPdf?: boolean } | null;
 }
 interface Props {
   token: string | null; waves: WaveWithMeta[]; isDemo?: boolean; loading: boolean;
@@ -82,8 +82,8 @@ export function PanelYourSurveys(props: Props) {
   function reportButtons(wave: WaveWithMeta) {
     return <div className="flex flex-wrap gap-2">
       <Button size="sm" onClick={() => props.onViewReport(wave)} disabled={!wave.snapshot}>View report summary</Button>
-      <Button size="sm" variant="outline" onClick={() => props.onDownloadReport(wave)} disabled={!wave.snapshot?.reportPdfPath || props.downloadingId === wave.id}>Church Report (PDF)</Button>
-      <Button size="sm" variant="outline" onClick={() => props.onDownloadCommentsReport?.(wave)} disabled={!wave.snapshot?.commentsReportPdfPath || props.downloadingId === wave.id}>Comments Report (PDF)</Button>
+      <Button size="sm" variant="outline" onClick={() => props.onDownloadReport(wave)} disabled={!(wave.snapshot?.reportPdfPath || wave.snapshot?.hasReportPdf) || props.downloadingId === wave.id}>Church Report (PDF)</Button>
+      <Button size="sm" variant="outline" onClick={() => props.onDownloadCommentsReport?.(wave)} disabled={!(wave.snapshot?.commentsReportPdfPath || wave.snapshot?.hasCommentsReportPdf) || props.downloadingId === wave.id}>Comments Report (PDF)</Button>
       {props.downloadingId === wave.id && <span role="status" className="text-sm">Preparing download…</span>}
     </div>;
   }

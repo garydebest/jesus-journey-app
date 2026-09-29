@@ -12,6 +12,7 @@ import {
   createSession,
   destroySession,
   requireChurchAuth,
+  restrictPublicDashboardDemo,
   requireAdminAuth,
   getAdminPassword,
   createAdminSession,
@@ -25,6 +26,7 @@ import { currencyForRequest } from "./currency";
 import { runReminderSweep } from "./reminders";
 import { acceptsResponses, calendarDate, emptySurveyPlan, isDemoChurch, surveyPlanSchema } from "@shared/surveyAccess";
 import { isParticipantDemoCode, PARTICIPANT_DEMO_META } from "@shared/participantDemo";
+import { DASHBOARD_DEMO_WAVE_ID } from "@shared/dashboardDemo";
 
 function sanitizeChurch(church: { passwordHash?: string; [k: string]: any }): Record<string, any> {
   const { passwordHash, surveyPlanJson, ...rest } = church;
@@ -58,6 +60,7 @@ const submitResponseSchema = z.object({
 });
 
 export async function registerRoutes(httpServer: Server, app: Express) {
+  app.use("/api", restrictPublicDashboardDemo);
   // The shared demo account is read-only on the server. Its interactive
   // planning and progress examples are simulated in the browser.
   app.use(["/api/waves", "/api/churches/me", "/api/churches/plan"], (req: AuthedRequest, res, next) => {
@@ -242,6 +245,26 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   });
 
   app.get("/api/waves", requireChurchAuth, async (req: AuthedRequest, res) => {
+    if (req.isPublicDemo) {
+      const wave = await storage.getWaveById(DASHBOARD_DEMO_WAVE_ID);
+      if (!wave || !isDemoChurch(wave.churchId) || wave.status !== "closed") {
+        return res.status(503).json({ message: "The sample dashboard is temporarily unavailable." });
+      }
+      const snapshot = await storage.getSnapshotByWave(wave.id);
+      // Explicit public projection: no contact data, Stripe metadata, storage
+      // paths, raw rows, or future demo-account surveys are exposed.
+      return res.json({ waves: [{
+        id: wave.id, label: wave.label, status: wave.status, paymentStatus: wave.paymentStatus,
+        joinCode: "DEMO ONLY", minSampleSize: wave.minSampleSize,
+        opensAt: wave.opensAt, closesAt: wave.closesAt, closedAt: wave.closedAt,
+        createdAt: wave.createdAt,
+        snapshot: snapshot ? {
+          respondentCount: snapshot.respondentCount,
+          hasReportPdf: !!snapshot.reportPdfPath,
+          hasCommentsReportPdf: !!snapshot.commentsReportPdfPath,
+        } : null,
+      }] });
+    }
     const waves = await storage.getWavesByChurch(req.churchId!);
     const withCounts = await Promise.all(
       waves.map(async (w) => ({
@@ -531,6 +554,9 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     }
     const snapshot = await storage.getSnapshotByWave(wave.id);
     if (!snapshot) return res.status(404).json({ message: "Report not yet available" });
+    if (req.isPublicDemo) {
+      return res.json({ snapshot: { respondentCount: snapshot.respondentCount, summary: JSON.parse(snapshot.summaryJson) } });
+    }
     res.json({ snapshot: { ...snapshot, summary: JSON.parse(snapshot.summaryJson) } });
   });
 

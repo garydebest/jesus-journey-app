@@ -95,7 +95,7 @@ export function ChurchDashboard() {
   // Detect the return from Stripe Checkout (?checkout=success|cancelled&wave=ID)
   // and confirm payment status directly rather than waiting on the webhook.
   useEffect(() => {
-    if (!token) return;
+    if (!token || church?.isDemo) return;
     const params = new URLSearchParams(window.location.hash.split("?")[1] ?? "");
     const checkout = params.get("checkout");
     const waveId = params.get("wave");
@@ -124,7 +124,7 @@ export function ChurchDashboard() {
           setCheckoutBanner({ kind: "pending", message: "We couldn't confirm payment status right now. Refresh in a moment." });
         });
     }
-  }, [token, loadWaves]);
+  }, [token, loadWaves, church?.isDemo]);
 
   async function handleCreateWave(e: React.FormEvent) {
     e.preventDefault();
@@ -315,14 +315,27 @@ export function ChurchDashboard() {
             <Button variant="ghost" size="sm" disabled={church.isDemo} onClick={() => setLocation("/settings")} data-testid="button-settings">
               Settings
             </Button>
-            <Button variant="outline" size="sm" onClick={() => { logout(); setLocation("/church"); }} data-testid="button-logout">
+            {church.isDemo ? (
+              <Button variant="outline" size="sm" asChild>
+                <a href="https://www.jesusjourney.life/#for-churches" data-testid="button-exit-demo">Exit demo</a>
+              </Button>
+            ) : <Button variant="outline" size="sm" onClick={() => { logout(); setLocation("/church"); }} data-testid="button-logout">
               Sign out
-            </Button>
+            </Button>}
           </div>
         </div>
       </header>
 
       <main className="flex-1 max-w-6xl mx-auto px-4 py-8 w-full space-y-6">
+        {church.isDemo && (
+          <section className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-1" aria-label="Demo access notice" data-testid="dashboard-demo-notice">
+            <h1 className="text-lg font-semibold">Explore the Grace Fellowship church dashboard</h1>
+            <p className="text-sm text-muted-foreground">
+              Demo only. Explore sample reports and practise planning with simulated data.
+              Changes are not saved. Running your own church survey requires your own account and a paid plan.
+            </p>
+          </section>
+        )}
         {church.isDemo && (
           <section className="rounded-xl border border-primary/20 bg-primary/5 p-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between" aria-labelledby="participant-demo-heading" data-testid="dashboard-participant-demo">
             <div className="space-y-1">

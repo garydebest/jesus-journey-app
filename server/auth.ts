@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Request, Response, NextFunction } from "express";
+import { DASHBOARD_DEMO_TOKEN, allowsDashboardDemoRequest } from "@shared/dashboardDemo";
+import { DEMO_CHURCH_ID } from "@shared/surveyAccess";
 
 // Cookies/localStorage are blocked in the sandboxed preview iframe, so church
 // auth uses a bearer token instead of cookie-based sessions. Tokens are held
@@ -26,6 +28,7 @@ export function destroySession(token: string): void {
 
 export function getChurchIdForToken(token: string | undefined): string | undefined {
   if (!token) return undefined;
+  if (token === DASHBOARD_DEMO_TOKEN) return DEMO_CHURCH_ID;
   const record = sessions.get(token);
   if (!record) return undefined;
   if (Date.now() - record.createdAt > SESSION_TTL_MS) {
@@ -37,11 +40,28 @@ export function getChurchIdForToken(token: string | undefined): string | undefin
 
 export interface AuthedRequest extends Request {
   churchId?: string;
+  isPublicDemo?: boolean;
+}
+
+// Runs before every API route, including routes that do not require auth.
+// A demo capability can never create accounts, payments, or responses.
+export function restrictPublicDashboardDemo(req: AuthedRequest, res: Response, next: NextFunction) {
+  if (req.headers.authorization !== `Bearer ${DASHBOARD_DEMO_TOKEN}`) return next();
+  res.setHeader("Cache-Control", "private, no-store");
+  if (!allowsDashboardDemoRequest(req.method, req.originalUrl.split("?")[0])) {
+    return res.status(403).json({ message: "The public Grace demo only allows viewing its sample reports. Real church access requires your own account and a paid survey.", code: "DEMO_READ_ONLY" });
+  }
+  req.isPublicDemo = true;
+  next();
 }
 
 export function requireChurchAuth(req: AuthedRequest, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
   const token = header?.startsWith("Bearer ") ? header.slice(7) : undefined;
+  // Defense in depth if this middleware is ever reused outside registerRoutes.
+  if (token === DASHBOARD_DEMO_TOKEN && !allowsDashboardDemoRequest(req.method, req.originalUrl.split("?")[0])) {
+    return res.status(403).json({ message: "This request is not available in the public demo.", code: "DEMO_READ_ONLY" });
+  }
   const churchId = getChurchIdForToken(token);
   if (!churchId) {
     return res.status(401).json({ message: "Not authenticated" });
