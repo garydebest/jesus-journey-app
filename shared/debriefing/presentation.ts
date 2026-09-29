@@ -1,7 +1,8 @@
 import type { DebriefingReport, Insight, PathwayAnalysis } from "./types";
+import { projectReportForDisplay } from "./reportProjection";
 
 // One presentation model for React and Python. Never changes persisted scores.
-export const DEBRIEFING_LAYOUT_VERSION = "paired-v1";
+export const DEBRIEFING_LAYOUT_VERSION = "paired-v2-goals-pathways";
 export interface Finding {
   headline: string;
   detail: string;
@@ -34,8 +35,6 @@ const pct = (value: number | null | undefined) =>
 /** Remove only routine benchmark phrasing, not substantive belief/practice or stage gaps. */
 export function presentationText(text: string): string {
   return text
-    .replace("Both the pathway-level and dimension-level analysis independently surface this same area as the church's lowest-scoring, which raises confidence this is a real pattern rather than noise.",
-      "Both pathway and dimension summaries identify this as a lower-scoring area. They may share underlying items, so this is converging descriptive evidence rather than independent statistical confirmation.")
     .replace(/ is a bright spot — running [\d.]+ points above the church average in spiritual maturity\./g, " is a strength to celebrate.")
     .replace(/ is a strength to celebrate — running [\d.]+ points above the church average in spiritual maturity\./g, " is a strength to celebrate.")
     .replace(/ is (?:an opportunity to explore — )?running [\d.]+ points below the church average in spiritual maturity\./g, " is an opportunity to explore.")
@@ -69,27 +68,14 @@ function insightTopic(i: Insight, report: DebriefingReport): string {
   const text = `${i.headline} ${i.detail}`;
   const pathway = report.pathwaysByGoal?.flatMap(g => g.pathways).find(p => text.includes(p.name));
   if (pathway) return pathway.name;
-  if (/stated belief|seven core dimensions|strongest of the seven/i.test(text)) return "Beliefs and everyday practice";
   if (/most mature stage|most mature group/i.test(text)) return "Maturity and continued growth";
   return i.section.replace(/^Demographics [—:] /, "");
 }
 function pathwayTopic(path: PathwayAnalysis, report: DebriefingReport): PairedTopic {
   const row = topic(path.name);
-  const gap = report.dimensions?.beliefPracticeGaps?.find(g => g.pathwayNum === path.num);
   const reciprocal = report.bottleneckMap?.reciprocityChecks?.find(r => r.pathwayName === path.name);
   const stages = (path.trajectory ?? []).filter(t => t.stage !== "Distant" && t.n > 0);
   const directional = report.respondentCount < 15 || stages.some(t => t.n < 15);
-  if (gap && gap.beliefAvg != null && gap.practiceAvg != null && Math.abs(gap.beliefAvg - gap.practiceAvg) >= .2) {
-    const beliefLeads = gap.beliefAvg > gap.practiceAvg;
-    row.strengths.push(finding(
-      beliefLeads ? "A foundation of belief to build on." : "Practice is an existing strength to build on.",
-      `${beliefLeads ? "Belief" : "Practice"} items average ${n(beliefLeads ? gap.beliefAvg : gap.practiceAvg)} on the 0–5 scale.`,
-      report.respondentCount < 15));
-    row.opportunities.push(finding(
-      beliefLeads ? "Help belief become more consistent practice." : "Deepen the belief underlying the practice.",
-      `${beliefLeads ? "Practice" : "Belief"} items average ${n(beliefLeads ? gap.practiceAvg : gap.beliefAvg)}. The difference describes responses; it does not establish its cause.`,
-      report.respondentCount < 15));
-  }
   if (reciprocal && reciprocal.givingScore - reciprocal.receivingScore >= .2) {
     row.strengths.push(finding("Giving support is a resource to build on.",
       `Giving support scores ${n(reciprocal.givingScore)} (n=${reciprocal.n}).`, reciprocal.directionalOnly));
@@ -118,6 +104,7 @@ function pathwayTopic(path: PathwayAnalysis, report: DebriefingReport): PairedTo
 }
 
 export function buildDebriefingPresentation(report: DebriefingReport): DebriefingPresentation {
+  report = projectReportForDisplay(report);
   if (report.analysisSuppressed) return { version: DEBRIEFING_LAYOUT_VERSION, sections: [], notes: report.dataNotes };
   const sections: PairedSection[] = [];
   const summary = fromInsights([
@@ -131,10 +118,6 @@ export function buildDebriefingPresentation(report: DebriefingReport): Debriefin
       const counterpart = pathwayTopic(path, report);
       if (!row.strengths.length) row.strengths.push(...counterpart.strengths.slice(0, 1));
       if (!row.opportunities.length) row.opportunities.push(...counterpart.opportunities.slice(0, 1));
-    }
-    if (row.topic === "Beliefs and everyday practice" && !row.opportunities.length) {
-      const item = report.dimensions?.insights?.find(i => /stated belief/i.test(i.headline));
-      if (item) row.opportunities.push(finding(item.headline, item.detail, item.directionalOnly));
     }
   }
   sections.push(section("summary", "Executive summary", summary,
@@ -194,22 +177,11 @@ export function buildDebriefingPresentation(report: DebriefingReport): Debriefin
     s.notes.push("Stage comparisons describe different groups, not the progress of the same people over time. *Subgroups smaller than 15 are directional only.");
     sections.push(s);
   }
-  const dimensions = section("dimensions", "Beliefs, practices and underlying dimensions",
-    fromInsights(report.dimensions?.insights ?? [], () => "Beliefs and everyday practice"));
-  dimensions.tables.push({
-    title: "Seven underlying dimensions", headers: ["Dimension", "Type", "Score", "Rank"],
-    rows: (report.dimensions?.rollups ?? []).map(d => [d.name.replace(/ — /g, ": "), d.type, n(d.churchAverage), String(d.rank)]),
-  });
-  dimensions.tables.push({
-    title: "Belief and practice by pathway", headers: ["Pathway", "Belief", "Practice"],
-    rows: (report.dimensions?.beliefPracticeGaps ?? []).map(g => [g.pathwayName, n(g.beliefAvg), n(g.practiceAvg)]),
-  });
-  sections.push(dimensions);
   sections.push(section("bottlenecks", "Discipleship growth priorities",
     fromInsights(report.bottleneckMap?.insights ?? [], i => insightTopic(i, report))));
   sections.push(section("cross-cutting", "Cross-cutting insights",
     fromInsights(report.crossCutting?.insights ?? [], i => insightTopic(i, report)),
-    "Converging pathway and dimension findings may share underlying items; they are not independent statistical proof."));
+    "Findings may share underlying items; they are not independent statistical proof."));
 
   for (const d of report.demographics ?? []) {
     const s = section(`evidence-${d.id}`, `Supporting evidence: ${d.title}`);

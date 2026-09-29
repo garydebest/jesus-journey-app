@@ -7,6 +7,7 @@ import { resolveModuleDir } from "./paths";
 import { persistReportPdf } from "./reportStorage";
 import type { DebriefingReport } from "@shared/debriefing/types";
 import { buildDebriefingPresentation, DEBRIEFING_LAYOUT_VERSION } from "@shared/debriefing/presentation";
+import { projectReportForDisplay } from "@shared/debriefing/reportProjection";
 
 const moduleDir = resolveModuleDir(
   typeof import.meta !== "undefined" ? import.meta.url : undefined,
@@ -19,7 +20,7 @@ async function renderLocal(report: DebriefingReport): Promise<{ directory: strin
   const directory = await mkdtemp(path.join(tmpdir(), "jj-debrief-"));
   const outPath = path.join(directory, "debrief.pdf");
   try {
-    const payload = { out_path: outPath, report: { ...report, pairedPresentation: buildDebriefingPresentation(report) } };
+    const payload = { out_path: outPath, report: { ...projectReportForDisplay(report), pairedPresentation: buildDebriefingPresentation(report) } };
     await new Promise<void>((resolve, reject) => {
       const proc = spawn("python3", ["generate_debriefing_report.py"], {
         cwd: REPORT_ENGINE_DIR, stdio: ["pipe", "pipe", "pipe"],

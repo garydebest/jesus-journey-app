@@ -144,7 +144,8 @@ export interface DebriefingReport {
     pathways: PathwayAnalysis[];
   }[];
 
-  dimensions: {
+  /** Legacy saved analysis only; omitted from new reports and display payloads. */
+  dimensions?: {
     rollups: DimensionRollup[];
     beliefPracticeGaps: BeliefPracticeGap[];
     insights: Insight[];

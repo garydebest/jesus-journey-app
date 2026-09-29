@@ -16,7 +16,6 @@ the exact section order required by the build spec:
   4. Engagement Observations
   5. Spiritual Maturity & Change Observations
   6. Pathway Observations by Goal
-  7. Dimension-Level View
   8. Discipleship Bottleneck Map
   9. Cross-Cutting Insights
   10. Suggested Debrief Questions
@@ -427,7 +426,7 @@ def draw_two_col_bullets(flow, left_title, left_items, left_color, right_title, 
         flow.y -= 0.10 * inch
 
 
-# ---- simple ranked table (used for dimension rollups, demographic
+# ---- simple ranked table (used for demographic
 # breakdowns, funnel, crosstabs) ----
 
 def table_heading_min_trailing(headers, rows, row_h=0.26 * inch):
@@ -925,44 +924,6 @@ def render_pathways(c, report, church_name, report_date, page_num):
 
 
 # ============================================================
-# 7. Dimension-Level View
-# ============================================================
-
-def render_dimensions(c, report, church_name, report_date, page_num):
-    dims = report.get("dimensions", {}) or {}
-    flow = Flow(c, church_name, report_date, page_num, "Dimension-Level View",
-                "Dimension-Level View", title_size=22)
-    flow.y -= 0.04 * inch
-
-    rollups = sorted(dims.get("rollups") or [], key=lambda r: r.get("rank", 999))
-    if rollups:
-        rows = []
-        for r in rollups:
-            type_tag = "BELIEF" if r.get("type") == "belief" else "PRACTICE"
-            rows.append([f"#{r.get('rank','')}", r.get("name", ""), type_tag, fmt_num(r.get("churchAverage"))])
-        draw_subheading(flow, "Ranked Dimensions", min_trailing=table_heading_min_trailing([], rows))
-        draw_table(flow, ["Rank", "Dimension", "Type", "Church avg"], rows,
-                   [0.6 * inch, 3.55 * inch, 0.95 * inch, 1.0 * inch])
-
-    gaps = dims.get("beliefPracticeGaps") or []
-    if gaps:
-        rows = []
-        for g in gaps:
-            rows.append([
-                f"{g.get('pathwayNum','')}. {g.get('pathwayName','')}",
-                fmt_num(g.get("beliefAvg")) if g.get("beliefAvg") is not None else "\u2014",
-                fmt_num(g.get("practiceAvg")) if g.get("practiceAvg") is not None else "\u2014",
-                fmt_delta(g.get("gap")) if g.get("gap") is not None else "\u2014",
-            ])
-        draw_subheading(flow, "Belief \u2013 Practice Gaps", min_trailing=table_heading_min_trailing([], rows))
-        draw_table(flow, ["Pathway", "Belief avg", "Practice avg", "Gap"], rows,
-                   [2.9 * inch, 1.05 * inch, 1.1 * inch, 1.05 * inch])
-
-    draw_insight_list(flow, dims.get("insights") or [], heading="INSIGHTS")
-    return flow.page_num + 1
-
-
-# ============================================================
 # 8. Discipleship Bottleneck Map
 # ============================================================
 
@@ -1091,6 +1052,8 @@ def build_debriefing_report_pdf(out_path: str, report: dict) -> bool:
     """Renders `report` (a DebriefingReport dict, matching
     shared/debriefing/types.ts / debriefing/sample_fixture.json) to a PDF at
     `out_path`. Returns True on success."""
+    from report_projection import project_report
+    report = project_report(report)
     if report.get("pairedPresentation"):
         from paired_debriefing_pdf import build_paired_debriefing_pdf
         return build_paired_debriefing_pdf(out_path, report)
@@ -1129,9 +1092,6 @@ def build_debriefing_report_pdf(out_path: str, report: dict) -> bool:
 
     # 6. Pathway Observations by Goal
     page_num = render_pathways(c, report, church_name, report_date, page_num)
-
-    # 7. Dimension-Level View
-    page_num = render_dimensions(c, report, church_name, report_date, page_num)
 
     # 8. Discipleship Bottleneck Map
     page_num = render_bottlenecks(c, report, church_name, report_date, page_num)

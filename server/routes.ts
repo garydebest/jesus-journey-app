@@ -8,6 +8,8 @@ import { buildTimelineIcs } from "./ics";
 import { closeSurvey, saveChurchResponse, SurveyCloseError } from "./closeSurvey";
 import { fetchReportPdf } from "./reportStorage";
 import { renderDebriefingPdfBuffer } from "./debriefingPdf";
+import { projectReportForDisplay } from "@shared/debriefing/reportProjection";
+import { projectChurchPdf } from "./churchPdfProjection";
 import {
   createSession,
   destroySession,
@@ -554,7 +556,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     }
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", 'attachment; filename="Our-Journey-with-Jesus-Report.pdf"');
-    res.send(pdfBuffer);
+    res.send(await projectChurchPdf(pdfBuffer));
   });
 
   app.get("/api/waves/:id/comments-report.pdf", requireChurchAuth, async (req: AuthedRequest, res) => {
@@ -696,7 +698,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     }
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", 'attachment; filename="Our-Journey-with-Jesus-Report.pdf"');
-    res.send(pdfBuffer);
+    res.send(await projectChurchPdf(pdfBuffer));
   });
 
   app.get("/api/admin/waves/:id/comments-report.pdf", requireAdminAuth, async (req, res) => {
@@ -717,7 +719,8 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   app.get("/api/admin/waves/:id/debriefing", requireAdminAuth, async (req, res) => {
     const debriefing = await storage.getDebriefingReportByWave(String(req.params.id));
     if (!debriefing) return res.status(404).json({ message: "Debriefing report is not yet available" });
-    res.json({ debriefing: { ...debriefing, report: JSON.parse(debriefing.reportJson) } });
+    const { reportJson, ...metadata } = debriefing;
+    res.json({ debriefing: { ...metadata, report: projectReportForDisplay(JSON.parse(reportJson)) } });
   });
 
   app.get("/api/admin/waves/:id/debriefing.pdf", requireAdminAuth, async (req, res) => {

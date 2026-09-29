@@ -8,6 +8,8 @@ from reportlab.pdfbase import pdfmetrics
 
 
 def build_paired_debriefing_pdf(out_path, report):
+    from report_projection import project_report
+    report = project_report(report)
     # Reuse the established report family fonts, logo and palette.
     from build_debriefing_report import LOGO_PATH, TEAL_DARK, INK, INK_MUTED, BORDER, SURFACE
     pdfmetrics.registerFontFamily("Inter", normal="Inter", bold="Inter-SemiBold")

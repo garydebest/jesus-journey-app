@@ -8,7 +8,8 @@ const original = JSON.stringify(report);
 const model = buildDebriefingPresentation(report);
 assert.equal(JSON.stringify(report), original, "Presentation must not alter saved analysis");
 assert.equal(model.sections.filter(s => s.id.startsWith("goal-")).flatMap(s => s.tables[0].rows).length, 16);
-assert.equal(model.sections.find(s => s.id === "dimensions")!.tables[0].rows.length, 7);
+assert(!model.sections.some(s => s.id === "dimensions"));
+assert(!/\bdimensions?\b|relationships & growth/i.test(JSON.stringify(model)));
 assert(!JSON.stringify(model).includes("suggestedDebriefQuestions"));
 assert(!JSON.stringify(model).includes("points above the church average"));
 assert(model.sections.some(s => s.topics.some(t => t.strengths.length && t.opportunities.length)));
@@ -25,4 +26,4 @@ await writeFile("/tmp/grace-paired-current.pdf", await renderDebriefingPdfBuffer
 const long = structuredClone(report);
 long.executiveSummary.strengths[0].detail = "Long finding with <escaped> & safe text. ".repeat(150);
 await writeFile("/tmp/grace-paired-long.pdf", await renderDebriefingPdfBuffer(long));
-console.log("PASS: legacy/current reports, 16 pathways, 7 dimensions, demographic tables, immutable analysis, paired topics, omitted questions, concurrent downloads, long escaped content.");
+console.log("PASS: legacy/current reports, 16 pathways, no legacy dimensions, demographic tables, immutable analysis, paired topics, omitted questions, concurrent downloads, long escaped content.");

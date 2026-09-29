@@ -1,10 +1,8 @@
-import { PATHWAYS, GOALS } from "../pathways";
-import { ITEM_TO_DIMENSION } from "../itemDimensions";
+import { GOALS } from "../pathways";
 import type { ResponseRow } from "../schema";
 import { analyzeDemographics } from "./demographics";
 import { analyzePathways } from "./pathways";
 import { analyzeMaturityAndChange } from "./maturity";
-import { analyzeDimensions } from "./dimensions";
 import { analyzeBottlenecks } from "./bottlenecks";
 import { buildDemographicAssessment, buildMaturityStageAssessment } from "./systematicAssessment";
 import type { DebriefingReport, Insight } from "./types";
@@ -61,7 +59,7 @@ export function buildDebriefingReport(params: {
     report.analysisSuppressed = suppressed;
     report.analysisScope = suppressed
       ? "Full-survey analysis withheld to protect confidentiality. Short-form results are reported separately as retained-item percentages, without full-survey diagnoses."
-      : "The analytical findings below describe full-survey participants only, not the whole church. Distant/Exploring short-form results are reported separately and are not used in pathway, dimension, or bottleneck analysis.";
+      : "The analytical findings below describe full-survey participants only, not the whole church. Distant/Exploring short-form results are reported separately and are not used in pathway or bottleneck analysis.";
     if (suppressed) {
       report.executiveSummary = { strengths: [], opportunities: [] };
       report.demographics = [];
@@ -70,7 +68,6 @@ export function buildDebriefingReport(params: {
       report.maturityAndChange = { distribution: [], averageMaturity: 0, funnel: [], changeByMaturity: [], plateauAtTopFlag: false, insights: [] };
       report.maturityStageAssessment = [];
       report.pathwaysByGoal = [];
-      report.dimensions = { rollups: [], beliefPracticeGaps: [], insights: [] };
       report.bottleneckMap = { weakestPathways: [], reciprocityChecks: [], insights: [] };
       report.crossCutting = { insights: [] };
       report.suggestedDebriefQuestions = [];
@@ -85,7 +82,6 @@ export function buildDebriefingReport(params: {
   const demographics = analyzeDemographics(rows);
   const { pathways, insights: pathwayInsights } = analyzePathways(rows);
   const maturity = analyzeMaturityAndChange(rows);
-  const dims = analyzeDimensions(rows);
   const bottlenecks = analyzeBottlenecks(rows, pathways);
   const demographicAssessment = buildDemographicAssessment(demographics);
   const maturityStageAssessment = buildMaturityStageAssessment(maturity.changeByMaturity);
@@ -134,27 +130,8 @@ export function buildDebriefingReport(params: {
   }
 
   const crossCuttingInsights: Insight[] = [];
-  // Cross-reference: does a weak pathway from the bottleneck map also show up
-  // as the weakest dimension? That agreement across two independent cuts of
-  // the same data is exactly the "2+ analyses agree = high confidence" case.
-  const weakestDim = [...dims.rollups].sort((a, b) => a.churchAverage - b.churchAverage)[0];
-  const weakestPathway = bottlenecks.weakestPathways[0];
-  if (weakestDim && weakestPathway) {
-    const pathwayDef = PATHWAYS.find((p) => p.name === weakestPathway.name);
-    if (pathwayDef && pathwayDef.items.some((code) => weakestDim.id && pathwayDefBelongsToDim(code, weakestDim.id))) {
-      crossCuttingInsights.push({
-        kind: "opportunity",
-        headline: `${weakestPathway.name} and ${weakestDim.name} point to the same growth edge.`,
-        detail: `Both the pathway-level and dimension-level analysis independently surface this same area as the church's lowest-scoring, which raises confidence this is a real pattern rather than noise.`,
-        corroboration: 2,
-        directionalOnly: false,
-        section: "Cross-Cutting",
-      });
-    }
-  }
-
   // Merge all insights across sections, then bump corroboration for any pair
-  // of insights that reference the same pathway/dimension name in their
+  // of insights that reference the same pathway name in their
   // headline — a lightweight way to detect independent agreement without a
   // rigid rule table for every possible pairing.
   // Systematic assessment items are excluded from the executive-summary pool
@@ -166,7 +143,6 @@ export function buildDebriefingReport(params: {
     ...demographics.flatMap((d) => d.insights),
     ...pathwayInsights,
     ...maturity.insights,
-    ...dims.insights,
     ...bottlenecks.insights,
     ...engagementInsights,
     ...crossCuttingInsights,
@@ -201,7 +177,6 @@ export function buildDebriefingReport(params: {
     maturityAndChange: maturity,
     maturityStageAssessment,
     pathwaysByGoal,
-    dimensions: dims,
     bottleneckMap: bottlenecks,
     crossCutting: { insights: crossCuttingInsights },
     suggestedDebriefQuestions: [],
@@ -209,10 +184,6 @@ export function buildDebriefingReport(params: {
   };
   report.suggestedDebriefQuestions = suggestedQuestions(report);
   return report;
-}
-
-function pathwayDefBelongsToDim(itemCode: string, dimId: string): boolean {
-  return ITEM_TO_DIMENSION[itemCode]?.id === dimId;
 }
 
 function normalizeTopic(headline: string): string {
