@@ -4,6 +4,7 @@ import type { ResponseRow } from "../schema";
 import type { DimensionRollup, BeliefPracticeGap, Insight } from "./types";
 import { mean, round2, isMaterial } from "./helpers";
 
+/** @deprecated Historical baseline/test compatibility only. Never call from current report generation. */
 export function analyzeDimensions(rows: ResponseRow[]): {
   rollups: DimensionRollup[];
   beliefPracticeGaps: BeliefPracticeGap[];

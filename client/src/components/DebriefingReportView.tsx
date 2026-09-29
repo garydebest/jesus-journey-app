@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import type { DebriefingReport } from "@shared/debriefing/types";
 import { buildDebriefingPresentation, type Finding, type PairedTopic } from "@shared/debriefing/presentation";
 import { CohortReportView } from "./CohortReportView";
+import { projectReportForDisplay } from "@shared/debriefing/reportProjection";
 
 function Findings({ items, kind }: { items: Finding[]; kind: "strength" | "opportunity" }) {
   return <div className="min-w-0 p-4 space-y-3">
@@ -29,6 +30,7 @@ function Topic({ row }: { row: PairedTopic }) {
 
 /** Admin-only; shared presentation also drives the downloadable PDF. */
 export function DebriefingReportView({ report }: { report: DebriefingReport }) {
+  report = projectReportForDisplay(report);
   const model = buildDebriefingPresentation(report);
   return <div className="min-w-0 w-full space-y-8 text-sm break-words" data-debriefing-layout={model.version}>
     <div className="flex flex-wrap items-start justify-between gap-3">

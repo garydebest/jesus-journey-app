@@ -1,10 +1,10 @@
 {
-  "waveId": "synthetic",
-  "churchId": "synthetic",
-  "churchName": "Grace Fellowship (synthetic)",
-  "waveLabel": "Report review",
+  "waveId": "25fd5a3d-0b0a-4174-bb12-6fa36ffef1cc",
+  "churchId": "fb55072c-3b29-49e8-9bc7-ee77b1393f4a",
+  "churchName": "Grace Fellowship Community Church",
+  "waveLabel": "Congregation Spiritual Health Survey — Sample Report",
   "respondentCount": 210,
-  "generatedAt": "2026-09-29T05:00:00.000Z",
+  "generatedAt": "2026-09-10T21:40:14.723Z",
   "executiveSummary": {
     "strengths": [
       {
@@ -38,9 +38,25 @@
         "corroboration": 1,
         "directionalOnly": false,
         "section": "Demographics — Small Group Participation"
+      },
+      {
+        "kind": "strength",
+        "headline": "My Beliefs — God's Kingdom Story is the strongest of the seven core dimensions.",
+        "detail": "Church average of 3.81 on this dimension, the highest of the seven measured.",
+        "corroboration": 1,
+        "directionalOnly": false,
+        "section": "Beliefs & Practices"
       }
     ],
     "opportunities": [
+      {
+        "kind": "opportunity",
+        "headline": "Journeying with Others and My Actions — Relationships & Growth point to the same growth edge.",
+        "detail": "Both the pathway-level and dimension-level analysis independently surface this same area as the church's lowest-scoring, which raises confidence this is a real pattern rather than noise.",
+        "corroboration": 2,
+        "directionalOnly": false,
+        "section": "Cross-Cutting"
+      },
       {
         "kind": "opportunity",
         "headline": "Journeying with Others: giving runs ahead of receiving.",
@@ -88,14 +104,6 @@
         "corroboration": 1,
         "directionalOnly": false,
         "section": "Demographics — Attendance Frequency"
-      },
-      {
-        "kind": "opportunity",
-        "headline": "Infrequently or never (Small Group Participation) is running 1.03 points below the church average in spiritual maturity.",
-        "detail": "27 respondents (12.86% of the group) average 2.37 on the maturity scale, vs. the church-wide average. 81.48% report they're currently growing; 3.7% report fading.",
-        "corroboration": 1,
-        "directionalOnly": false,
-        "section": "Demographics — Small Group Participation"
       }
     ]
   },
@@ -667,33 +675,6 @@
       ]
     },
     {
-      "id": "singlesVsMarried",
-      "title": "Singles vs. Married",
-      "breakdown": [
-        {
-          "group": "Single",
-          "n": 90,
-          "pctOfChurch": 42.86,
-          "avgMaturity": 3.41,
-          "maturityVsChurch": 0.01,
-          "growingPct": 68.89,
-          "fadingPct": 8.89,
-          "directionalOnly": false
-        },
-        {
-          "group": "Married",
-          "n": 23,
-          "pctOfChurch": 10.95,
-          "avgMaturity": 3.13,
-          "maturityVsChurch": -0.27,
-          "growingPct": 52.17,
-          "fadingPct": 21.74,
-          "directionalOnly": false
-        }
-      ],
-      "insights": []
-    },
-    {
       "id": "childrenInHousehold",
       "title": "Children in Household",
       "breakdown": [
@@ -719,88 +700,6 @@
         }
       ],
       "insights": []
-    }
-  ],
-  "demographicAssessment": [
-    {
-      "kind": "strength",
-      "headline": "16-19 is holding steady — right in line with the church-wide average in spiritual maturity.",
-      "detail": "33 respondents (15.71% of the church) average 3.39 on the 5-point maturity scale. 75.76% report currently growing; 6.06% report fading.",
-      "corroboration": 1,
-      "directionalOnly": false,
-      "section": "Demographic Assessment — 16-19 age group"
-    },
-    {
-      "kind": "strength",
-      "headline": "20-29 is holding steady — right in line with the church-wide average in spiritual maturity.",
-      "detail": "30 respondents (14.29% of the church) average 3.43 on the 5-point maturity scale. 73.33% report currently growing; 3.33% report fading.",
-      "corroboration": 1,
-      "directionalOnly": false,
-      "section": "Demographic Assessment — 20-29 age group"
-    },
-    {
-      "kind": "strength",
-      "headline": "30-39 is holding steady — right in line with the church-wide average in spiritual maturity.",
-      "detail": "42 respondents (20% of the church) average 3.36 on the 5-point maturity scale. 59.52% report currently growing; 14.29% report fading.",
-      "corroboration": 1,
-      "directionalOnly": false,
-      "section": "Demographic Assessment — 30-39 age group"
-    },
-    {
-      "kind": "strength",
-      "headline": "40-49 is holding steady — right in line with the church-wide average in spiritual maturity.",
-      "detail": "41 respondents (19.52% of the church) average 3.39 on the 5-point maturity scale. 58.54% report currently growing; 24.39% report fading.",
-      "corroboration": 1,
-      "directionalOnly": false,
-      "section": "Demographic Assessment — 40-49 age group"
-    },
-    {
-      "kind": "strength",
-      "headline": "50-59 is holding steady — right in line with the church-wide average in spiritual maturity.",
-      "detail": "31 respondents (14.76% of the church) average 3.42 on the 5-point maturity scale. 67.74% report currently growing; 16.13% report fading.",
-      "corroboration": 1,
-      "directionalOnly": false,
-      "section": "Demographic Assessment — 50-59 age group"
-    },
-    {
-      "kind": "strength",
-      "headline": "60 and older is holding steady — right in line with the church-wide average in spiritual maturity.",
-      "detail": "33 respondents (15.71% of the church) average 3.42 on the 5-point maturity scale. 72.73% report currently growing; 9.09% report fading.",
-      "corroboration": 1,
-      "directionalOnly": false,
-      "section": "Demographic Assessment — 60 and older age group"
-    },
-    {
-      "kind": "strength",
-      "headline": "Single is holding steady — right in line with the church-wide average in spiritual maturity.",
-      "detail": "90 respondents (42.86% of the church) average 3.41 on the 5-point maturity scale. 68.89% report currently growing; 8.89% report fading.",
-      "corroboration": 1,
-      "directionalOnly": false,
-      "section": "Demographic Assessment — Single"
-    },
-    {
-      "kind": "opportunity",
-      "headline": "Married is an opportunity to explore — running 0.27 points below the church average in spiritual maturity.",
-      "detail": "23 respondents (10.95% of the church) average 3.13 on the 5-point maturity scale. 52.17% report currently growing; 21.74% report fading.",
-      "corroboration": 1,
-      "directionalOnly": false,
-      "section": "Demographic Assessment — Married"
-    },
-    {
-      "kind": "strength",
-      "headline": "No children in household is holding steady — right in line with the church-wide average in spiritual maturity.",
-      "detail": "124 respondents (59.05% of the church) average 3.38 on the 5-point maturity scale. 65.32% report currently growing; 13.71% report fading.",
-      "corroboration": 1,
-      "directionalOnly": false,
-      "section": "Demographic Assessment — No children in household"
-    },
-    {
-      "kind": "strength",
-      "headline": "Has children in household is holding steady — right in line with the church-wide average in spiritual maturity.",
-      "detail": "86 respondents (40.95% of the church) average 3.43 on the 5-point maturity scale. 69.77% report currently growing; 11.63% report fading.",
-      "corroboration": 1,
-      "directionalOnly": false,
-      "section": "Demographic Assessment — Has children in household"
     }
   ],
   "engagement": {
@@ -909,40 +808,6 @@
       }
     ]
   },
-  "maturityStageAssessment": [
-    {
-      "kind": "strength",
-      "headline": "The \"Exploring\" stage is holding steady — its active-growth rate is close to the church-wide average.",
-      "detail": "28 respondents describe themselves as \"Exploring.\" 71.43% report currently growing; 28.57% report staying the same or fading — vs. 67.14% growing church-wide.",
-      "corroboration": 1,
-      "directionalOnly": false,
-      "section": "Maturity Stage Assessment — Exploring"
-    },
-    {
-      "kind": "strength",
-      "headline": "The \"Believing\" stage is a strength to celebrate — 77.61% report actively growing, above the church-wide average.",
-      "detail": "67 respondents describe themselves as \"Believing.\" 77.61% report currently growing; 22.39% report staying the same or fading — vs. 67.14% growing church-wide.",
-      "corroboration": 1,
-      "directionalOnly": false,
-      "section": "Maturity Stage Assessment — Believing"
-    },
-    {
-      "kind": "strength",
-      "headline": "The \"Trusting\" stage is a strength to celebrate — 75.68% report actively growing, above the church-wide average.",
-      "detail": "74 respondents describe themselves as \"Trusting.\" 75.68% report currently growing; 24.32% report staying the same or fading — vs. 67.14% growing church-wide.",
-      "corroboration": 1,
-      "directionalOnly": false,
-      "section": "Maturity Stage Assessment — Trusting"
-    },
-    {
-      "kind": "opportunity",
-      "headline": "The \"God Centered\" stage is an opportunity to explore — only 20% report actively growing, below the church-wide average.",
-      "detail": "30 respondents describe themselves as \"God Centered.\" 20% report currently growing; 80% report staying the same or fading — vs. 67.14% growing church-wide.",
-      "corroboration": 1,
-      "directionalOnly": false,
-      "section": "Maturity Stage Assessment — God Centered"
-    }
-  ],
   "pathwaysByGoal": [
     {
       "goal": "Trusting Jesus",
@@ -1551,6 +1416,136 @@
       ]
     }
   ],
+  "dimensions": {
+    "rollups": [
+      {
+        "id": "beliefs-gods-character",
+        "name": "My Beliefs — God's Character & Relationship",
+        "type": "belief",
+        "churchAverage": 3.8,
+        "rank": 2
+      },
+      {
+        "id": "beliefs-kingdom-story",
+        "name": "My Beliefs — God's Kingdom Story",
+        "type": "belief",
+        "churchAverage": 3.81,
+        "rank": 1
+      },
+      {
+        "id": "identity-life-with-god",
+        "name": "My Identity — Life with God Practices",
+        "type": "practice",
+        "churchAverage": 3.44,
+        "rank": 5
+      },
+      {
+        "id": "identity-inner-life",
+        "name": "My Identity — Inner Life Practices",
+        "type": "practice",
+        "churchAverage": 3.45,
+        "rank": 4
+      },
+      {
+        "id": "actions-relationships",
+        "name": "My Actions — Relationships & Growth",
+        "type": "practice",
+        "churchAverage": 3.36,
+        "rank": 7
+      },
+      {
+        "id": "actions-compassion-justice",
+        "name": "My Actions — Compassion & Justice",
+        "type": "practice",
+        "churchAverage": 3.43,
+        "rank": 6
+      },
+      {
+        "id": "actions-partnering-with-god",
+        "name": "My Actions — Partnering with God for Others",
+        "type": "practice",
+        "churchAverage": 3.49,
+        "rank": 3
+      }
+    ],
+    "beliefPracticeGaps": [
+      {
+        "pathwayNum": 2,
+        "pathwayName": "Receiving God's Love",
+        "beliefAvg": 3.82,
+        "practiceAvg": 3.44,
+        "gap": 0.38
+      },
+      {
+        "pathwayNum": 3,
+        "pathwayName": "My Identity",
+        "beliefAvg": 3.83,
+        "practiceAvg": 3.44,
+        "gap": 0.39
+      },
+      {
+        "pathwayNum": 4,
+        "pathwayName": "Facing Challenges",
+        "beliefAvg": 3.76,
+        "practiceAvg": 3.46,
+        "gap": 0.3
+      },
+      {
+        "pathwayNum": 6,
+        "pathwayName": "Communicating with God",
+        "beliefAvg": 3.8,
+        "practiceAvg": 3.43,
+        "gap": 0.37
+      },
+      {
+        "pathwayNum": 9,
+        "pathwayName": "Expressing God's Love",
+        "beliefAvg": 3.81,
+        "practiceAvg": 3.45,
+        "gap": 0.36
+      },
+      {
+        "pathwayNum": 13,
+        "pathwayName": "Partnering with God",
+        "beliefAvg": 3.81,
+        "practiceAvg": 3.44,
+        "gap": 0.37
+      },
+      {
+        "pathwayNum": 16,
+        "pathwayName": "Acting Justly",
+        "beliefAvg": 3.78,
+        "practiceAvg": 3.41,
+        "gap": 0.37
+      }
+    ],
+    "insights": [
+      {
+        "kind": "opportunity",
+        "headline": "Stated belief runs ahead of lived practice church-wide.",
+        "detail": "Belief items average 3.81 vs. 3.43 for practice items — a 0.37-point gap. People affirm the truths more readily than they consistently live them out day to day.",
+        "corroboration": 1,
+        "directionalOnly": false,
+        "section": "Beliefs & Practices"
+      },
+      {
+        "kind": "strength",
+        "headline": "My Beliefs — God's Kingdom Story is the strongest of the seven core dimensions.",
+        "detail": "Church average of 3.81 on this dimension, the highest of the seven measured.",
+        "corroboration": 1,
+        "directionalOnly": false,
+        "section": "Beliefs & Practices"
+      },
+      {
+        "kind": "opportunity",
+        "headline": "My Actions — Relationships & Growth is the area with the most room to grow.",
+        "detail": "Church average of 3.36 on this dimension, the lowest of the seven measured.",
+        "corroboration": 1,
+        "directionalOnly": false,
+        "section": "Beliefs & Practices"
+      }
+    ]
+  },
   "bottleneckMap": {
     "weakestPathways": [
       {
@@ -1615,11 +1610,20 @@
     ]
   },
   "crossCutting": {
-    "insights": []
+    "insights": [
+      {
+        "kind": "opportunity",
+        "headline": "Journeying with Others and My Actions — Relationships & Growth point to the same growth edge.",
+        "detail": "Both the pathway-level and dimension-level analysis independently surface this same area as the church's lowest-scoring, which raises confidence this is a real pattern rather than noise.",
+        "corroboration": 2,
+        "directionalOnly": false,
+        "section": "Cross-Cutting"
+      }
+    ]
   },
   "suggestedDebriefQuestions": [
     "What's behind our strength in \"Every week (Attendance Frequency) is a bright spot — running 0.62 points above the church average in spiritual maturity\"? How can we build on it intentionally?",
-    "What would it look like to take one concrete step this quarter on \"Journeying with Others: giving runs ahead of receiving\"?",
+    "What would it look like to take one concrete step this quarter on \"Journeying with Others and My Actions — Relationships & Growth point to the same growth edge\"?",
     "Our most mature members report the least active growth — is that a healthy plateau, or do they need a new kind of challenge or invitation?",
     "\"Journeying with Others\" is our lowest-scoring pathway — what's one practical, low-barrier way we could invite people into it this season?",
     "Which demographic group in this report most surprised you — and why?"

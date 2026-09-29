@@ -343,20 +343,13 @@ def page_interpreting_2(c):
     items = [
         (None, "The Journey survey was conducted online; participation was voluntary. The survey "
                 "included 6 demographics, 4 church participation indicators, 1 spiritual maturity "
-                "indicator, 1 spiritual change indicator, and 63 attributes of spiritual growth on 7 "
-                "dimensions \u2014 organized for this report into 4 major goals and 16 pathways."),
+                "indicator, 1 spiritual change indicator, and 63 attributes of spiritual growth "
+                "organized into 4 major goals and 16 pathways."),
         (None, "Survey attributes were developed through extensive prayer and reflection by an invited "
                 "group of pastors, theologians, and Christian survey specialists tasked with identifying "
-                "the dimensions of spiritual growth evident in maturing followers of Jesus."),
-        (None, "The 7 dimensions of spiritual growth included: understanding Jesus' teaching about his "
-                "Father, understanding Jesus' central message, experiencing life with God, the inner "
-                "effect of life with God, reflecting Jesus' life with others, communicating God's love "
-                "and truth, and welcoming God's presence and power."),
+                "the attributes of spiritual growth evident in maturing followers of Jesus."),
         (None, "Draft questions were pretested with multiple church groups in Canada and the U.S., and "
-                "substantially revised after each pretest. After the first church survey of over 400 "
-                "persons, final questions were submitted to confirmatory factor analysis \u2014 all "
-                "attributes across all 7 dimensions were statistically supported with high factor "
-                "loadings, strongly supporting the empirical and theological integrity of the Journey."),
+                "substantially revised after each pretest."),
     ]
     draw_bullet_block(c, MARGIN, y, items, PAGE_W - 2 * MARGIN, size=10.5, leading=14.5, gap=13)
 

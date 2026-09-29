@@ -4,6 +4,7 @@ dist/
 *.db-shm
 *.db-wal
 dist-review/
+dist-dimensions-review/
 generated-reports/
 qa-output/
 __pycache__/
