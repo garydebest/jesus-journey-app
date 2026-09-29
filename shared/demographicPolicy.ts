@@ -2,7 +2,7 @@
 export const DEMOGRAPHIC_MIN_N = 10;
 export const PREFER_NOT_TO_SAY = "Prefer not to say";
 export const DEMOGRAPHIC_PRIVACY_NOTE =
-  "Demographic answers are voluntary. Categories with fewer than 10 respondents are not shown. Additional results may be withheld to protect confidentiality. Skipped answers and Prefer not to say are excluded from comparisons.";
+  "Demographic answers are used only in aggregate church reporting. Categories with fewer than 10 respondents are not shown. Additional results may be withheld to protect confidentiality. Missing answers and Prefer not to say are excluded from comparisons.";
 export type EthnicityPreset = "canada" | "usa" | "uk" | "international";
 export const ETHNICITY_PRESETS: Record<EthnicityPreset, string[]> = {
   canada: ["White", "Black", "First Nations, Métis, or Inuit", "East Asian", "South Asian", "Southeast Asian", "Middle Eastern / West Asian", "Latin American", "Another background", "Multiple backgrounds", PREFER_NOT_TO_SAY],
@@ -61,11 +61,6 @@ export function encodeEthnicity(raw: unknown): string | null {
 export function toggleExclusive(values: string[], option: string, exclusive = PREFER_NOT_TO_SAY): string[] {
   if (values.includes(option)) return values.filter(v => v !== option);
   return option === exclusive ? [option] : [...values.filter(v => v !== exclusive), option];
-}
-export function clearDemographic<T extends { demographics: Record<string, string | string[]> }>(state: T, id: string): T {
-  const demographics = { ...state.demographics };
-  delete demographics[id];
-  return { ...state, demographics };
 }
 const small = (n: number) => n > 0 && n < DEMOGRAPHIC_MIN_N;
 /** Withhold a single-select distribution if a residual category is inferable. */

@@ -10,7 +10,7 @@ export async function runBrowserQa(browser, base = "http://127.0.0.1:5000", out 
     { preset: "canada", initial: 3, width: 1280, code: "SYNTHETIC", choices: ["White", "Black"] },
     { preset: "usa", initial: 1, width: 375, code: "SYNTHETIC", choices: ["Hispanic or Latino/a/x", "Asian"] },
     { preset: "uk", initial: 2, width: 375, code: "GRACEDEMO", choices: ["White British, Irish, or other White background", "Arab"] },
-    { preset: "international", initial: 3, width: 1280, code: "SYNTHETIC", failDisplay: true, skipAll: true, choices: ["White / European background", "Black / African background"] },
+    { preset: "international", initial: 3, width: 1280, code: "SYNTHETIC", failDisplay: true, choices: ["White / European background", "Black / African background"] },
   ];
   for (const test of cases) {
     const context = await browser.newContext({ viewport: { width: test.width, height: 900 } });
@@ -47,29 +47,44 @@ export async function runBrowserQa(browser, base = "http://127.0.0.1:5000", out 
       await click("option-change-2");
       await click("button-change-next");
       assert(await page.getByTestId("text-demo-intro-note").isVisible());
-      assert((await page.getByTestId("text-demo-intro-note").innerText()).includes("voluntary"));
+      assert((await page.getByTestId("text-demo-intro-note").innerText()).includes("select an answer"));
+      const required = async () => {
+        assert.equal(await page.getByTestId("button-demo-skip").count(), 0);
+        await page.locator('[data-testid="button-demo-next"][disabled]').waitFor();
+        assert(await page.getByTestId("button-demo-next").isDisabled());
+      };
+      await required();
       await fit();
       await page.screenshot({ path: `${out}/regional-${test.preset}-${test.width}-gender.png` });
-      // Exercise selection -> next -> back -> skip -> back: skip must clear.
+      // Existing required behavior and selection retention after backward navigation.
       await click("option-demo-gender-Male");
       await click("button-demo-next");
+      await required();
       await click("button-back");
-      await click("button-demo-skip");
-      await click("button-back");
-      assert.equal(await page.locator('[role="radio"][data-state="checked"]').count(), 0);
-      await click("button-demo-skip");
+      assert.equal(await page.locator('[role="radio"][data-state="checked"]').count(), 1);
+      await click("option-demo-gender-Prefer not to say");
+      await click("button-demo-next");
       for (const id of ["age", "relationship", "attendance", "tenure", "smallgroup", "volunteer"]) {
-        assert(await page.getByTestId("button-demo-skip").isVisible(), `${id} skip`);
+        await required();
         if (id === "relationship") {
-          assert(await page.getByTestId("option-demo-relationship-Prefer not to say").isVisible());
+          await click("option-demo-relationship-Prefer not to say");
+        } else {
+          await page.locator(`[data-testid^="option-demo-${id}-"]`).first().click();
         }
-        await click("button-demo-skip");
+        await page.locator('[data-testid="button-demo-next"]:not([disabled])').waitFor();
+        assert(await page.getByTestId("button-demo-next").isEnabled(), `${id} selected`);
+        await click("button-demo-next");
       }
-      // Children None is exclusive, then skip to keep it absent.
+      // Children None is exclusive, and an empty selection cannot advance.
+      await required();
       await click("option-demo-children-None");
       await click("option-demo-children-0-2 year old(s)");
       assert.equal(await page.locator('[role="checkbox"][data-state="checked"]').count(), 1);
-      await click("button-demo-skip");
+      await click("option-demo-children-0-2 year old(s)");
+      await required();
+      await click("option-demo-children-None");
+      await click("button-demo-next");
+      await required();
       assert.equal(await page.getByTestId("text-demo-question").innerText(), "Which ethnic, cultural, or racial background(s) best describe you? Select all that apply.");
       for (const choice of test.choices) await click(`option-demo-ethnicity-${choice}`);
       assert.equal(await page.locator('[role="checkbox"][data-state="checked"]').count(), 2);
@@ -80,7 +95,7 @@ export async function runBrowserQa(browser, base = "http://127.0.0.1:5000", out 
       await page.evaluate(() => scrollTo(0, 0));
       await fit();
       await page.screenshot({ path: `${out}/regional-${test.preset}-${test.width}-ethnicity.png`, fullPage: true });
-      await click(test.skipAll ? "button-demo-skip" : "button-demo-next");
+      await click("button-demo-next");
       await click("button-submit-survey");
       if (test.code === "GRACEDEMO") {
         await page.getByText("Demo complete", { exact: true }).waitFor();
@@ -89,7 +104,11 @@ export async function runBrowserQa(browser, base = "http://127.0.0.1:5000", out 
         await page.getByTestId("text-report-privacy").waitFor();
         assert.equal(submissions.length, 1);
         assert.equal(Object.keys(submissions[0].items).length, count);
-        assert.equal(JSON.stringify(submissions[0].demographics), JSON.stringify(test.skipAll ? {} : { ethnicity: test.choices }));
+        assert.equal(Object.keys(submissions[0].demographics).length, 9);
+        assert.equal(JSON.stringify(submissions[0].demographics.ethnicity), JSON.stringify(test.choices));
+        assert.equal(submissions[0].demographics.gender, "Prefer not to say");
+        assert.equal(submissions[0].demographics.relationship, "Prefer not to say");
+        assert.equal(JSON.stringify(submissions[0].demographics.children), '["None"]');
         assert(!/country|ethnicityPreset|ipAddress/.test(JSON.stringify(submissions[0])));
       }
       await fit();

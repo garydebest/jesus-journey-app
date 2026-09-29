@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { DEMOGRAPHICS } from "../shared/questions";
-import { ETHNICITY_PRESETS, ethnicityPresetForCountry, ethnicityIds, ethnicityLabels, encodeEthnicity, clearDemographic, toggleExclusive, demographicCounts, safeDemographicCounts } from "../shared/demographicPolicy";
+import { ETHNICITY_PRESETS, ethnicityPresetForCountry, ethnicityIds, ethnicityLabels, encodeEthnicity, toggleExclusive, demographicCounts, safeDemographicCounts } from "../shared/demographicPolicy";
 import { submitResponseSchema } from "../shared/submission";
 import { analyzeDemographics } from "../shared/debriefing/demographics";
 import { buildDemographicAssessment } from "../shared/debriefing/systematicAssessment";
@@ -39,21 +39,19 @@ check("legacy and regional labels normalize without losing distinctions", () => 
   assert.equal(encodeEthnicity(["White", "Black"]), '["white","black"]');
   assert.equal(encodeEthnicity(["White", "Prefer not to say"]), null);
 });
-check("skip deletes previous answer on every screen; preferences exclusive", () => {
-  DEMOGRAPHICS.forEach(d => {
-    const state = { demographics: { [d.id]: d.type === "multi" ? [d.options[0]] : d.options[0] } };
-    assert(!Object.hasOwn(clearDemographic(state, d.id).demographics, d.id));
-    assert(Object.hasOwn(state.demographics, d.id));
-  });
+check("all nine demographic screens remain required; preferences exclusive", () => {
+  assert.equal(DEMOGRAPHICS.length, 9);
   assert.deepEqual(toggleExclusive(["White"], "Prefer not to say"), ["Prefer not to say"]);
   assert.deepEqual(toggleExclusive(["Prefer not to say"], "Black"), ["Black"]);
   assert.deepEqual(toggleExclusive(["None"], "0-2 year old(s)", "None"), ["0-2 year old(s)"]);
   const source = readFileSync("client/src/pages/DemographicQuestion.tsx", "utf8");
-  assert(source.includes('data-testid="button-demo-skip"'));
+  assert(!source.includes('button-demo-skip'));
+  assert(source.includes('disabled={!isAnswered}'));
+  assert(!source.includes("voluntary"));
   assert(!source.includes("essential"));
 });
 const base = { joinCode: "SYNTHETIC", journeyPre: 3, journeyPost: 4, spiritualChange: 1, items: Object.fromEntries(SURVEY_ITEMS.map(q => [q.code, 4])) };
-check("optional submission, array/legacy validation, unknown location stripped", () => {
+check("historically nullable API compatibility, array/legacy validation, location stripped", () => {
   assert(submitResponseSchema.safeParse(base).success);
   for (const ethnicity of [["White", "Black"], "White/Caucasian", [], ["Prefer not to say"]]) assert(submitResponseSchema.safeParse({ ...base, demographics: { ethnicity } }).success);
   assert(!submitResponseSchema.safeParse({ ...base, demographics: { ethnicity: ["unexpected free text"] } }).success);

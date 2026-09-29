@@ -10,7 +10,6 @@ export function DemographicQuestion({
   value,
   onChange,
   onNext,
-  onSkip,
   onBack,
   progress,
   showIntroNote,
@@ -19,7 +18,6 @@ export function DemographicQuestion({
   value?: string | string[];
   onChange: (v: string | string[]) => void;
   onNext: () => void;
-  onSkip: () => void;
   onBack: () => void;
   progress: number;
   showIntroNote?: boolean;
@@ -37,12 +35,9 @@ export function DemographicQuestion({
       onBack={onBack}
       showBack
       footer={
-        <div className="flex flex-wrap items-center justify-end gap-3">
-        <Button variant="outline" onClick={onSkip} data-testid="button-demo-skip">Skip this question</Button>
         <Button onClick={onNext} disabled={!isAnswered} data-testid="button-demo-next">
           Continue
         </Button>
-        </div>
       }
     >
       {showIntroNote && (
@@ -50,16 +45,17 @@ export function DemographicQuestion({
           className="text-sm text-muted-foreground leading-relaxed rounded-lg bg-muted border border-border p-4"
           data-testid="text-demo-intro-note"
         >
-          These questions are voluntary. You may skip any question, including ethnic or cultural
-          background, without affecting your personal report. Answers are used only in aggregate
-          church reporting. Categories with fewer than 10 respondents are not shown, and skipped
-          answers and “Prefer not to say” are excluded from comparisons.
+          Please select an answer to each demographic question to continue. For gender,
+          relationship status, and ethnic or cultural background, you may choose “Prefer not
+          to say”. Demographic answers are used only in aggregate church reporting. Categories
+          with fewer than 10 respondents are not shown, and missing answers and “Prefer not to
+          say” are excluded from comparisons.
         </p>
       )}
       <h2 className="text-lg font-semibold leading-snug" data-testid="text-demo-question">
         {demo.question}
       </h2>
-      <p className="text-sm text-muted-foreground">Optional. You can skip this question.</p>
+      <p className="text-sm text-muted-foreground">Select {demo.type === "multi" ? "one or more answers" : "an answer"} to continue.</p>
       {demo.type === "single" ? (
         <RadioGroup
           value={typeof value === "string" ? value : undefined}

@@ -13,7 +13,7 @@ import { DEMOGRAPHICS, MATURITY_OPTIONS_PRE, MATURITY_OPTIONS_POST } from "@shar
 import { emptyState, type SurveyState } from "@/lib/surveyState";
 import { apiRequest } from "@/lib/queryClient";
 import { isParticipantDemoCode, PARTICIPANT_DEMO_META } from "@shared/participantDemo";
-import { ETHNICITY_PRESETS, clearDemographic, type EthnicityPreset } from "@shared/demographicPolicy";
+import { ETHNICITY_PRESETS, type EthnicityPreset } from "@shared/demographicPolicy";
 
 type Screen =
   | "loading"
@@ -188,7 +188,7 @@ function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) 
           <p className="text-sm text-muted-foreground leading-relaxed">
             Takes about 10-15 minutes.
           </p>
-          <p className="text-sm text-muted-foreground">Demographic questions are voluntary. <a className="underline" href="#/privacy" target="_blank" rel="noopener noreferrer">Read the survey privacy notice</a>.</p>
+          <p className="text-sm text-muted-foreground">Demographic questions require a selection; sensitive questions include “Prefer not to say”. <a className="underline" href="#/privacy" target="_blank" rel="noopener noreferrer">Read the survey privacy notice</a>.</p>
           <div className="pt-2">
             <Button size="lg" onClick={() => setScreen("pre-maturity")} data-testid="button-start-join-survey">
               Begin the survey
@@ -276,10 +276,6 @@ function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) 
         demo={demo}
         value={state.demographics[demo.id]}
         onChange={(v) => setState((s) => ({ ...s, demographics: { ...s.demographics, [demo.id]: v } }))}
-        onSkip={() => {
-          setState(s => clearDemographic(s, demo.id));
-          setScreen(idx + 1 < DEMOGRAPHICS.length ? `demo-${idx + 1}` : "comment");
-        }}
         onNext={() => {
           if (idx + 1 < DEMOGRAPHICS.length) setScreen(`demo-${idx + 1}`);
           else setScreen("comment");

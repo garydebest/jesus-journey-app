@@ -1,13 +1,13 @@
 # Regional demographics and privacy safeguards
 
-Review-only implementation on `feature/regional-demographics-privacy`, based on `master` at `a887547f83856012a48407eca9ae8aacacff6b3a`. Do not merge or deploy until Gary explicitly approves. This change does not alter the 38/63 spiritual instrument, maturity/cohort threshold policies, payments, database schema, credentials, or raw-response retention transaction.
+Implementation on `feature/regional-demographics-privacy`, based on `master` at `a887547f83856012a48407eca9ae8aacacff6b3a`. Gary's subsequent instruction explicitly authorizes live release and supersedes the original voluntary-demographics/review-only brief: preserve previously required demographics and enforce the 10-person privacy floor. This change does not alter the 38/63 spiritual instrument, maturity/cohort threshold policies, payments, database schema, credentials, or raw-response retention transaction.
 
 ## Participant experience
 
-- All nine church/group demographic screens have a visible **Skip this question** action. Skip clears a previous selection, including after backward navigation. An unanswered field is omitted from the request and saved as null, not as a synthetic category.
+- All nine church/group demographic screens remain required, as before this feature. Continue is disabled until a selection is made; there is no Skip action. Backward navigation retains answers. The API and database continue to accept historical missing answers as null, not a synthetic category: requiredness was historically a participant-UI rule, and this release does not impose new server validation that would reject older clients or data.
 - Gender and relationship status keep their existing choices plus **Prefer not to say**.
 - Ethnicity uses the requested multi-select question and the exact Canada, United States, United Kingdom, and International/Europe presets. Prefer not to say is exclusive. Children’s None is also exclusive.
-- A public survey privacy notice is available at `/#/privacy`, linked from the church survey introduction. Volunteer paper-entry guidance now explicitly permits missing demographic answers.
+- A public survey privacy notice is available at `/#/privacy`, linked from the church survey introduction. It explains required selections, sensitive non-disclosure choices and aggregate privacy. Paper-entry guidance requires obtaining missing answers from the respondent, never guessing or selecting non-disclosure on their behalf.
 - The free independent survey still does not collect demographics. The reserved participant demo still never submits or saves answers.
 
 ## Data and regional selection
@@ -42,11 +42,11 @@ Archived debrief narratives without machine-readable category/count provenance a
 
 Old church PDFs do not contain the exact denominators needed to validate every demographic result. For the recognized 38-page layout, download-time copies replace demographic pages 7–9, 11–12 and 15–16 with an explanation. The stored original is unchanged; other result-page content streams are retained. Unrecognized older layouts fail closed for review rather than returning potentially identifying data. New policy-compliant PDFs carry `jj-demographics-n10-v1` metadata and are not redacted again. This does not recall files already downloaded.
 
-This archival presentation change is important to review before release. Historical demographics cannot necessarily be regenerated because the privacy design already purged raw responses after verified report storage.
+This archival presentation change is a deliberate privacy tradeoff in the approved release. Historical demographics cannot necessarily be regenerated because the privacy design already purged raw responses after verified report storage.
 
 ## QA commands and results
 
-All checks used synthetic fixtures and local resources. No production participant data was read, no real response was submitted, no wave was closed, and no payment/email or storage write was made.
+Pre-release checks use synthetic fixtures and local resources. No real response is submitted, no wave is closed, and no payment/email or production database write is made. Post-release verification uses the reserved non-saving participant demo and public read-only resources.
 
 | Command/check | Result |
 | --- | --- |
@@ -63,17 +63,18 @@ All checks used synthetic fixtures and local resources. No production participan
 | `npx tsx script/render-short-qa.ts` | Mixed, short-only and small-cohort church/debrief/comment PDF scenarios passed |
 | `python3 script/render-dennis-qa.py` | 38-page production-bridge synthetic PDF and explanation checks passed |
 | `python3 -m unittest discover -s server/report-engine/tests -p 'test_*.py'` | 24 tests passed, including 8 new demographic cases, 5 comment-privacy tests, 6 Dennis regressions and 5 archived-report/framework tests |
-| Playwright `runBrowserQa(browser)` from `script/regional-demographics-browser-qa.mjs` against local Vite | Four complete flows passed: Canada/full desktop; US/short mobile; UK/short reserved demo mobile; failed-display International/full/all-skipped desktop. Zero page errors or horizontal overflow; demo sent zero POSTs. Other submissions were intercepted fixtures only. |
-| Desktop/mobile screenshots and synthetic PDF pages | Inspected; long labels, skip actions, threshold display and withheld-state layouts are readable |
+| Playwright `runBrowserQa(browser)` from `script/regional-demographics-browser-qa.mjs` against the local production bundle | Four complete flows passed: Canada/full desktop; US/short mobile; UK/short reserved demo mobile; failed-display International/full desktop. Required selections on all nine screens, backward retention, non-disclosure exclusivity, and no location persistence passed. Zero page errors or horizontal overflow. The reserved demo sent no POST; other requests were intercepted fixtures only. |
+| Desktop/mobile screenshots and synthetic PDF pages | Required controls and privacy wording reviewed alongside existing threshold and withheld-state layouts |
 | `git diff --check` | Passed |
 
-Run the focused core suite with `npm run test:demographics`. The Python PDF suite needs the existing report-engine requirements installed. For the browser suite, run Vite locally and call the exported `runBrowserQa` with a Playwright Chromium browser; the test intercepts every API request. Reuse the same browser harness for screenshots.
+Run the focused core suite with `npm run test:demographics`. The Python PDF suite needs the existing report-engine requirements installed. For the browser suite, serve `dist/public` locally and call the exported `runBrowserQa` with a Playwright Chromium browser; the test intercepts every API request. Reuse the same browser harness for screenshots.
 
 ## Release boundary and limitations
 
 - No migration is required. Historical response rows, stored reports and retention logic remain unchanged.
 - Production PostgreSQL and actual Cloudflare-to-Render forwarding were not exercised. HTTP storage assertions use a mocked transaction boundary, not a live database integration test.
 - Existing archived comments PDFs are not rewritten or recalled. This package is not a claim of complete anonymization or legal compliance; regional legal review and any wider comments-policy changes remain separate.
-- The downloaded paper questionnaire is unchanged; operational entry guidance reflects voluntary demographics, but redesigned regional paper forms are a separate deliverable.
-- Before branch publication, GitHub reported zero Actions workflows and webhooks. Render was read-only verified to track `master`, with pull-request previews disabled. No deployment operation was performed.
-- Merge and deployment remain explicitly unauthorized. Before any later release, recheck branch freshness, conflicts and deployment settings.
+- The downloaded paper questionnaire is unchanged; operational entry guidance preserves required demographics, but redesigned regional paper forms are a separate deliverable.
+- Render tracks `master`, with pull-request previews disabled. Release uses the existing service; no proxy, DNS, marketing-site or service-setting changes are included.
+- The 10-person floor is retained for all demographic topics, including sensitive items, rather than weakening protection on the other topics. No new demographic cross-tabulation is added.
+- Deployment IDs, final commit and live-check results will be recorded in the release record after verification.
