@@ -7,9 +7,10 @@ import { MaturityQuestion } from "./MaturityQuestion";
 import { ItemQuestion } from "./ItemQuestion";
 import { ChangeQuestion } from "./ChangeQuestion";
 import { DemographicQuestion } from "./DemographicQuestion";
-import { SURVEY_ITEMS } from "@shared/surveyItems";
+import { isShortForm, surveyItemsFor, retainedAnswers } from "@shared/shortForm";
+import { Report } from "./Report";
 import { DEMOGRAPHICS, MATURITY_OPTIONS_PRE, MATURITY_OPTIONS_POST } from "@shared/questions";
-import { emptyState, TOTAL_STEPS, TOTAL_ITEM_STEPS, type SurveyState } from "@/lib/surveyState";
+import { emptyState, type SurveyState } from "@/lib/surveyState";
 import { apiRequest } from "@/lib/queryClient";
 import { isParticipantDemoCode, PARTICIPANT_DEMO_META } from "@shared/participantDemo";
 
@@ -51,6 +52,9 @@ function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) 
   const [comment, setComment] = useState("");
   const [meta, setMeta] = useState<{ waveLabel: string; churchName: string } | null>(isDemo ? PARTICIPANT_DEMO_META : null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const surveyItems = surveyItemsFor(state.preMaturity);
+  const TOTAL_ITEM_STEPS = surveyItems.length;
+  const TOTAL_STEPS = TOTAL_ITEM_STEPS + 3 + DEMOGRAPHICS.length;
 
   useEffect(() => {
     if (isDemo) return;
@@ -103,7 +107,7 @@ function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) 
     setSubmitError(null);
     try {
       const items: Record<string, number> = {};
-      for (const item of SURVEY_ITEMS) {
+      for (const item of surveyItems) {
         if (typeof state.items[item.code] === "number") items[item.code] = state.items[item.code];
       }
       await apiRequest("POST", "/api/responses", {
@@ -190,7 +194,7 @@ function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) 
         title="Which of the following statements best describes where you are now in your faith journey with Jesus?"
         options={MATURITY_OPTIONS_PRE}
         value={state.preMaturity}
-        onChange={(v) => setState((s) => ({ ...s, preMaturity: v }))}
+        onChange={(v) => setState((s) => ({ ...s, preMaturity: v, items: retainedAnswers(s.items, v) }))}
         onNext={() => setScreen("item-0")}
         progress={progressFor(screen)}
         testIdPrefix="pre-maturity"
@@ -200,7 +204,7 @@ function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) 
 
   if (screen.startsWith("item-")) {
     const idx = Number(screen.split("-")[1]);
-    const item = SURVEY_ITEMS[idx];
+    const item = surveyItems[idx];
     return (
       <ItemQuestion
         key={item.code}
@@ -208,7 +212,7 @@ function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) 
         value={state.items[item.code]}
         onChange={(v) => setState((s) => ({ ...s, items: { ...s.items, [item.code]: v } }))}
         onNext={() => {
-          if (idx + 1 < SURVEY_ITEMS.length) setScreen(`item-${idx + 1}`);
+          if (idx + 1 < surveyItems.length) setScreen(`item-${idx + 1}`);
           else setScreen("post-maturity");
         }}
         onBack={() => {
@@ -217,7 +221,7 @@ function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) 
         }}
         progress={progressFor(screen)}
         itemNumber={idx + 1}
-        totalItems={SURVEY_ITEMS.length}
+        totalItems={surveyItems.length}
       />
     );
   }
@@ -230,7 +234,7 @@ function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) 
         value={state.postMaturity}
         onChange={(v) => setState((s) => ({ ...s, postMaturity: v }))}
         onNext={() => setScreen("change")}
-        onBack={() => setScreen(`item-${SURVEY_ITEMS.length - 1}`)}
+        onBack={() => setScreen(`item-${surveyItems.length - 1}`)}
         showBack
         progress={progressFor(screen)}
         testIdPrefix="post-maturity"
@@ -299,6 +303,12 @@ function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) 
         </div>
       </div>
     );
+  }
+
+  if (!isDemo && isShortForm(state.preMaturity)) {
+    return <Report items={state.items} preMaturity={state.preMaturity}
+      postMaturity={state.postMaturity} change={state.change}
+      onRestart={() => { setState(emptyState()); setComment(""); setLocation("/"); }} />;
   }
 
   return (

@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from "recharts";
 import type { WaveAggregateSummary } from "@shared/aggregate";
+import { CohortReportView } from "./CohortReportView";
 
 const GOAL_COLORS: Record<string, string> = {
   "Trusting Jesus": "hsl(200 45% 42%)",
@@ -21,6 +22,7 @@ function formatKey(key: string): string {
 }
 
 export function WaveReportView({ summary, churchName }: { summary: WaveAggregateSummary; churchName: string }) {
+  if (summary.cohortReporting) return <CohortReportView report={summary.cohortReporting} />;
   const chartData = summary.pathwayAverages.map((p) => ({
     name: `P${p.num}`,
     fullName: p.name,

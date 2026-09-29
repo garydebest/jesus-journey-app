@@ -350,10 +350,15 @@ export class DatabaseStorage implements IStorage {
       .from(responses).where(eq(responses.waveId, waveId)).groupBy(responses.gender);
     const age = await db.select({ label: responses.ageGroup, count: sql<number>`count(*)::int` })
       .from(responses).where(eq(responses.waveId, waveId)).groupBy(responses.ageGroup);
+    const suppressed = {
+      gender: gender.some(group => group.count < 5),
+      age: age.some(group => group.count < 5),
+    };
     return {
       total: gender.reduce((sum, group) => sum + group.count, 0),
-      gender: gender.map((group) => ({ ...group, label: group.label ?? "Not provided" })),
-      age: age.map((group) => ({ ...group, label: group.label ?? "Not provided" })),
+      suppressed,
+      gender: suppressed.gender ? [] : gender.map((group) => ({ ...group, label: group.label ?? "Not provided" })),
+      age: suppressed.age ? [] : age.map((group) => ({ ...group, label: group.label ?? "Not provided" })),
     };
   }
 

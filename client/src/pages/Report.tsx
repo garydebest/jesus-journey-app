@@ -4,6 +4,8 @@ import { JJLogo } from "@/lib/logo";
 import { PATHWAYS, ITEM_BULLETS, GOALS } from "@shared/pathways";
 import { computePathwayScores, computeGoalScores, itemIsStrength, type ItemResponses } from "@shared/scoring";
 import { MATURITY_LABELS } from "@shared/questions";
+import { isShortForm, SHORT_FORM_NOTE } from "@shared/shortForm";
+import { ShortReportSections } from "@/components/ShortReportSections";
 import {
   BarChart,
   Bar,
@@ -51,8 +53,9 @@ export function Report({
   change?: number;
   onRestart: () => void;
 }) {
-  const pathwayScores = computePathwayScores(items);
-  const goalScores = computeGoalScores(pathwayScores);
+  const short = isShortForm(preMaturity);
+  const pathwayScores = short ? [] : computePathwayScores(items);
+  const goalScores = short ? {} : computeGoalScores(pathwayScores);
 
   const chartData = pathwayScores.map((p) => ({
     name: `P${p.num}`,
@@ -64,9 +67,9 @@ export function Report({
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border print:hidden">
-        <div className="max-w-3xl mx-auto px-4 py-6 flex items-center gap-3">
+        <div className="max-w-3xl mx-auto px-4 py-6 flex flex-wrap items-center gap-3">
           <JJLogo className="h-8 w-8" />
-          <div className="flex-1">
+          <div className="flex-1 min-w-[220px]">
             <h1 className="text-lg font-semibold" data-testid="text-report-title">
               Your Jesus Journey — Individual Report
             </h1>
@@ -108,7 +111,7 @@ export function Report({
 
       <main className="max-w-3xl mx-auto px-4 py-8 space-y-10">
         {/* Maturity summary */}
-        {(preMaturity || postMaturity || change) && (
+        {!short && (preMaturity || postMaturity || change) && (
           <section className="grid grid-cols-1 sm:grid-cols-3 gap-4" data-testid="section-maturity-summary">
             {preMaturity && (
               <div className="rounded-lg border border-border p-4">
@@ -166,13 +169,13 @@ export function Report({
             simply to serve and encourage you toward Jesus' never ending invitation to live your life
             really and fully!
           </p>
-          <p className="text-sm text-muted-foreground leading-relaxed" data-testid="text-report-intro">
+          {short ? <p className="text-sm text-muted-foreground leading-relaxed" data-testid="text-short-form-note">{SHORT_FORM_NOTE}</p> : <p className="text-sm text-muted-foreground leading-relaxed" data-testid="text-report-intro">
             For each Goal, we measure progress along four Pathways. Pathways are means through which
             your Journey of Faith can be helped to move forward. Below you'll see a chart with your
             average score for each Pathway, colored by Goal. Further down, each Pathway is broken
             into individual statements. A green dot marks a Strength to Celebrate,
             and an orange dot marks an Opportunity to Explore.
-          </p>
+          </p>}
           <p className="text-sm text-muted-foreground leading-relaxed" data-testid="text-report-god-note">
             As you will notice, we repeatedly reference God in these reports. That is not a mistake.
             As we get to know Jesus, and become more like Jesus, we will increasingly enjoy the same
@@ -181,6 +184,7 @@ export function Report({
           </p>
         </section>
 
+        {short ? <ShortReportSections items={items} /> : <>
         {/* Chart */}
         <section data-testid="section-pathway-chart">
           <h2 className="text-base font-semibold mb-4">Your 16 Pathways</h2>
@@ -304,6 +308,8 @@ export function Report({
             })}
           </section>
         ))}
+
+        </>}
 
         {/* Where Do I Go From Here */}
         <section

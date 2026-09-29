@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import type { DebriefingReport } from "@shared/debriefing/types";
 import { buildDebriefingPresentation, type Finding, type PairedTopic } from "@shared/debriefing/presentation";
+import { CohortReportView } from "./CohortReportView";
 
 function Findings({ items, kind }: { items: Finding[]; kind: "strength" | "opportunity" }) {
   return <div className="min-w-0 p-4 space-y-3">
@@ -33,10 +34,11 @@ export function DebriefingReportView({ report }: { report: DebriefingReport }) {
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0"><h2 className="font-semibold text-lg">{report.churchName}</h2>
         <p className="text-muted-foreground mt-1">{report.waveLabel}</p>
-        <p className="text-xs text-muted-foreground mt-1">{report.respondentCount} respondents · generated {new Date(report.generatedAt).toLocaleDateString()}</p>
+        <p className="text-xs text-muted-foreground mt-1">{report.analysisSuppressed ? "Analysis withheld" : `${report.respondentCount} respondents${report.analysisScope ? " in the full-survey analysis" : ""}`} · generated {new Date(report.generatedAt).toLocaleDateString()}</p>
       </div>
       <Badge variant="outline">Admin only · internal use</Badge>
     </div>
+    {report.analysisScope && <p className="rounded-lg border p-4" data-testid="debrief-analysis-scope">{report.analysisScope}</p>}
     {model.sections.map(s => <section key={s.id} className="space-y-4" aria-labelledby={`debrief-${s.id}`}>
       <div className="border-b border-border pb-2">
         <h3 id={`debrief-${s.id}`} className="text-base font-semibold">{s.title}</h3>
@@ -56,6 +58,7 @@ export function DebriefingReportView({ report }: { report: DebriefingReport }) {
       </div>)}
       {s.notes.map((note, i) => <p key={i} className="text-xs leading-relaxed text-muted-foreground">{note}</p>)}
     </section>)}
+    {report.cohortReporting && <CohortReportView report={report.cohortReporting} />}
     <section className="border-t border-border pt-4 space-y-2">
       <h3 className="font-semibold">Data notes and caveats</h3>
       {model.notes.map((note, i) => <p key={i} className="text-xs leading-relaxed text-muted-foreground">{note}</p>)}

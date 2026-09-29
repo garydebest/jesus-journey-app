@@ -95,6 +95,9 @@ export interface BeliefPracticeGap {
 }
 
 export interface DebriefingReport {
+  cohortReporting?: import("../cohortReporting").CohortReporting;
+  analysisScope?: string;
+  analysisSuppressed?: boolean;
   waveId: string;
   churchId: string;
   churchName: string;

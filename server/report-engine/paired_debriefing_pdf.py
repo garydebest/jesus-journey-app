@@ -30,9 +30,11 @@ def build_paired_debriefing_pdf(out_path, report):
     story = [
         p(report.get("churchName", ""), "title"),
         p("Debriefing report • Paired findings", "section"),
-        p(f'{report.get("waveLabel", "")} • {report.get("respondentCount", 0)} respondents', "small"),
+        p(f'{report.get("waveLabel", "")} • ' + ("Analysis withheld" if report.get("analysisSuppressed") else f'{report.get("respondentCount", 0)} respondents' + (" in full-survey analysis" if report.get("analysisScope") else "")), "small"),
         p(f'Analysis generated: {str(report.get("generatedAt", ""))[:10]} • Layout: {model["version"]}', "small"),
     ]
+    if report.get("analysisScope"):
+        story.append(p(report["analysisScope"]))
     for section in model["sections"]:
         if section["id"].startswith("goal-"):
             story.append(CondPageBreak(180))
@@ -90,6 +92,11 @@ def build_paired_debriefing_pdf(out_path, report):
             story.extend([t, Spacer(1, 10)])
         for note in section["notes"]:
             story.append(p(note, "small"))
+    if report.get("cohortReporting"):
+        from cohort_report import cohort_story
+        from reportlab.platypus import PageBreak
+        story.extend([PageBreak(), p("Separate survey-version results", "section")])
+        story.extend(cohort_story(report["cohortReporting"]))
     story.append(p("Data notes and caveats", "section"))
     story.extend(p(note, "small") for note in model["notes"])
 
