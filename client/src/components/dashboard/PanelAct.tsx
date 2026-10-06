@@ -1,8 +1,11 @@
 import { ACT_STEPS } from "@/lib/dashboardContent";
 import { FullDoc } from "./FullDoc";
 import { FULL_DOCS } from "@/lib/reportGuidance";
+import type { WaveWithMeta } from "./PanelYourSurveys";
+import { BookingButton } from "@/lib/booking";
+import { GrowthPlanCard } from "@/components/journey/GrowthPlanCard";
 
-export function PanelAct() {
+export function PanelAct({ latestReport = null, isDemo = false, token = null }: { latestReport?: WaveWithMeta | null; isDemo?: boolean; token?: string | null } = {}) {
   return (
     <div className="space-y-6">
       <div>
@@ -10,6 +13,17 @@ export function PanelAct() {
         <p className="mt-1 text-sm text-muted-foreground">
           Fostering positive change after the survey — from a first read of the report to a strategic plan.
         </p>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <section className="rounded-lg border border-primary/30 bg-primary/5 p-5 space-y-3" aria-labelledby="act-debrief-heading" data-testid="act-debrief">
+          <h2 id="act-debrief-heading" className="font-serif text-lg font-semibold">Begin with your results debrief</h2>
+          <p className="text-sm text-muted-foreground leading-relaxed">Your survey purchase includes a facilitated results debrief with your leadership team. We help you understand the major themes, celebrate strengths, explore growth opportunities with care, and identify appropriate next steps before you plan wider action.</p>
+          {latestReport?.debriefCompletedAt ? <p className="text-sm font-medium" role="status">Your results debrief is complete.</p>
+            : latestReport?.debriefBookedAt ? <p className="text-sm font-medium" role="status">Your results debrief is booked.</p>
+            : latestReport ? <BookingButton kind="debrief" disabled={isDemo} />
+            : <p className="text-sm text-muted-foreground">Booking opens when your reports are ready.</p>}
+        </section>
+        <GrowthPlanCard isDemo={isDemo} token={token} hasReports={!!latestReport} />
       </div>
       <ol className="space-y-6">
         {ACT_STEPS.map((step) => (

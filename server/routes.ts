@@ -1,7 +1,10 @@
 import type { Express, Request } from "express";
 import type { Server } from "node:http";
 import bcrypt from "bcryptjs";
-import { storage } from "./storage";
+import { storage, OrientationRequiredError, ORIENTATION_REQUIRED_MESSAGE } from "./storage";
+import { bookingConfig } from "./journeyConfig";
+import { onWavePaid, onOrientationCompleted, onSurveyActivated, onReportsReady, onDebriefCompleted, onGrowthPlanInterest, runJourneySweep, adminResend, RESENDABLE } from "./journey";
+import { EMAIL_TYPE_LABELS, type ClientEmailType } from "./journeyTemplates";
 import { insertChurchSchema, insertWaveSchema, updateChurchContactSchema, ITEM_CODES, requiredResponsesForClose } from "@shared/schema";
 import { TIMELINE_PHASES, computeTimelineDates, defaultClosesAt } from "@shared/timeline";
 import { buildTimelineIcs } from "./ics";
@@ -142,6 +145,25 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   });
 
   // -------------------------------------------------------------------
+  // Phase 1 booking configuration (public, non-secret). URLs come only from
+  // deploy-time environment variables; null means "show the fallback".
+  // -------------------------------------------------------------------
+  app.get("/api/config/booking", (_req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(bookingConfig());
+  });
+
+  // Separate paid Growth Plan: interest only in Phase 1 (no purchase flow).
+  app.post("/api/churches/growth-plan-interest", requireChurchAuth, async (req: AuthedRequest, res) => {
+    if (isDemoChurch(req.churchId!) || req.isPublicDemo) return res.status(403).json({ message: "The Grace demo is read-only." });
+    const optIn = req.body?.optIn === true;
+    const church = await storage.setGrowthPlanInterest(req.churchId!, optIn);
+    if (!church) return res.status(404).json({ message: "Church not found" });
+    void onGrowthPlanInterest(church.id);
+    res.json({ church: sanitizeChurch(church) });
+  });
+
+  // -------------------------------------------------------------------
   // Pricing (public)
   // -------------------------------------------------------------------
   app.get("/api/pricing", (req, res) => {
@@ -212,6 +234,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       const session = await retrieveCheckoutSession(wave.stripeCheckoutSessionId);
       if (session.payment_status === "paid") {
         const updated = await storage.markWavePaid(wave.id, session.payment_intent ?? undefined);
+        void onWavePaid(wave.id);
         return res.json({ wave: sanitizeWave(updated) });
       }
       res.json({ wave: sanitizeWave(wave), checkoutUrl: session.status === "open" ? session.url : null });
@@ -291,13 +314,18 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     const parsed = surveyPlanSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid plan" });
     if (!parsed.data.opensAt || !parsed.data.closesAt) return res.status(400).json({ message: "Set both a start date and a planned closing date." });
+    if (wave.status === "not_started" && !wave.orientationCompletedAt) {
+      return res.status(403).json({ message: ORIENTATION_REQUIRED_MESSAGE, code: "ORIENTATION_REQUIRED" });
+    }
     if (wave.status === "not_started" && parsed.data.closesAt < new Date().toISOString().slice(0, 10)) {
       return res.status(400).json({ message: "Choose a closing date that has not already passed." });
     }
     try {
       const updated = await storage.confirmWavePlan(wave.id, req.churchId!, parsed.data);
+      if (wave.status === "not_started") void onSurveyActivated(wave.id);
       res.json({ wave: sanitizeWave(updated) });
     } catch (error: any) {
+      if (error instanceof OrientationRequiredError) return res.status(403).json({ message: error.message, code: error.code });
       res.status(409).json({ message: error.message });
     }
   });
@@ -453,7 +481,9 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     }
     if (!acceptsResponses(wave)) return res.status(403).json({ message: "Payment and start-date confirmation are required before closing." });
     try {
-      res.json(await closeSurvey(wave.id));
+      const closed = await closeSurvey(wave.id);
+      void onReportsReady(wave.id); // only after verified reports were committed
+      res.json(closed);
     } catch (err) {
       if (err instanceof SurveyCloseError) return res.status(err.status).json({ message: err.message, code: err.code });
       throw err;
@@ -686,7 +716,9 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     if (!acceptsResponses(wave)) return res.status(409).json({ message: "Only an activated paid survey can be force closed." });
     if (wave.status === "closed") return res.status(409).json({ message: "Already closed" });
     try {
-      res.json(await closeSurvey(wave.id, true));
+      const closed = await closeSurvey(wave.id, true);
+      void onReportsReady(wave.id);
+      res.json(closed);
     } catch (err) {
       if (err instanceof SurveyCloseError) return res.status(err.status).json({ message: err.message, code: err.code });
       throw err;
@@ -725,6 +757,64 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", 'attachment; filename="Comments-Report.pdf"');
     res.send(pdfBuffer);
+  });
+
+  // Phase 1 facilitator controls. Booking dates are informational; only an
+  // authorized admin marking orientation complete unlocks activation.
+  const journeySchema = z.object({
+    orientationBookedAt: calendarDate.nullable().optional(),
+    orientationCompleted: z.boolean().optional(),
+    debriefBookedAt: calendarDate.nullable().optional(),
+    debriefCompleted: z.boolean().optional(),
+  });
+  app.patch("/api/admin/waves/:id/journey", requireAdminAuth, async (req, res) => {
+    const wave = await storage.getWaveById(String(req.params.id));
+    if (!wave) return res.status(404).json({ message: "Wave not found" });
+    if (isDemoChurch(wave.churchId)) return res.status(403).json({ message: "The shared demo is read-only." });
+    if (wave.paymentStatus !== "paid") return res.status(409).json({ message: "Only a paid survey has an orientation and debrief." });
+    const parsed = journeySchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid update" });
+    const p = parsed.data;
+    const update: Parameters<typeof storage.updateWaveJourney>[1] = {};
+    if (p.orientationBookedAt !== undefined) update.orientationBookedAt = p.orientationBookedAt;
+    if (p.orientationCompleted === true && !wave.orientationCompletedAt) {
+      if (wave.status === "closed") return res.status(409).json({ message: "This survey is already closed." });
+      update.orientationCompletedAt = new Date();
+    }
+    if (p.orientationCompleted === false && wave.orientationCompletedAt) {
+      if (wave.status !== "not_started") return res.status(409).json({ message: "Orientation cannot be undone after the survey has been activated." });
+      update.orientationCompletedAt = null;
+    }
+    if (p.debriefBookedAt !== undefined) update.debriefBookedAt = p.debriefBookedAt;
+    if (p.debriefCompleted !== undefined) {
+      if (wave.status !== "closed") return res.status(409).json({ message: "The results debrief follows survey closure." });
+      update.debriefCompletedAt = p.debriefCompleted ? (wave.debriefCompletedAt ?? new Date()) : null;
+    }
+    const updated = await storage.updateWaveJourney(wave.id, update);
+    if (update.orientationCompletedAt) void onOrientationCompleted(wave.id);
+    if (update.debriefCompletedAt && !wave.debriefCompletedAt) void onDebriefCompleted(wave.id);
+    res.json({ wave: sanitizeWave(updated) });
+  });
+
+  app.get("/api/admin/waves/:id/emails", requireAdminAuth, async (req, res) => {
+    const events = await storage.getEmailEventsByWave(String(req.params.id));
+    res.json({
+      events: events.map((e) => ({ ...e, label: (EMAIL_TYPE_LABELS as Record<string, string>)[e.eventType] ?? e.eventType })),
+      resendable: RESENDABLE.map((type) => ({ type, label: EMAIL_TYPE_LABELS[type] })),
+    });
+  });
+
+  app.post("/api/admin/waves/:id/emails/resend", requireAdminAuth, async (req, res) => {
+    const type = String(req.body?.eventType ?? "") as ClientEmailType;
+    if (!RESENDABLE.includes(type)) return res.status(400).json({ message: "This message cannot be resent manually." });
+    const wave = await storage.getWaveById(String(req.params.id));
+    if (!wave) return res.status(404).json({ message: "Wave not found" });
+    if (isDemoChurch(wave.churchId)) return res.status(403).json({ message: "The shared demo is read-only." });
+    try {
+      res.json({ outcomes: await adminResend(type, wave.id) });
+    } catch (err: any) {
+      res.status(409).json({ message: err?.message ?? "Could not resend" });
+    }
   });
 
   // Admin-only internal analysis report — never exposed to church accounts.
@@ -785,6 +875,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
           if (wave && wave.paymentStatus !== "paid") {
             await storage.markWavePaid(wave.id, session.payment_intent ?? undefined);
           }
+          if (wave) void onWavePaid(wave.id); // idempotent: sends at most once per survey
         }
       }
       // checkout.session.expired / async_payment_failed: leave the wave in
@@ -807,7 +898,9 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     }
     try {
       const result = await runReminderSweep();
-      res.json(result);
+      let journey: Awaited<ReturnType<typeof runJourneySweep>> | { error: string };
+      try { journey = await runJourneySweep(); } catch (err: any) { journey = { error: String(err?.message ?? err) }; }
+      res.json({ ...result, journey });
     } catch (err: any) {
       console.error("Reminder sweep error:", err?.message ?? err);
       res.status(500).json({ message: "Reminder sweep failed" });

@@ -13,16 +13,32 @@ const SMTP_PORT = Number(process.env.ZOHO_SMTP_PORT || 465);
 const SMTP_USER = process.env.ZOHO_SMTP_USER; // e.g. admin@jesusjourney.life
 const SMTP_PASS = process.env.ZOHO_SMTP_PASS; // Zoho app-specific password
 const FROM_ADDRESS = process.env.ZOHO_FROM_ADDRESS || SMTP_USER;
-const FROM_NAME = process.env.ZOHO_FROM_NAME || "Jesus Journey Survey";
+const FROM_NAME = process.env.ZOHO_FROM_NAME || "Jesus Journey";
+const REPLY_TO = process.env.ZOHO_REPLY_TO || FROM_ADDRESS;
 
 let transporter: ReturnType<typeof nodemailer.createTransport> | null = null;
 
+// Local QA only: captures messages in memory instead of sending. Ignored in production.
+const TEST_OUTBOX = process.env.NODE_ENV !== "production" && process.env.MAILER_TEST_OUTBOX === "1";
+export const testOutbox: SendEmailArgs[] = [];
+let testFailures = new Set<string>();
+export function setTestMailFailures(addresses: string[]) { testFailures = new Set(addresses.map((a) => a.toLowerCase())); }
+
 export function isMailerConfigured(): boolean {
-  return !!(SMTP_USER && SMTP_PASS);
+  return TEST_OUTBOX || !!(SMTP_USER && SMTP_PASS);
 }
 
 function getTransporter() {
   if (!isMailerConfigured()) return null;
+  if (TEST_OUTBOX) {
+    return {
+      sendMail: async (m: any) => {
+        if (testFailures.has(String(m.to).toLowerCase())) throw new Error("Synthetic delivery failure");
+        testOutbox.push({ to: m.to, subject: m.subject, html: m.html, text: m.text });
+        return { messageId: `test-${testOutbox.length}` };
+      },
+    } as unknown as ReturnType<typeof nodemailer.createTransport>;
+  }
   if (!transporter) {
     transporter = nodemailer.createTransport({
       host: SMTP_HOST,
@@ -41,6 +57,33 @@ export interface SendEmailArgs {
   text: string;
 }
 
+export interface SendEmailResult {
+  status: "sent" | "failed" | "skipped";
+  messageId?: string | null;
+  error?: string | null;
+}
+
+/** Like sendEmail, but reports the outcome for the email audit log. Never throws. */
+export async function sendEmailDetailed(args: SendEmailArgs): Promise<SendEmailResult> {
+  const t = getTransporter();
+  if (!t) return { status: "skipped", error: "Mailer is not configured" };
+  try {
+    const info = await t.sendMail({
+      from: `"${FROM_NAME}" <${FROM_ADDRESS}>`,
+      replyTo: REPLY_TO,
+      to: args.to,
+      subject: args.subject,
+      html: args.html,
+      text: args.text,
+    });
+    return { status: "sent", messageId: info?.messageId ?? null };
+  } catch (err: any) {
+    // Never log message bodies; they can contain church details.
+    console.error(`[mailer] Failed to send "${args.subject}":`, err?.message ?? err);
+    return { status: "failed", error: String(err?.message ?? err) };
+  }
+}
+
 /**
  * Sends an email via Zoho SMTP. Returns true on success, false if mailer
  * isn't configured (env vars missing) or sending failed — callers should
@@ -55,6 +98,7 @@ export async function sendEmail(args: SendEmailArgs): Promise<boolean> {
   try {
     await t.sendMail({
       from: `"${FROM_NAME}" <${FROM_ADDRESS}>`,
+      replyTo: REPLY_TO,
       to: args.to,
       subject: args.subject,
       html: args.html,

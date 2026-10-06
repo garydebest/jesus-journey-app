@@ -12,6 +12,12 @@ export interface ChurchAccount {
   primaryContactEmail: string;
   primaryContactPhone: string | null;
   region: string | null;
+  surveyCoordinatorName?: string | null;
+  surveyCoordinatorEmail?: string | null;
+  leadPastorName?: string | null;
+  leadPastorEmail?: string | null;
+  leadPastorReceivesResults?: boolean;
+  growthPlanInterestAt?: string | null;
 }
 
 interface ChurchAuthState {

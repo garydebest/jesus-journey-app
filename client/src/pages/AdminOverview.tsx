@@ -11,6 +11,7 @@ import { DebriefingReportView } from "@/components/DebriefingReportView";
 import { useAdminAuth, adminApiRequest, adminApiRequestBlob } from "@/lib/adminAuth";
 import type { WaveAggregateSummary } from "@shared/aggregate";
 import type { DebriefingReport } from "@shared/debriefing/types";
+import { AdminJourneyPanel, journeyBadge, type AdminJourneyWave } from "@/components/journey/AdminJourneyPanel";
 
 interface AdminChurch {
   isDemo?: boolean;
@@ -22,6 +23,9 @@ interface AdminChurch {
   primaryContactPhone: string | null;
   region: string | null;
   createdAt: string;
+  surveyCoordinatorName?: string | null;
+  surveyCoordinatorEmail?: string | null;
+  growthPlanInterestAt?: string | null;
 }
 
 interface AdminWaveEntry {
@@ -39,6 +43,11 @@ interface AdminWaveEntry {
     closesAt?: string | null;
     closedAt?: string | null;
     createdAt?: string;
+    orientationBookedAt?: string | null;
+    orientationCompletedAt?: string | null;
+    activatedAt?: string | null;
+    debriefBookedAt?: string | null;
+    debriefCompletedAt?: string | null;
   };
   responseCount: number;
   hasReport: boolean;
@@ -353,7 +362,11 @@ export function AdminOverview() {
                           </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant={entry.wave.status === "closed" ? "secondary" : "default"}>{entry.wave.status === "not_started" && entry.wave.paymentStatus === "paid" ? "Paid · awaiting confirmation" : entry.wave.status.replaceAll("_", " ")}</Badge>
+                          <Badge variant={entry.wave.status === "closed" ? "secondary" : "default"}>{entry.wave.status === "not_started" && entry.wave.paymentStatus === "paid" ? journeyBadge(entry.wave) : entry.wave.status.replaceAll("_", " ")}</Badge>
+                          {entry.wave.status === "closed" && journeyBadge(entry.wave) && <Badge variant="outline" data-testid={`badge-debrief-${entry.wave.id}`}>{journeyBadge(entry.wave)}</Badge>}
+                          {entry.wave.paymentStatus === "paid" && (
+                            <Button size="sm" variant="outline" onClick={() => { setDetailChurch(church); setDetailWaveEntry(entry); }} data-testid={`button-admin-journey-${entry.wave.id}`}>Journey</Button>
+                          )}
                           {entry.wave.paymentStatus && (
                             <Badge variant={entry.wave.paymentStatus === "paid" ? "outline" : "destructive"} data-testid={`badge-payment-${entry.wave.id}`}>
                               {entry.wave.paymentStatus}
@@ -483,7 +496,7 @@ export function AdminOverview() {
           }
         }}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{detailChurch?.name} — {detailWaveEntry?.wave.label}</DialogTitle>
           </DialogHeader>
@@ -503,7 +516,7 @@ export function AdminOverview() {
                 <span className="text-muted-foreground">Start date</span>
                 <span>
                   {detailWaveEntry.wave.opensAt
-                    ? new Date(detailWaveEntry.wave.opensAt).toLocaleDateString()
+                    ? new Date(detailWaveEntry.wave.opensAt.slice(0, 10) + "T12:00:00").toLocaleDateString()
                     : detailWaveEntry.wave.createdAt
                       ? new Date(detailWaveEntry.wave.createdAt).toLocaleDateString()
                       : "—"}
@@ -523,9 +536,23 @@ export function AdminOverview() {
                 <span>
                   {detailWaveEntry.wave.status === "closed"
                     ? (detailWaveEntry.wave.closedAt ? new Date(detailWaveEntry.wave.closedAt).toLocaleDateString() : "—")
-                    : (detailWaveEntry.wave.closesAt ? new Date(detailWaveEntry.wave.closesAt).toLocaleDateString() : "Not set")}
+                    : (detailWaveEntry.wave.closesAt ? new Date(detailWaveEntry.wave.closesAt.slice(0, 10) + "T12:00:00").toLocaleDateString() : "Not set")}
                 </span>
               </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-muted-foreground">Survey Coordinator</span>
+                <span className="text-right">{detailChurch?.surveyCoordinatorEmail ? `${detailChurch.surveyCoordinatorName ?? ""} ${detailChurch.surveyCoordinatorEmail}` : "Not named"}</span>
+              </div>
+              {detailChurch?.growthPlanInterestAt && <p className="text-xs">Growth Plan interest registered {new Date(detailChurch.growthPlanInterestAt).toLocaleDateString()}.</p>}
+              {token && detailChurch && (
+                <AdminJourneyPanel key={detailWaveEntry.wave.id} token={token} churchName={detailChurch.name} isDemo={!!detailChurch.isDemo}
+                  wave={detailWaveEntry.wave as AdminJourneyWave}
+                  onChanged={(w) => {
+                    const merged = { ...detailWaveEntry, wave: { ...detailWaveEntry.wave, ...w } };
+                    setDetailWaveEntry(merged);
+                    setGroups((gs) => gs.map((g) => ({ ...g, waves: g.waves.map((e) => e.wave.id === w.id ? merged : e) })));
+                  }} />
+              )}
             </div>
           )}
         </DialogContent>

@@ -71,7 +71,7 @@ export const COLLECT_CARDS: InfoCard[] = [
     icon: "monitoring",
     title: "Monitoring & readiness",
     body: "Target a 50% response rate — the denominator is total people invited, not just those who started. Watch subgroups (gender, age band) for gaps.",
-    note: "Reports unlock once you hit your end date and the 50% minimum — whichever comes later.",
+    note: "Your survey remains open until your church deliberately closes it. You can close once you have reached at least 50% participation and are ready to generate your reports.",
     fullDocIndexes: [4, 5],
   },
   {

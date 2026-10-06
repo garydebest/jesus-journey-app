@@ -14,6 +14,8 @@ import {
   surveyTimelinePhases,
   debriefingReports,
   legacySnapshots,
+  churchEmailEvents,
+  type ChurchEmailEvent,
   type Church,
   type InsertChurch,
   type SurveyWave,
@@ -138,6 +140,35 @@ export function ensureBootstrapped(): Promise<void> {
       await ensureColumn("survey_waves", "stripe_checkout_session_id", "stripe_checkout_session_id TEXT");
       await ensureColumn("survey_waves", "stripe_payment_intent_id", "stripe_payment_intent_id TEXT");
       await ensureColumn("survey_waves", "paid_at", "paid_at TEXT");
+      // Phase 1 client journey (additive, nullable or defaulted).
+      await ensureColumn("churches", "survey_coordinator_name", "survey_coordinator_name TEXT");
+      await ensureColumn("churches", "survey_coordinator_email", "survey_coordinator_email TEXT");
+      await ensureColumn("churches", "lead_pastor_name", "lead_pastor_name TEXT");
+      await ensureColumn("churches", "lead_pastor_email", "lead_pastor_email TEXT");
+      await ensureColumn("churches", "lead_pastor_receives_results", "lead_pastor_receives_results BOOLEAN NOT NULL DEFAULT false");
+      await ensureColumn("churches", "growth_plan_interest_at", "growth_plan_interest_at TIMESTAMPTZ");
+      await ensureColumn("churches", "email_opt_in_growth_plan", "email_opt_in_growth_plan BOOLEAN NOT NULL DEFAULT false");
+      await ensureColumn("survey_waves", "orientation_booked_at", "orientation_booked_at TEXT");
+      await ensureColumn("survey_waves", "orientation_completed_at", "orientation_completed_at TIMESTAMPTZ");
+      await ensureColumn("survey_waves", "activated_at", "activated_at TIMESTAMPTZ");
+      await ensureColumn("survey_waves", "debrief_booked_at", "debrief_booked_at TEXT");
+      await ensureColumn("survey_waves", "debrief_completed_at", "debrief_completed_at TIMESTAMPTZ");
+      await pool.query(`CREATE TABLE IF NOT EXISTS church_email_events (
+        id TEXT PRIMARY KEY,
+        church_id TEXT NOT NULL REFERENCES churches(id),
+        wave_id TEXT REFERENCES survey_waves(id),
+        event_type TEXT NOT NULL,
+        recipient_email TEXT NOT NULL,
+        recipient_role TEXT NOT NULL,
+        status TEXT NOT NULL,
+        provider_message_id TEXT,
+        sent_at TIMESTAMPTZ,
+        error_message TEXT,
+        idempotency_key TEXT NOT NULL UNIQUE,
+        triggered_by TEXT NOT NULL DEFAULT 'system',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS church_email_events_wave_idx ON church_email_events (wave_id)`);
     })();
   }
   return bootstrapped;
@@ -148,6 +179,19 @@ function genCode(len = 4): string {
   let out = "";
   for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
   return out;
+}
+
+export const ORIENTATION_REQUIRED_MESSAGE = "Your survey has been purchased. Please complete your required Jesus Journey Survey Orientation before activating your participant code.";
+export class OrientationRequiredError extends Error {
+  code = "ORIENTATION_REQUIRED";
+  constructor() { super(ORIENTATION_REQUIRED_MESSAGE); }
+}
+
+export interface WaveJourneyUpdate {
+  orientationBookedAt?: string | null;
+  orientationCompletedAt?: Date | null;
+  debriefBookedAt?: string | null;
+  debriefCompletedAt?: Date | null;
 }
 
 export interface IStorage {
@@ -175,6 +219,14 @@ export interface IStorage {
   saveChurchPlan(churchId: string, plan: SurveyPlan): Promise<void>;
   confirmWavePlan(waveId: string, churchId: string, plan: SurveyPlan): Promise<SurveyWave>;
   getResponseBreakdown(waveId: string): Promise<ResponseBreakdown>;
+  updateWaveJourney(id: string, data: WaveJourneyUpdate): Promise<SurveyWave | undefined>;
+  setGrowthPlanInterest(churchId: string, optIn: boolean): Promise<Church | undefined>;
+
+  // Client-journey email audit
+  claimEmailEvent(data: { churchId: string; waveId: string | null; eventType: string; recipientEmail: string; recipientRole: string; idempotencyKey: string; triggeredBy: string }): Promise<ChurchEmailEvent | undefined>;
+  finishEmailEvent(id: string, result: { status: "sent" | "failed" | "skipped"; providerMessageId?: string | null; errorMessage?: string | null }): Promise<void>;
+  getEmailEventsByWave(waveId: string): Promise<ChurchEmailEvent[]>;
+  getEmailEventsByChurch(churchId: string): Promise<ChurchEmailEvent[]>;
 
   // Survey Action Plan (timeline) phase overrides
   getTimelinePhaseOverrides(waveId: string): Promise<SurveyTimelinePhase[]>;
@@ -249,6 +301,11 @@ export class DatabaseStorage implements IStorage {
     if (data.primaryContactEmail !== undefined) updates.primaryContactEmail = data.primaryContactEmail.toLowerCase();
     if (data.primaryContactPhone !== undefined) updates.primaryContactPhone = data.primaryContactPhone || null;
     if (data.region !== undefined) updates.region = data.region || null;
+    if (data.surveyCoordinatorName !== undefined) updates.surveyCoordinatorName = data.surveyCoordinatorName || null;
+    if (data.surveyCoordinatorEmail !== undefined) updates.surveyCoordinatorEmail = data.surveyCoordinatorEmail ? data.surveyCoordinatorEmail.toLowerCase() : null;
+    if (data.leadPastorName !== undefined) updates.leadPastorName = data.leadPastorName || null;
+    if (data.leadPastorEmail !== undefined) updates.leadPastorEmail = data.leadPastorEmail ? data.leadPastorEmail.toLowerCase() : null;
+    if (data.leadPastorReceivesResults !== undefined) updates.leadPastorReceivesResults = data.leadPastorReceivesResults;
     if (Object.keys(updates).length === 0) return this.getChurchById(id);
     const rows = await db.update(churches).set(updates).where(eq(churches.id, id)).returning();
     return rows[0];
@@ -324,10 +381,14 @@ export class DatabaseStorage implements IStorage {
       const [wave] = await tx.select().from(surveyWaves)
         .where(and(eq(surveyWaves.id, waveId), eq(surveyWaves.churchId, churchId))).for("update");
       if (!wave || wave.paymentStatus !== "paid" || wave.status === "closed") throw new Error("This survey cannot be activated.");
+      // Phase 1 required-orientation gate, enforced under the wave lock so no
+      // client or direct API call can activate an un-oriented survey.
+      if (wave.status === "not_started" && !wave.orientationCompletedAt) throw new OrientationRequiredError();
       const [{ total }] = await tx.select({ total: sql<number>`count(*)::int` }).from(responses).where(eq(responses.waveId, waveId));
       if (total > 0 && plan.minSampleSize !== wave.minSampleSize) throw new Error("The adult total is locked after the first response.");
       const [updated] = await tx.update(surveyWaves).set({
         opensAt: plan.opensAt, closesAt: plan.closesAt, minSampleSize: plan.minSampleSize, status: "live",
+        ...(wave.activatedAt ? {} : { activatedAt: new Date() }),
       }).where(eq(surveyWaves.id, waveId)).returning();
       const existing = await tx.select().from(surveyTimelinePhases).where(eq(surveyTimelinePhases.waveId, waveId));
       for (const phase of existing) {
@@ -342,6 +403,55 @@ export class DatabaseStorage implements IStorage {
       await tx.update(churches).set({ surveyPlanJson: null }).where(eq(churches.id, churchId));
       return updated;
     });
+  }
+
+  async updateWaveJourney(id: string, data: WaveJourneyUpdate): Promise<SurveyWave | undefined> {
+    const updates: Partial<typeof surveyWaves.$inferInsert> = {};
+    for (const key of ["orientationBookedAt", "orientationCompletedAt", "debriefBookedAt", "debriefCompletedAt"] as const) {
+      if (data[key] !== undefined) (updates as any)[key] = data[key];
+    }
+    if (Object.keys(updates).length === 0) return this.getWaveById(id);
+    const rows = await db.update(surveyWaves).set(updates).where(eq(surveyWaves.id, id)).returning();
+    return rows[0];
+  }
+
+  async setGrowthPlanInterest(churchId: string, optIn: boolean): Promise<Church | undefined> {
+    const rows = await db.update(churches).set({ growthPlanInterestAt: new Date(), emailOptInGrowthPlan: optIn })
+      .where(eq(churches.id, churchId)).returning();
+    return rows[0];
+  }
+
+  /**
+   * Atomically claims an idempotency key. Returns the row to send with, or
+   * undefined if this exact message was already sent or is in flight. Failed
+   * and skipped attempts may be re-claimed by a later sweep.
+   */
+  async claimEmailEvent(data: { churchId: string; waveId: string | null; eventType: string; recipientEmail: string; recipientRole: string; idempotencyKey: string; triggeredBy: string }): Promise<ChurchEmailEvent | undefined> {
+    const inserted = await db.insert(churchEmailEvents).values({ id: randomUUID(), status: "sending", ...data })
+      .onConflictDoNothing({ target: churchEmailEvents.idempotencyKey }).returning();
+    if (inserted[0]) return inserted[0];
+    const retried = await db.update(churchEmailEvents)
+      .set({ status: "sending", errorMessage: null, recipientEmail: data.recipientEmail })
+      .where(and(eq(churchEmailEvents.idempotencyKey, data.idempotencyKey), sql`${churchEmailEvents.status} in ('failed','skipped')`))
+      .returning();
+    return retried[0];
+  }
+
+  async finishEmailEvent(id: string, result: { status: "sent" | "failed" | "skipped"; providerMessageId?: string | null; errorMessage?: string | null }): Promise<void> {
+    await db.update(churchEmailEvents).set({
+      status: result.status,
+      providerMessageId: result.providerMessageId ?? null,
+      errorMessage: result.errorMessage ? result.errorMessage.slice(0, 500) : null,
+      sentAt: new Date(),
+    }).where(eq(churchEmailEvents.id, id));
+  }
+
+  async getEmailEventsByWave(waveId: string): Promise<ChurchEmailEvent[]> {
+    return db.select().from(churchEmailEvents).where(eq(churchEmailEvents.waveId, waveId)).orderBy(desc(churchEmailEvents.createdAt));
+  }
+
+  async getEmailEventsByChurch(churchId: string): Promise<ChurchEmailEvent[]> {
+    return db.select().from(churchEmailEvents).where(eq(churchEmailEvents.churchId, churchId)).orderBy(desc(churchEmailEvents.createdAt));
   }
 
   async getResponseBreakdown(waveId: string): Promise<ResponseBreakdown> {

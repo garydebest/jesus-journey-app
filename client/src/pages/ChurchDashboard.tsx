@@ -47,7 +47,24 @@ export function ChurchDashboard() {
   const [reportWave, setReportWave] = useState<WaveWithMeta | null>(null);
   const [reportSummary, setReportSummary] = useState<WaveAggregateSummary | null>(null);
   const [reportError, setReportError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<string>("your-surveys");
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    // Email deep links use #/dashboard?tab=collect. The tab survives the
+    // sign-in redirect through sessionStorage when available.
+    const fromHash = new URLSearchParams(window.location.hash.split("?")[1] ?? "").get("tab");
+    let stored: string | null = null;
+    try { stored = sessionStorage.getItem("jj-dashboard-tab"); sessionStorage.removeItem("jj-dashboard-tab"); } catch {}
+    const tab = fromHash ?? stored;
+    return TABS.some((t) => t.value === tab) ? tab! : "your-surveys";
+  });
+
+  const navigateTo = useCallback((tab: string, anchorId?: string) => {
+    setActiveTab(tab);
+    window.setTimeout(() => {
+      const el = anchorId ? document.getElementById(anchorId) : null;
+      if (el) { el.scrollIntoView({ behavior: "smooth", block: "start" }); (el as HTMLElement).focus?.({ preventScroll: true }); }
+      else window.scrollTo({ top: 0, behavior: "smooth" });
+    }, 60);
+  }, []);
 
   const [label, setLabel] = useState("");
   const [minSample, setMinSample] = useState("16");
@@ -79,6 +96,8 @@ export function ChurchDashboard() {
 
   useEffect(() => {
     if (!token) {
+      const tab = new URLSearchParams(window.location.hash.split("?")[1] ?? "").get("tab");
+      if (tab) { try { sessionStorage.setItem("jj-dashboard-tab", tab); } catch {} }
       setLocation("/church");
       return;
     }
@@ -99,7 +118,10 @@ export function ChurchDashboard() {
     const params = new URLSearchParams(window.location.hash.split("?")[1] ?? "");
     const checkout = params.get("checkout");
     const waveId = params.get("wave");
-    if (!checkout) return;
+    if (!checkout) {
+      if (params.get("tab")) window.history.replaceState(null, "", window.location.pathname + window.location.hash.split("?")[0]);
+      return;
+    }
 
     // Clear the query params from the URL so a refresh doesn't re-trigger this.
     window.history.replaceState(null, "", window.location.pathname + window.location.hash.split("?")[0]);
@@ -114,7 +136,7 @@ export function ChurchDashboard() {
         .then((res) => res.json())
         .then((json) => {
           if (json.wave?.paymentStatus === "paid") {
-            setCheckoutBanner({ kind: "success", message: "Payment received. Review your action plan and confirm the start date to activate your new survey code." });
+            setCheckoutBanner({ kind: "success", message: "Payment received. Your next step is to book your required Survey Orientation. Your participant code activates after the orientation is complete." });
           } else {
             setCheckoutBanner({ kind: "pending", message: "We're still confirming your payment with Stripe. Refresh shortly if the survey does not show as paid and awaiting confirmation." });
           }
@@ -240,6 +262,9 @@ export function ChurchDashboard() {
   }
 
   if (!church) return null;
+  const currentWave = waves.find((w) => w.paymentStatus === "paid" && w.status !== "closed") ?? null;
+  const latestClosed = waves.filter((w) => w.status === "closed" && w.snapshot)
+    .sort((a, b) => (Date.parse(b.closedAt ?? "") || 0) - (Date.parse(a.closedAt ?? "") || 0))[0] ?? null;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -418,12 +443,13 @@ export function ChurchDashboard() {
               onViewReport={handleViewReport}
               onAbandonPending={handleAbandonPending}
               onDatesChanged={loadWaves}
+              onNavigate={navigateTo}
             />
           </TabsContent>
-          <TabsContent value="prepare" className="pt-6"><PanelPrepare /></TabsContent>
+          <TabsContent value="prepare" className="pt-6"><PanelPrepare church={church} currentWave={currentWave} isDemo={!!church.isDemo} onOpenSettings={() => setLocation("/settings")} /></TabsContent>
           <TabsContent value="collect" className="pt-6"><PanelCollect /></TabsContent>
-          <TabsContent value="interpret" className="pt-6"><PanelInterpret /></TabsContent>
-          <TabsContent value="act" className="pt-6"><PanelAct /></TabsContent>
+          <TabsContent value="interpret" className="pt-6"><PanelInterpret latestReport={latestClosed} isDemo={!!church.isDemo} /></TabsContent>
+          <TabsContent value="act" className="pt-6"><PanelAct latestReport={latestClosed} isDemo={!!church.isDemo} token={token} /></TabsContent>
           <TabsContent value="resources" className="pt-6"><PanelResources /></TabsContent>
         </Tabs>
       </main>
