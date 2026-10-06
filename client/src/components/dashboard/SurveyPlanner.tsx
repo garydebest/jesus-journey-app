@@ -47,7 +47,7 @@ export function SurveyPlanner({ token, wave, isDemo = false, demoPlan, onChanged
       try {
         let next = emptySurveyPlan();
         if (isDemo) {
-          next = { ...next, ...demoPlan, minSampleSize: 50, opensAt: wave?.opensAt ?? demoPlan?.opensAt ?? "", closesAt: wave?.closesAt ?? demoPlan?.closesAt ?? "" };
+          next = { ...next, ...demoPlan, minSampleSize: 120, opensAt: wave?.opensAt ?? demoPlan?.opensAt ?? "", closesAt: wave?.closesAt ?? demoPlan?.closesAt ?? "" };
         } else if (active && wave) {
           const data = await (await churchApiRequest(token, "GET", `/api/waves/${wave.id}/timeline`)).json();
           next = {
@@ -143,7 +143,7 @@ export function SurveyPlanner({ token, wave, isDemo = false, demoPlan, onChanged
       <p className="text-xs text-muted-foreground">
         Changing the start date proposes a new two-week collection period. Individual adjustments stay as you set them.
         The adult total is locked after the first response; the closing action unlocks at 50%.
-        {isDemo && " This demonstration uses 50 attendees."}
+        {isDemo && " This demonstration uses 120 attendees."}
       </p>
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" onClick={() => setExpanded(!expanded)} aria-expanded={expanded} data-testid="button-action-plan">

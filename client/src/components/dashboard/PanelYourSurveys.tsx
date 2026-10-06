@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { churchApiRequest } from "@/lib/churchAuth";
 import { SurveyPlanner, readableError } from "./SurveyPlanner";
 import { defaultClosesAt } from "@shared/timeline";
-import type { ResponseBreakdown, SurveyPlan } from "@shared/surveyAccess";
+import { BREAKDOWN_TOPICS, type ResponseBreakdown, type SurveyPlan } from "@shared/surveyAccess";
 import { safeDemographicCounts, DEMOGRAPHIC_MIN_N } from "@shared/demographicPolicy";
 import { NextStepPanel, deriveJourneyState } from "@/components/journey/NextStepPanel";
 
@@ -31,13 +31,37 @@ interface Props {
   onNavigate?: (tab: string, anchorId?: string) => void;
 }
 const ageLabels = ["16-19", "20-29", "30-39", "40-49", "50-59", "60 and older"];
+
+// Simulated Grace Fellowship practice survey: 120 adults aged 16+, so the 50%
+// target is 60. Every count below is invented demo data.
+const DEMO_ADULTS = 120;
+const DEMO_LIVE_COUNT = 40;
+const DEMO_TARGET_COUNT = 64;
+const DEMO_COUNTS_LIVE: Record<string, Record<string, number>> = {
+  gender: { Male: 17, Female: 23 },
+  age: { "16-19": 3, "20-29": 6, "30-39": 7, "40-49": 9, "50-59": 7, "60 and older": 8 }, // withheld: small groups
+  relationship: { "Independent single": 10, Married: 30 },
+  attendance: { "Every week": 24, "A few times/month": 16 },
+  tenure: { "Less than 1 year": 4, "1-2 years": 6, "3-5 years": 9, "6-10 years": 8, "11 or more years": 13 }, // withheld
+  smallGroup: { "Every week": 14, "A few times/month": 12, "Infrequently or never": 14 },
+  volunteer: { "Every week": 11, "A few times/month": 9, Monthly: 6, "Infrequently or never": 14 }, // withheld
+};
+const DEMO_COUNTS_TARGET: Record<string, Record<string, number>> = {
+  gender: { Male: 28, Female: 36 },
+  age: { "16-19": 10, "20-29": 10, "30-39": 10, "40-49": 12, "50-59": 10, "60 and older": 12 },
+  relationship: { "Independent single": 12, Married: 42, Divorced: 10 },
+  attendance: { "Every week": 34, "A few times/month": 20, Monthly: 10 },
+  tenure: { "Less than 1 year": 10, "1-2 years": 10, "3-5 years": 14, "6-10 years": 12, "11 or more years": 18 },
+  smallGroup: { "Every week": 22, "A few times/month": 12, Monthly: 10, "Infrequently or never": 20 },
+  volunteer: { "Every week": 18, "A few times/month": 16, Monthly: 10, "Infrequently or never": 20 },
+};
 const today = () => new Date().toLocaleDateString("en-CA");
 const displayDate = (date?: string | null) => date ? new Date(date.slice(0, 10) + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "Not set";
 
 export function PanelYourSurveys(props: Props) {
   const { token, waves, loading, isDemo = false, onDatesChanged = () => {} } = props;
   const [demoMode, setDemoMode] = useState("live");
-  const [demoDates, setDemoDates] = useState<SurveyPlan>({ opensAt: today(), closesAt: defaultClosesAt(today()), minSampleSize: 50, overrides: {} });
+  const [demoDates, setDemoDates] = useState<SurveyPlan>({ opensAt: today(), closesAt: defaultClosesAt(today()), minSampleSize: DEMO_ADULTS, overrides: {} });
   const [breakdown, setBreakdown] = useState<ResponseBreakdown | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [closeOpen, setCloseOpen] = useState(false);
@@ -50,7 +74,7 @@ export function PanelYourSurveys(props: Props) {
   const earlierSurveys = closedWaves.filter((w) => w.id !== latestReport?.id);
   const purchased = waves.find((w) => w.paymentStatus === "paid" && w.status !== "closed") ?? null;
   const pending = waves.filter((w) => w.paymentStatus !== "paid" && w.status !== "closed");
-  const demoCount = demoMode === "target" ? 25 : demoMode === "live" ? 18 : 0;
+  const demoCount = demoMode === "target" ? DEMO_TARGET_COUNT : demoMode === "live" ? DEMO_LIVE_COUNT : 0;
   const demoWave: WaveWithMeta = { id: "grace-practice", label: "Grace Fellowship practice survey", joinCode: "DEMO ONLY",
     status: demoMode === "planning" ? "not_started" : "live", paymentStatus: "paid",
     orientationCompletedAt: new Date().toISOString(), // the demo simulates a church that has completed orientation
@@ -79,19 +103,16 @@ export function PanelYourSurveys(props: Props) {
 
   // The demo runs its simulated counts through the same 10-person policy the
   // server applies to real surveys, so it never shows a group the live
-  // breakdown would withhold (e.g. Female 10 of 18 would reveal Male 8).
-  const demoRaw = {
-    gender: [{ label: "Male", count: demoCount === 25 ? 12 : demoCount === 18 ? 8 : 0 }, { label: "Female", count: demoCount === 25 ? 13 : demoCount === 18 ? 10 : 0 }],
-    age: ageLabels.map((label, i) => ({ label, count: demoCount === 25 ? [2, 4, 5, 5, 4, 5][i] : demoCount === 18 ? [1, 3, 4, 3, 3, 4][i] : 0 })),
-  };
-  const demoSafe = (rows: { label: string; count: number }[]) => Object.entries(safeDemographicCounts(Object.fromEntries(rows.map(r => [r.label, r.count])), demoCount)).map(([label, count]) => ({ label, count }));
-  const demoGender = demoSafe(demoRaw.gender), demoAge = demoSafe(demoRaw.age);
-  const demoBreakdown: ResponseBreakdown = {
-    total: demoCount,
-    suppressed: { gender: !demoGender.length, age: !demoAge.length },
-    gender: demoGender,
-    age: demoAge,
-  };
+  // breakdown would withhold. At 40 responses some topics are withheld (as in
+  // a real church); at the 50% target every topic can be shown.
+  const demoRaw = demoMode === "target" ? DEMO_COUNTS_TARGET : demoMode === "live" ? DEMO_COUNTS_LIVE : null;
+  const demoBreakdown: ResponseBreakdown = { total: demoCount, suppressed: {}, gender: [], age: [] };
+  for (const topic of BREAKDOWN_TOPICS) {
+    const raw = demoRaw?.[topic.key] ?? {};
+    const safe = Object.entries(safeDemographicCounts(raw, demoCount)).map(([label, count]) => ({ label, count }));
+    (demoBreakdown as any)[topic.key] = safe;
+    demoBreakdown.suppressed![topic.key] = !safe.length;
+  }
   const groups = isDemo ? demoBreakdown : breakdown;
   const journeyState = deriveJourneyState({ current, active, reached, latestReport: latestReport ?? null });
   const errors = [props.error, props.closeError, props.downloadError, localError].filter(Boolean);
@@ -142,7 +163,7 @@ export function PanelYourSurveys(props: Props) {
         <Badge variant={active ? "default" : "secondary"}>{isDemo ? "Grace demo" : props.loadError ? "Temporarily unavailable" : loading ? "Loading" : current ? active ? "Live" : current.orientationCompletedAt ? "Paid · ready to activate" : "Paid · orientation required" : "Planning only · purchase required"}</Badge></div>
       {isDemo && <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
         <p className="text-sm"><strong>Grace Fellowship demonstration.</strong> Try the different stages below. Dates, progress and closing are simulated for your visit; no real payments, responses or emails are created.</p>
-        <div className="flex flex-wrap gap-2">{[["unpaid", "Before purchase"], ["planning", "Paid · plan dates"], ["live", "Live · 18 responses"], ["target", "50% reached"]].map(([value, label]) =>
+        <div className="flex flex-wrap gap-2">{[["unpaid", "Before purchase"], ["planning", "Paid · plan dates"], ["live", `Live · ${DEMO_LIVE_COUNT} responses`], ["target", "50% reached"]].map(([value, label]) =>
           <Button key={value} size="sm" variant={demoMode === value ? "default" : "outline"} onClick={() => setDemoMode(value)} aria-pressed={demoMode === value}>{label}</Button>)}</div>
         {demoMode === "closed" && <p role="status" className="text-sm font-medium">Demo survey closed. Your saved sample reports are unchanged.</p>}
       </div>}
@@ -178,13 +199,14 @@ export function PanelYourSurveys(props: Props) {
           </div>
           {showGroups && <div className="rounded-lg border p-4 space-y-4" data-testid="respondent-breakdown">
             <p className="text-sm text-muted-foreground">Breakdown of respondents only, not participation rates within church groups. No individual answers or identities are shown. To protect confidentiality, a breakdown appears only when every group in it has at least {DEMOGRAPHIC_MIN_N} respondents (or none), so no one can work out a smaller group by subtraction.</p>
-            {!groups ? <p role="status">Loading breakdown…</p> : <div className="grid sm:grid-cols-2 gap-6">{[["Gender", ["Male", "Female"], groups.gender], ["Age", ageLabels, groups.age]].map(([heading, labels, rows]: any) =>
-              <div key={heading}><h3 className="text-sm font-semibold mb-2">{heading}</h3>
-                {(groups.suppressed?.[heading === "Gender" ? "gender" : "age"] || !rows.some((r: any) => r.count >= 10 && r.label !== "Prefer not to say")) ? <p className="text-sm text-muted-foreground">Insufficient responses to protect confidentiality</p> : rows.filter((r: any) => r.count >= 10 && r.label !== "Prefer not to say").map(({ label }: { label: string }) => {
-                  const n = rows.find((r: any) => r.label === label)?.count ?? 0;
-                  return <div key={label} className="flex justify-between gap-2 py-1 text-sm"><span>{label}</span><span className="tabular-nums">{n} · {Math.round(n / Math.max(1, groups.total) * 100)}%</span></div>;
-                })}
-              </div>)}</div>}
+            {!groups ? <p role="status">Loading breakdown…</p> : <div className="grid sm:grid-cols-2 gap-6">{BREAKDOWN_TOPICS.filter((topic) => (groups as any)[topic.key] !== undefined).map((topic) => {
+              const rows: { label: string; count: number }[] = (groups as any)[topic.key] ?? [];
+              const shown = topic.options.map((label) => rows.find((r) => r.label === label)).filter((r): r is { label: string; count: number } => !!r && r.count >= DEMOGRAPHIC_MIN_N);
+              return <div key={topic.key} data-testid={`breakdown-${topic.key}`}><h3 className="text-sm font-semibold mb-2">{topic.title}</h3>
+                {(groups.suppressed?.[topic.key] || !shown.length) ? <p className="text-sm text-muted-foreground">Insufficient responses to protect confidentiality</p> : shown.map(({ label, count: n }) =>
+                  <div key={label} className="flex justify-between gap-2 py-1 text-sm"><span>{label}</span><span className="tabular-nums">{n} · {Math.round(n / Math.max(1, groups.total) * 100)}%</span></div>)}
+              </div>;
+            })}</div>}
           </div>}
           <div className="border-t pt-4 space-y-2"><h3 className="text-sm font-semibold">Reports for this survey</h3>
             <div className="flex flex-wrap gap-2"><Button size="sm" disabled>Report summary</Button><Button size="sm" variant="outline" disabled>Church Report (PDF)</Button><Button size="sm" variant="outline" disabled>Comments Report (PDF)</Button></div>
