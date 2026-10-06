@@ -40,6 +40,7 @@ try {
   assert(!report.text.includes("summaryJson"));
   await request(`/api/waves/${DASHBOARD_DEMO_WAVE_ID}/report.pdf`, 404); // Fixture has no stored PDFs.
   await request(`/api/waves/${DASHBOARD_DEMO_WAVE_ID}/comments-report.pdf`, 404);
+  await request(`/api/waves/${DASHBOARD_DEMO_WAVE_ID}/pdf-link?kind=report`, 404);
   await request("/api/waves", 200, "HEAD");
   for (const path of [
     "/api/churches/me", "/api/churches/plan", "/api/admin/churches",

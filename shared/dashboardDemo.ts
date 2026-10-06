@@ -23,6 +23,7 @@ const PUBLIC_DEMO_READ_PATHS = new Set([
   `/api/waves/${DASHBOARD_DEMO_WAVE_ID}/report`,
   `/api/waves/${DASHBOARD_DEMO_WAVE_ID}/report.pdf`,
   `/api/waves/${DASHBOARD_DEMO_WAVE_ID}/comments-report.pdf`,
+  `/api/waves/${DASHBOARD_DEMO_WAVE_ID}/pdf-link`,
 ]);
 
 export function allowsDashboardDemoRequest(method: string, path: string): boolean {

@@ -101,7 +101,7 @@ export function PanelYourSurveys(props: Props) {
       <Button size="sm" onClick={() => props.onViewReport(wave)} disabled={!wave.snapshot}>View report summary</Button>
       <Button size="sm" variant="outline" onClick={() => props.onDownloadReport(wave)} disabled={!(wave.snapshot?.reportPdfPath || wave.snapshot?.hasReportPdf) || props.downloadingId === wave.id}>Church Report (PDF)</Button>
       <Button size="sm" variant="outline" onClick={() => props.onDownloadCommentsReport?.(wave)} disabled={!(wave.snapshot?.commentsReportPdfPath || wave.snapshot?.hasCommentsReportPdf) || props.downloadingId === wave.id}>Comments Report (PDF)</Button>
-      {props.downloadingId === wave.id && <span role="status" className="text-sm">Preparing download…</span>}
+      {props.downloadingId === wave.id && <span role="status" className="text-sm">Opening report…</span>}
     </div>;
   }
 
