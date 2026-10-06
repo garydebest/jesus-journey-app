@@ -19,7 +19,17 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath));
+  app.use(
+    express.static(distPath, {
+      setHeaders(res, filePath) {
+        // Church resource videos: make the download button save the file
+        // rather than open the browser's player. <video> playback ignores this header.
+        if (filePath.includes(`${path.sep}resources${path.sep}video${path.sep}`) && filePath.endsWith(".mp4")) {
+          res.setHeader("Content-Disposition", 'attachment; filename="Jesus-Journey-in-a-Nutshell.mp4"');
+        }
+      },
+    }),
+  );
 
   // fall through to index.html if the file doesn't exist
   app.use("/{*path}", (_req, res) => {
