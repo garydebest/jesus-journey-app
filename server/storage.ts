@@ -456,23 +456,29 @@ export class DatabaseStorage implements IStorage {
 
   async getResponseBreakdown(waveId: string): Promise<ResponseBreakdown> {
     // Counts only, no answers, respondent IDs, timestamps or cross-tabs leave
-    // the server through this endpoint.
-    const gender = await db.select({ label: responses.gender, count: sql<number>`count(*)::int` })
-      .from(responses).where(eq(responses.waveId, waveId)).groupBy(responses.gender);
-    const age = await db.select({ label: responses.ageGroup, count: sql<number>`count(*)::int` })
-      .from(responses).where(eq(responses.waveId, waveId)).groupBy(responses.ageGroup);
-    const total = gender.reduce((sum, group) => sum + group.count, 0);
-    const safe = (groups: typeof gender) => Object.entries(safeDemographicCounts(
-      Object.fromEntries(groups.filter(g => g.label).map(g => [g.label!, g.count])), total
-    )).map(([label, count]) => ({ label, count }));
-    const safeGender = safe(gender), safeAge = safe(age);
-    const suppressed = { gender: !safeGender.length, age: !safeAge.length };
-    return {
-      total,
-      suppressed,
-      gender: safeGender,
-      age: safeAge,
-    };
+    // the server through this endpoint. Every topic goes through the same
+    // 10-person policy independently.
+    const columns = {
+      gender: responses.gender,
+      age: responses.ageGroup,
+      relationship: responses.relationshipStatus,
+      attendance: responses.attendanceFrequency,
+      tenure: responses.tenure,
+      smallGroup: responses.smallGroupFrequency,
+      volunteer: responses.volunteerFrequency,
+    } as const;
+    const [{ total }] = await db.select({ total: sql<number>`count(*)::int` }).from(responses).where(eq(responses.waveId, waveId));
+    const out: any = { total, suppressed: {} };
+    for (const [key, column] of Object.entries(columns)) {
+      const groups = await db.select({ label: column, count: sql<number>`count(*)::int` })
+        .from(responses).where(eq(responses.waveId, waveId)).groupBy(column);
+      const safe = Object.entries(safeDemographicCounts(
+        Object.fromEntries(groups.filter(g => g.label).map(g => [g.label!, g.count])), total,
+      )).map(([label, count]) => ({ label, count }));
+      out[key] = safe;
+      out.suppressed[key] = !safe.length;
+    }
+    return out as ResponseBreakdown;
   }
 
   async setWaveDates(id: string, opensAt: string | null, closesAt: string | null): Promise<SurveyWave | undefined> {

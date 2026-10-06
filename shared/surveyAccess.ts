@@ -31,9 +31,27 @@ export function acceptsResponses(wave: { status: string; paymentStatus: string }
   return wave.paymentStatus === "paid" && ["live", "prep", "closing_soon"].includes(wave.status);
 }
 
+/** Single-select topics shown in the live respondent breakdown, in display order. */
+export const BREAKDOWN_TOPICS = [
+  { key: "gender", title: "Gender", options: ["Male", "Female"] },
+  { key: "age", title: "Age", options: ["16-19", "20-29", "30-39", "40-49", "50-59", "60 and older"] },
+  { key: "relationship", title: "Relationship status", options: ["Independent single", "Single in relationship", "Married", "Married but separated", "Civil legal partnership", "Divorced"] },
+  { key: "attendance", title: "Attendance at church gatherings", options: ["Every week", "A few times/month", "Monthly", "Every few months", "Infrequently or never"] },
+  { key: "tenure", title: "Time involved in this church", options: ["Less than 1 year", "1-2 years", "3-5 years", "6-10 years", "11 or more years"] },
+  { key: "smallGroup", title: "Small group participation", options: ["Every week", "A few times/month", "Monthly", "Every few months", "Infrequently or never"] },
+  { key: "volunteer", title: "Volunteering in ministries", options: ["Every week", "A few times/month", "Monthly", "Every few months", "Infrequently or never"] },
+] as const;
+export type BreakdownTopicKey = (typeof BREAKDOWN_TOPICS)[number]["key"];
+export type BreakdownRows = { label: string; count: number }[];
+
 export interface ResponseBreakdown {
-  suppressed?: { gender: boolean; age: boolean };
+  suppressed?: Partial<Record<BreakdownTopicKey, boolean>>;
   total: number;
-  gender: { label: string; count: number }[];
-  age: { label: string; count: number }[];
+  gender: BreakdownRows;
+  age: BreakdownRows;
+  relationship?: BreakdownRows;
+  attendance?: BreakdownRows;
+  tenure?: BreakdownRows;
+  smallGroup?: BreakdownRows;
+  volunteer?: BreakdownRows;
 }
