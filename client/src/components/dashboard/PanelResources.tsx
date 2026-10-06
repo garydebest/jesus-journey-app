@@ -56,7 +56,7 @@ export function PanelResources() {
                 <DialogContent className="max-w-4xl p-4 sm:p-6">
                   <DialogHeader>
                     <DialogTitle className="font-serif">Jesus Journey in a Nutshell</DialogTitle>
-                    <DialogDescription>Captions are available: turn them on with the CC button in the player.</DialogDescription>
+                    <DialogDescription>Captions are off by default. To turn them on, use the player’s CC button or its ⋮ menu.</DialogDescription>
                   </DialogHeader>
                   <video
                     src={NUTSHELL_VIDEO_URL}
@@ -80,7 +80,7 @@ export function PanelResources() {
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">MP4, 1080p, about 3½ minutes (21 MB). Download it ahead of time so it plays without an internet connection.</p>
             <p className="text-xs text-muted-foreground leading-relaxed" data-testid="text-nutshell-captions">
-              Need captions? Turn on CC when you watch, or{" "}
+              Need captions? Turn them on in the player, or{" "}
               <a href={NUTSHELL_CAPTIONED_URL} download="Jesus-Journey-in-a-Nutshell-captioned.mp4" className="text-primary underline underline-offset-2" data-testid="link-download-nutshell-captioned">
                 download the captioned MP4
               </a>
