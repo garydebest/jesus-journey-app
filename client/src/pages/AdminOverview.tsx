@@ -111,6 +111,7 @@ export function AdminOverview() {
   const [reportSummary, setReportSummary] = useState<WaveAggregateSummary | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [downloadingCommentsId, setDownloadingCommentsId] = useState<string | null>(null);
+  const [downloadingWordcloudId, setDownloadingWordcloudId] = useState<string | null>(null);
   const [downloadingDebriefingId, setDownloadingDebriefingId] = useState<string | null>(null);
   const [debriefingWaveEntry, setDebriefingWaveEntry] = useState<AdminWaveEntry | null>(null);
   const [debriefingReport, setDebriefingReport] = useState<DebriefingReport | null>(null);
@@ -236,6 +237,25 @@ export function AdminOverview() {
       setError(String(err?.message ?? "Comments report is not available."));
     } finally {
       setDownloadingCommentsId(null);
+    }
+  }
+
+  async function handleDownloadCommentsWordcloud(entry: AdminWaveEntry) {
+    setDownloadingWordcloudId(entry.wave.id);
+    try {
+      const blob = await adminApiRequestBlob(token, `/api/admin/waves/${entry.wave.id}/comments-wordcloud.pdf`);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "Comments-Wordcloud.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setError(String(err?.message ?? "Comments wordcloud is not available."));
+    } finally {
+      setDownloadingWordcloudId(null);
     }
   }
 
@@ -404,6 +424,17 @@ export function AdminOverview() {
                                   data-testid={`button-admin-download-comments-${entry.wave.id}`}
                                 >
                                   {downloadingCommentsId === entry.wave.id ? "Preparing..." : "Comments PDF"}
+                                </Button>
+                              )}
+                              {entry.hasCommentsReportPdf && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDownloadCommentsWordcloud(entry)}
+                                  disabled={downloadingWordcloudId === entry.wave.id}
+                                  data-testid={`button-admin-download-wordcloud-${entry.wave.id}`}
+                                >
+                                  {downloadingWordcloudId === entry.wave.id ? "Preparing..." : "Wordcloud PDF"}
                                 </Button>
                               )}
                               {entry.hasDebriefingReport && (

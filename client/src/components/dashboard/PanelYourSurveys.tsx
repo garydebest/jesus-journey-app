@@ -26,7 +26,7 @@ interface Props {
   error: string | null; closeError: string | null; downloadError: string | null;
   closingId: string | null; downloadingId: string | null;
   onStartNew: (plan?: SurveyPlan) => void; onGoToPrepare: () => void; onClose: (id: string) => void;
-  onDownloadReport: (wave: WaveWithMeta) => void; onDownloadCommentsReport?: (wave: WaveWithMeta) => void;
+  onDownloadReport: (wave: WaveWithMeta) => void; onDownloadCommentsReport?: (wave: WaveWithMeta) => void; onDownloadCommentsWordcloud?: (wave: WaveWithMeta) => void;
   onViewReport: (wave: WaveWithMeta) => void; onAbandonPending?: (id: string) => void; onDatesChanged?: () => void;
   onNavigate?: (tab: string, anchorId?: string) => void;
 }
@@ -122,6 +122,7 @@ export function PanelYourSurveys(props: Props) {
       <Button size="sm" onClick={() => props.onViewReport(wave)} disabled={!wave.snapshot}>View report summary</Button>
       <Button size="sm" variant="outline" onClick={() => props.onDownloadReport(wave)} disabled={!(wave.snapshot?.reportPdfPath || wave.snapshot?.hasReportPdf) || props.downloadingId === wave.id}>Church Report (PDF)</Button>
       <Button size="sm" variant="outline" onClick={() => props.onDownloadCommentsReport?.(wave)} disabled={!(wave.snapshot?.commentsReportPdfPath || wave.snapshot?.hasCommentsReportPdf) || props.downloadingId === wave.id}>Comments Report (PDF)</Button>
+      <Button size="sm" variant="outline" onClick={() => props.onDownloadCommentsWordcloud?.(wave)} disabled={!(wave.snapshot?.commentsReportPdfPath || wave.snapshot?.hasCommentsReportPdf) || props.downloadingId === wave.id} data-testid={`button-comments-wordcloud-${wave.id}`}>Comments Wordcloud (PDF)</Button>
       {props.downloadingId === wave.id && <span role="status" className="text-sm">Opening report…</span>}
     </div>;
   }
@@ -176,7 +177,7 @@ export function PanelYourSurveys(props: Props) {
         {!current && <div className="border-t pt-5 space-y-4">
           <div><h3 className="text-sm font-semibold">Sample size target: 50%</h3><p className="mt-1 text-sm text-muted-foreground">Live progress and respondent breakdowns become available for your purchased survey. No responses are being collected now.</p></div>
           <div className="flex flex-wrap gap-2"><Button variant="outline" disabled>Respondent breakdown</Button><Button disabled>Close survey &amp; generate reports</Button></div>
-          <div className="border-t pt-4 space-y-2"><h3 className="text-sm font-semibold">Reports for your next survey</h3><div className="flex flex-wrap gap-2"><Button size="sm" disabled>Report summary</Button><Button size="sm" variant="outline" disabled>Church Report (PDF)</Button><Button size="sm" variant="outline" disabled>Comments Report (PDF)</Button></div><p className="text-xs text-muted-foreground">A purchase and confirmed start date are required for a new survey. Existing reports below remain available.</p></div>
+          <div className="border-t pt-4 space-y-2"><h3 className="text-sm font-semibold">Reports for your next survey</h3><div className="flex flex-wrap gap-2"><Button size="sm" disabled>Report summary</Button><Button size="sm" variant="outline" disabled>Church Report (PDF)</Button><Button size="sm" variant="outline" disabled>Comments Report (PDF)</Button><Button size="sm" variant="outline" disabled>Comments Wordcloud (PDF)</Button></div><p className="text-xs text-muted-foreground">A purchase and confirmed start date are required for a new survey. Existing reports below remain available.</p></div>
         </div>}
         {current && <div className="border-t pt-5 space-y-5">
           <div className="rounded-lg bg-muted/30 p-4 flex flex-wrap justify-between items-center gap-3">
@@ -209,7 +210,7 @@ export function PanelYourSurveys(props: Props) {
             })}</div>}
           </div>}
           <div className="border-t pt-4 space-y-2"><h3 className="text-sm font-semibold">Reports for this survey</h3>
-            <div className="flex flex-wrap gap-2"><Button size="sm" disabled>Report summary</Button><Button size="sm" variant="outline" disabled>Church Report (PDF)</Button><Button size="sm" variant="outline" disabled>Comments Report (PDF)</Button></div>
+            <div className="flex flex-wrap gap-2"><Button size="sm" disabled>Report summary</Button><Button size="sm" variant="outline" disabled>Church Report (PDF)</Button><Button size="sm" variant="outline" disabled>Comments Report (PDF)</Button><Button size="sm" variant="outline" disabled>Comments Wordcloud (PDF)</Button></div>
             <p className="text-xs text-muted-foreground">Available after closing and successful report generation. The latest completed report appears in Your Reports; older surveys appear in Earlier Surveys.</p>
           </div>
         </div>}

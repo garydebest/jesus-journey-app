@@ -37,6 +37,7 @@ import { acceptsResponses, calendarDate, emptySurveyPlan, isDemoChurch, surveyPl
 import { isParticipantDemoCode, PARTICIPANT_DEMO_META } from "@shared/participantDemo";
 import { DASHBOARD_DEMO_WAVE_ID } from "@shared/dashboardDemo";
 import { submitResponseSchema } from "@shared/submission";
+import { getWordcloudPdf } from "./wordcloud";
 import { ethnicityPresetForCountry, encodeEthnicity } from "@shared/demographicPolicy";
 import { projectDemographicSummary } from "@shared/demographicProjection";
 
@@ -648,6 +649,8 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   const PDF_KINDS = {
     report: { filename: "Our-Journey-with-Jesus-Report.pdf", missing: "Full PDF report is not available for this wave" },
     comments: { filename: "Comments-Report.pdf", missing: "Comments report is not available for this wave" },
+    // Derived from the saved Comments Report, so it exists whenever that does.
+    wordcloud: { filename: "Comments-Wordcloud.pdf", missing: "Comments wordcloud is not available for this wave" },
   } as const;
   type PdfKind = keyof typeof PDF_KINDS;
   async function loadChurchPdf(waveId: string, churchId: string | undefined, kind: PdfKind): Promise<Buffer | { status: number; message: string }> {
@@ -656,6 +659,15 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     const snapshot = await storage.getSnapshotByWave(wave.id);
     const path = kind === "report" ? snapshot?.reportPdfPath : snapshot?.commentsReportPdfPath;
     if (!path) return { status: 404, message: PDF_KINDS[kind].missing };
+    if (kind === "wordcloud") {
+      try {
+        const cloud = await getWordcloudPdf(wave.id, path);
+        return cloud ?? { status: 404, message: PDF_KINDS[kind].missing };
+      } catch (err) {
+        console.error("Comments wordcloud failed for wave", wave.id, err);
+        return { status: 500, message: "The comments wordcloud could not be prepared. Please try again." };
+      }
+    }
     const pdfBuffer = await fetchReportPdf(path);
     if (!pdfBuffer) return { status: 404, message: PDF_KINDS[kind].missing };
     return kind === "report" ? await projectChurchPdf(pdfBuffer) : pdfBuffer;
@@ -675,6 +687,10 @@ export async function registerRoutes(httpServer: Server, app: Express) {
 
   app.get("/api/waves/:id/comments-report.pdf", requireChurchAuth, async (req: AuthedRequest, res) => {
     await sendChurchPdf(res, String(req.params.id), req.churchId, "comments", "attachment");
+  });
+
+  app.get("/api/waves/:id/comments-wordcloud.pdf", requireChurchAuth, async (req: AuthedRequest, res) => {
+    await sendChurchPdf(res, String(req.params.id), req.churchId, "wordcloud", "attachment");
   });
 
   // Short-lived view links so a PDF can open in its own browser tab (iPad/iPhone
@@ -833,6 +849,24 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", 'attachment; filename="Our-Journey-with-Jesus-Report.pdf"');
     res.send(await projectChurchPdf(pdfBuffer));
+  });
+
+  app.get("/api/admin/waves/:id/comments-wordcloud.pdf", requireAdminAuth, async (req, res) => {
+    const waveId = String(req.params.id);
+    const snapshot = await storage.getSnapshotByWave(waveId);
+    if (!snapshot?.commentsReportPdfPath) {
+      return res.status(404).json({ message: "Comments wordcloud is not available for this wave" });
+    }
+    try {
+      const pdfBuffer = await getWordcloudPdf(waveId, snapshot.commentsReportPdfPath);
+      if (!pdfBuffer) return res.status(404).json({ message: "Comments wordcloud is not available for this wave" });
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", 'attachment; filename="Comments-Wordcloud.pdf"');
+      res.send(pdfBuffer);
+    } catch (err) {
+      console.error("Comments wordcloud failed for wave", waveId, err);
+      res.status(500).json({ message: "The comments wordcloud could not be prepared." });
+    }
   });
 
   app.get("/api/admin/waves/:id/comments-report.pdf", requireAdminAuth, async (req, res) => {

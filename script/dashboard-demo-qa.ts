@@ -40,12 +40,15 @@ try {
   assert(!report.text.includes("summaryJson"));
   await request(`/api/waves/${DASHBOARD_DEMO_WAVE_ID}/report.pdf`, 404); // Fixture has no stored PDFs.
   await request(`/api/waves/${DASHBOARD_DEMO_WAVE_ID}/comments-report.pdf`, 404);
+  await request(`/api/waves/${DASHBOARD_DEMO_WAVE_ID}/comments-wordcloud.pdf`, 404);
+  await request(`/api/waves/${DASHBOARD_DEMO_WAVE_ID}/pdf-link?kind=wordcloud`, 404);
   await request(`/api/waves/${DASHBOARD_DEMO_WAVE_ID}/pdf-link?kind=report`, 404);
   await request("/api/waves", 200, "HEAD");
   for (const path of [
     "/api/churches/me", "/api/churches/plan", "/api/admin/churches",
     "/api/waves/other-church-wave/report", "/api/waves/other-church-wave/report.pdf",
     "/api/waves/other-church-wave/comments-report.pdf",
+    "/api/waves/other-church-wave/comments-wordcloud.pdf",
     `/api/waves/${DASHBOARD_DEMO_WAVE_ID}/payment-status`,
     `/api/waves/${DASHBOARD_DEMO_WAVE_ID}/participation`,
     `/api/waves/${DASHBOARD_DEMO_WAVE_ID}/timeline`,
