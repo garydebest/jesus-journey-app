@@ -9,7 +9,7 @@ export const PRICING_TIERS: Record<
   SizeTier,
   { label: string; min: number; max: number | null; prices: Record<PricingRegion, number> }
 > = {
-  upto_200:   { label: "200 members or less (16+)", min: 1,    max: 200,  prices: { canada: 599,  usa: 599,  uk: 249, europe: 309, international: 499 } },
+  upto_200:   { label: "200 members or less (16+)", min: 1,    max: 200,  prices: { canada: 499,  usa: 499,  uk: 249, europe: 309, international: 499 } },
   r201_400:   { label: "201–400 members (16+)",     min: 201,  max: 400,  prices: { canada: 799,  usa: 799,  uk: 399, europe: 479, international: 799 } },
   r401_700:   { label: "401–700 members (16+)",     min: 401,  max: 700,  prices: { canada: 999,  usa: 999,  uk: 499, europe: 599, international: 999 } },
   r701_1200:  { label: "701–1200 members (16+)",    min: 701,  max: 1200, prices: { canada: 1199, usa: 1199, uk: 599, europe: 719, international: 1199 } },

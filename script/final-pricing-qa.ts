@@ -8,7 +8,7 @@ import { SIZE_TIERS } from "../shared/schema";
 let n = 0; const check = (name: string, fn: () => void | Promise<void>) => (async () => { await fn(); n++; console.log("PASS", name); })();
 
 const SHEET: Record<string, number[]> = { // Canada, USA, UK, Europe, International — exactly as supplied
-  upto_200: [599, 599, 249, 309, 499], r201_400: [799, 799, 399, 479, 799], r401_700: [999, 999, 499, 599, 999],
+  upto_200: [499, 499, 249, 309, 499], r201_400: [799, 799, 399, 479, 799], r401_700: [999, 999, 499, 599, 999],
   r701_1200: [1199, 1199, 599, 719, 1199], r1201_1500: [1399, 1399, 699, 839, 1399], over_1500: [1599, 1599, 799, 959, 1599],
 };
 await check("all 30 prices match the approved sheet", () => {
@@ -30,7 +30,7 @@ await check("range boundaries", () => {
   for (const [adults, tier] of cases) assert.equal(tierForAdults(adults), tier, String(adults));
 });
 await check("Stripe amounts in cents", () => {
-  assert.equal(priceCentsForTier("upto_200", "canada"), 59900);
+  assert.equal(priceCentsForTier("upto_200", "canada"), 49900);
   assert.equal(priceCentsForTier("upto_200", "international"), 49900);
   assert.equal(priceCentsForTier("over_1500", "uk"), 79900);
   assert.equal(publicPricingList("europe")[2].price, 599); assert.equal(publicPricingList("europe")[2].currency, "eur");
@@ -40,7 +40,7 @@ const base = process.env.QA_BASE_URL;
 if (base) {
   const get = (country: string, origin?: string) => fetch(`${base}/api/pricing`, { headers: { "cf-ipcountry": country, ...(origin ? { origin } : {}) } });
   await check("API prices by visitor country", async () => {
-    for (const [c, region, cur, first] of [["CA", "canada", "cad", 599], ["US", "usa", "usd", 599], ["GB", "uk", "gbp", 249], ["FR", "europe", "eur", 309], ["AU", "international", "cad", 499]] as const) {
+    for (const [c, region, cur, first] of [["CA", "canada", "cad", 499], ["US", "usa", "usd", 499], ["GB", "uk", "gbp", 249], ["FR", "europe", "eur", 309], ["AU", "international", "cad", 499]] as const) {
       const j = await (await get(c)).json();
       assert.equal(j.region, region); assert.equal(j.currency, cur); assert.equal(j.tiers.length, 6); assert.equal(j.tiers[0].price, first);
     }
