@@ -6,6 +6,9 @@ import { FullDoc } from "./FullDoc";
 import { FULL_DOCS } from "@/lib/reportGuidance";
 import { JOURNEY_RESOURCES as R } from "@/lib/journeyResources";
 import { ResourceLinks } from "@/components/journey/ResourceLinks";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+
+const NUTSHELL_VIDEO_URL = "/resources/video/jesus-journey-in-a-nutshell.mp4";
 
 const JOURNEY_GROUPS = [
   { title: "Prepare", items: [R.coordinatorGuide, R.orientationWorksheet, R.leadershipBriefing, R.readinessChecklist] },
@@ -40,8 +43,39 @@ export function PanelResources() {
             <CardTitle className="text-base font-serif">Jesus Journey in a Nutshell</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground leading-relaxed">A short film that introduces the four Goals of the Jesus Journey, for leaders and congregations before launch.</p>
-            <Button variant="outline" size="sm" disabled>Video resource coming soon</Button>
+            <p className="text-sm text-muted-foreground leading-relaxed">Introduce Jesus Journey to your congregation with this short video. Show it during a Sunday service before launching your survey, then follow it with your church’s invitation, participant code, and survey dates.</p>
+            <div className="flex flex-col items-start gap-2">
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="h-auto min-h-9 w-full whitespace-normal py-2 text-center" data-testid="button-watch-nutshell-video">
+                    Watch video
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl p-4 sm:p-6">
+                  <DialogHeader>
+                    <DialogTitle className="font-serif">Jesus Journey in a Nutshell</DialogTitle>
+                    <DialogDescription>Captions and a written transcript are being prepared.</DialogDescription>
+                  </DialogHeader>
+                  <video
+                    src={NUTSHELL_VIDEO_URL}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    className="w-full rounded-md bg-black aspect-video"
+                    data-testid="video-nutshell"
+                  >
+                    Your browser cannot play this video. Use the download button to save the MP4 instead.
+                  </video>
+                </DialogContent>
+              </Dialog>
+              <Button variant="outline" size="sm" className="h-auto min-h-9 w-full whitespace-normal py-2 text-center" asChild>
+                <a href={NUTSHELL_VIDEO_URL} download="Jesus-Journey-in-a-Nutshell.mp4" data-testid="link-download-nutshell-video">
+                  Download video for Sunday service — MP4
+                </a>
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">MP4, 1080p, about 3½ minutes (21 MB). Download it ahead of time so it plays without an internet connection.</p>
+            <p className="text-xs text-muted-foreground leading-relaxed" data-testid="text-nutshell-accessibility">Captions and a written transcript are being prepared.</p>
           </CardContent>
         </Card>
         {RESOURCE_CARDS.map((card) => (
