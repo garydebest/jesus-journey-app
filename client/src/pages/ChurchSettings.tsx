@@ -7,6 +7,75 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { JJBrandLockup } from "@/lib/logo";
 import { useChurchAuth, churchApiRequest } from "@/lib/churchAuth";
+import { friendlyError } from "@/lib/friendlyError";
+
+function ChangePasswordCard({ token, isDemo }: { token: string; isDemo: boolean }) {
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setSaved(false);
+    if (next.length < 8) return setError("New password must be at least 8 characters.");
+    if (next !== confirm) return setError("The two new passwords don't match.");
+    setSaving(true);
+    try {
+      await churchApiRequest(token, "POST", "/api/churches/me/password", { currentPassword: current, newPassword: next });
+      setSaved(true);
+      setCurrent(""); setNext(""); setConfirm("");
+    } catch (err) {
+      setError(friendlyError(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card className="mt-6" data-testid="card-change-password">
+      <CardHeader>
+        <CardTitle className="text-lg">Change password</CardTitle>
+        <CardDescription>Choose a new password for signing in. Other devices signed in to this account will be signed out.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4" data-testid="form-change-password">
+          <div className="space-y-1.5">
+            <Label htmlFor="pw-current">Current password</Label>
+            <Input id="pw-current" type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} required disabled={isDemo} data-testid="input-current-password" />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="pw-new">New password</Label>
+              <Input id="pw-new" type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} required minLength={8} disabled={isDemo} data-testid="input-new-password" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="pw-confirm">Confirm new password</Label>
+              <Input id="pw-confirm" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required disabled={isDemo} data-testid="input-confirm-password" />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground -mt-2">At least 8 characters.</p>
+          {error && (
+            <Alert variant="destructive" data-testid="alert-password-error">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          {saved && !error && (
+            <Alert data-testid="alert-password-saved">
+              <AlertDescription>Your password has been changed.</AlertDescription>
+            </Alert>
+          )}
+          <Button type="submit" disabled={saving || isDemo} data-testid="button-change-password">
+            {saving ? "Saving..." : "Change password"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
 
 export function ChurchSettings() {
   const [, setLocation] = useLocation();
@@ -108,7 +177,7 @@ export function ChurchSettings() {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Contact information</CardTitle>
-            <CardDescription>Your join code and password are managed separately and are not shown here.</CardDescription>
+            <CardDescription>Your join code is managed separately. You can change your password below.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4" data-testid="form-church-settings">
@@ -177,6 +246,8 @@ export function ChurchSettings() {
             </form>
           </CardContent>
         </Card>
+
+        <ChangePasswordCard token={token} isDemo={!!church.isDemo} />
       </main>
     </div>
   );

@@ -9,6 +9,8 @@ import { ResourceLinks } from "@/components/journey/ResourceLinks";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 const NUTSHELL_VIDEO_URL = "/resources/video/jesus-journey-in-a-nutshell.mp4";
+const NUTSHELL_CAPTIONED_URL = "/resources/video/jesus-journey-in-a-nutshell-captioned.mp4";
+const NUTSHELL_CAPTIONS_VTT = "/resources/video/jesus-journey-in-a-nutshell-en.vtt";
 
 const JOURNEY_GROUPS = [
   { title: "Prepare", items: [R.coordinatorGuide, R.orientationWorksheet, R.leadershipBriefing, R.readinessChecklist] },
@@ -54,7 +56,7 @@ export function PanelResources() {
                 <DialogContent className="max-w-4xl p-4 sm:p-6">
                   <DialogHeader>
                     <DialogTitle className="font-serif">Jesus Journey in a Nutshell</DialogTitle>
-                    <DialogDescription>Captions and a written transcript are being prepared.</DialogDescription>
+                    <DialogDescription>Captions are available: turn them on with the CC button in the player.</DialogDescription>
                   </DialogHeader>
                   <video
                     src={NUTSHELL_VIDEO_URL}
@@ -64,6 +66,8 @@ export function PanelResources() {
                     className="w-full rounded-md bg-black aspect-video"
                     data-testid="video-nutshell"
                   >
+                    {/* Selectable English captions, off by default (no `default` attribute). */}
+                    <track kind="captions" src={NUTSHELL_CAPTIONS_VTT} srcLang="en" label="English" />
                     Your browser cannot play this video. Use the download button to save the MP4 instead.
                   </video>
                 </DialogContent>
@@ -75,7 +79,13 @@ export function PanelResources() {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">MP4, 1080p, about 3½ minutes (21 MB). Download it ahead of time so it plays without an internet connection.</p>
-            <p className="text-xs text-muted-foreground leading-relaxed" data-testid="text-nutshell-accessibility">Captions and a written transcript are being prepared.</p>
+            <p className="text-xs text-muted-foreground leading-relaxed" data-testid="text-nutshell-captions">
+              Need captions? Turn on CC when you watch, or{" "}
+              <a href={NUTSHELL_CAPTIONED_URL} download="Jesus-Journey-in-a-Nutshell-captioned.mp4" className="text-primary underline underline-offset-2" data-testid="link-download-nutshell-captioned">
+                download the captioned MP4
+              </a>
+              .
+            </p>
           </CardContent>
         </Card>
         {RESOURCE_CARDS.map((card) => (

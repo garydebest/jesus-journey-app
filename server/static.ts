@@ -25,7 +25,8 @@ export function serveStatic(app: Express) {
         // Church resource videos: make the download button save the file
         // rather than open the browser's player. <video> playback ignores this header.
         if (filePath.includes(`${path.sep}resources${path.sep}video${path.sep}`) && filePath.endsWith(".mp4")) {
-          res.setHeader("Content-Disposition", 'attachment; filename="Jesus-Journey-in-a-Nutshell.mp4"');
+          const name = filePath.endsWith("-captioned.mp4") ? "Jesus-Journey-in-a-Nutshell-captioned.mp4" : "Jesus-Journey-in-a-Nutshell.mp4";
+          res.setHeader("Content-Disposition", `attachment; filename="${name}"`);
         }
       },
     }),

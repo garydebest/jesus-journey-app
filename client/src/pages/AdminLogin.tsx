@@ -9,12 +9,13 @@ import { JJLogo } from "@/lib/logo";
 import { useAdminAuth } from "@/lib/adminAuth";
 
 // Distinct login surface from the church account flow — different URL
-// (/admin/login), different credential (an admin password from an env
-// variable, not a church email/password), and a separate session/token
+// (/admin/login), different credential (an admin username and password from
+// env variables ADMIN_USERNAME, default "admin", and ADMIN_KEY — not a church email/password), and a separate session/token
 // space so admin access can never be confused with a church login.
 export function AdminLogin() {
   const [, setLocation] = useLocation();
   const { token, login } = useAdminAuth();
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -30,7 +31,7 @@ export function AdminLogin() {
     setError(null);
     setLoading(true);
     try {
-      await login(password);
+      await login(username, password);
       // Navigation happens in the effect above once `token` updates.
     } catch (err: any) {
       const msg = String(err?.message ?? err);
@@ -63,14 +64,29 @@ export function AdminLogin() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4" data-testid="form-admin-login">
               <div className="space-y-1.5">
-                <Label htmlFor="admin-password">Admin password</Label>
+                <Label htmlFor="admin-username">Username</Label>
+                <Input
+                  id="admin-username"
+                  type="text"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
+                  autoFocus
+                  data-testid="input-admin-username"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="admin-password">Password</Label>
                 <Input
                   id="admin-password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
                   required
-                  autoFocus
                   data-testid="input-admin-password"
                 />
               </div>
@@ -81,7 +97,7 @@ export function AdminLogin() {
                 </Alert>
               )}
 
-              <Button type="submit" className="w-full" disabled={loading || !password} data-testid="button-admin-login">
+              <Button type="submit" className="w-full" disabled={loading || !username || !password} data-testid="button-admin-login">
                 {loading ? "Signing in..." : "Sign in"}
               </Button>
             </form>
