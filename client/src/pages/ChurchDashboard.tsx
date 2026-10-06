@@ -220,33 +220,40 @@ export function ChurchDashboard() {
   }
 
   async function handleDownloadFullReport(wave: WaveWithMeta) {
-    await downloadWavePdf(wave, `/api/waves/${wave.id}/report.pdf`, "Our-Journey-with-Jesus-Report.pdf", "This survey doesn't have a full PDF report (it may predate this feature).");
+    await openWavePdf(wave, "report", "This survey doesn't have a full PDF report (it may predate this feature).");
   }
 
   async function handleDownloadCommentsReport(wave: WaveWithMeta) {
-    await downloadWavePdf(wave, `/api/waves/${wave.id}/comments-report.pdf`, "Comments-Report.pdf", "This survey doesn't have a comments report (it may predate this feature, or had no written comments).");
+    await openWavePdf(wave, "comments", "This survey doesn't have a comments report (it may predate this feature, or had no written comments).");
   }
 
-  async function downloadWavePdf(wave: WaveWithMeta, path: string, filename: string, notFoundMessage: string) {
+  // Opens the PDF in its own tab so the dashboard (and the demo) stays open
+  // behind it. The tab is opened synchronously on the click so Safari doesn't
+  // treat it as a pop-up, then pointed at a short-lived view link.
+  async function openWavePdf(wave: WaveWithMeta, kind: "report" | "comments", notFoundMessage: string) {
     setDownloadError(null);
     setDownloadingId(wave.id);
+    const tab = window.open("", "_blank");
+    if (tab) {
+      try {
+        tab.document.title = kind === "report" ? "Church Report" : "Comments Report";
+        tab.document.body.innerHTML = '<p style="font-family:system-ui,sans-serif;padding:2rem;color:#444">Opening your report…</p>';
+      } catch { /* ignore */ }
+    }
     try {
-      const res = await churchApiRequest(token, "GET", path);
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      const res = await churchApiRequest(token, "GET", `/api/waves/${wave.id}/pdf-link?kind=${kind}`);
+      const { url } = await res.json();
+      const API_BASE = "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
+      const full = new URL(`${API_BASE}${url}`, window.location.href).toString();
+      if (tab && !tab.closed) tab.location.href = full;
+      else window.location.href = full;
     } catch (err: any) {
+      if (tab && !tab.closed) tab.close();
       const msg = String(err?.message ?? err);
-      if (msg.includes("404")) {
+      if (msg.includes("404") || /not available/i.test(msg)) {
         setDownloadError(notFoundMessage);
       } else {
-        setDownloadError(`Couldn't download the report: ${msg.replace(/^\d+:\s*/, "")}`);
+        setDownloadError(`Couldn't open the report: ${msg.replace(/^\d+:\s*/, "")}`);
       }
     } finally {
       setDownloadingId(null);

@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import type { Express, Request } from "express";
 import type { Server } from "node:http";
 import bcrypt from "bcryptjs";
@@ -642,40 +643,68 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     res.json({ snapshot: { ...safeSnapshot(snapshot), summary: projectDemographicSummary(JSON.parse(snapshot.summaryJson)) } });
   });
 
-  app.get("/api/waves/:id/report.pdf", requireChurchAuth, async (req: AuthedRequest, res) => {
-    const wave = await storage.getWaveById(String(req.params.id));
-    if (!wave || wave.churchId !== req.churchId) {
-      return res.status(404).json({ message: "Wave not found" });
-    }
+  // Church PDFs. Both kinds come from one loader so a button can never be
+  // served the other report.
+  const PDF_KINDS = {
+    report: { filename: "Our-Journey-with-Jesus-Report.pdf", missing: "Full PDF report is not available for this wave" },
+    comments: { filename: "Comments-Report.pdf", missing: "Comments report is not available for this wave" },
+  } as const;
+  type PdfKind = keyof typeof PDF_KINDS;
+  async function loadChurchPdf(waveId: string, churchId: string | undefined, kind: PdfKind): Promise<Buffer | { status: number; message: string }> {
+    const wave = await storage.getWaveById(waveId);
+    if (!wave || wave.churchId !== churchId) return { status: 404, message: "Wave not found" };
     const snapshot = await storage.getSnapshotByWave(wave.id);
-    if (!snapshot?.reportPdfPath) {
-      return res.status(404).json({ message: "Full PDF report is not available for this wave" });
-    }
-    const pdfBuffer = await fetchReportPdf(snapshot.reportPdfPath);
-    if (!pdfBuffer) {
-      return res.status(404).json({ message: "Full PDF report is not available for this wave" });
-    }
+    const path = kind === "report" ? snapshot?.reportPdfPath : snapshot?.commentsReportPdfPath;
+    if (!path) return { status: 404, message: PDF_KINDS[kind].missing };
+    const pdfBuffer = await fetchReportPdf(path);
+    if (!pdfBuffer) return { status: 404, message: PDF_KINDS[kind].missing };
+    return kind === "report" ? await projectChurchPdf(pdfBuffer) : pdfBuffer;
+  }
+  async function sendChurchPdf(res: any, waveId: string, churchId: string | undefined, kind: PdfKind, disposition: "attachment" | "inline") {
+    const result = await loadChurchPdf(waveId, churchId, kind);
+    if (!Buffer.isBuffer(result)) return res.status(result.status).json({ message: result.message });
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", 'attachment; filename="Our-Journey-with-Jesus-Report.pdf"');
-    res.send(await projectChurchPdf(pdfBuffer));
+    res.setHeader("Content-Disposition", `${disposition}; filename="${PDF_KINDS[kind].filename}"`);
+    res.setHeader("Cache-Control", "private, no-store");
+    res.send(result);
+  }
+
+  app.get("/api/waves/:id/report.pdf", requireChurchAuth, async (req: AuthedRequest, res) => {
+    await sendChurchPdf(res, String(req.params.id), req.churchId, "report", "attachment");
   });
 
   app.get("/api/waves/:id/comments-report.pdf", requireChurchAuth, async (req: AuthedRequest, res) => {
-    const wave = await storage.getWaveById(String(req.params.id));
-    if (!wave || wave.churchId !== req.churchId) {
-      return res.status(404).json({ message: "Wave not found" });
-    }
+    await sendChurchPdf(res, String(req.params.id), req.churchId, "comments", "attachment");
+  });
+
+  // Short-lived view links so a PDF can open in its own browser tab (iPad/iPhone
+  // Safari can't show a bearer-token download without leaving the dashboard).
+  // The random token is the only credential; it expires after 10 minutes.
+  const pdfLinks = new Map<string, { waveId: string; churchId: string; kind: PdfKind; expires: number }>();
+  app.get("/api/waves/:id/pdf-link", requireChurchAuth, async (req: AuthedRequest, res) => {
+    const kind = String(req.query.kind ?? "") as PdfKind;
+    if (!(kind in PDF_KINDS)) return res.status(400).json({ message: "Unknown report type" });
+    const waveId = String(req.params.id);
+    const wave = await storage.getWaveById(waveId);
+    if (!wave || wave.churchId !== req.churchId) return res.status(404).json({ message: "Wave not found" });
     const snapshot = await storage.getSnapshotByWave(wave.id);
-    if (!snapshot?.commentsReportPdfPath) {
-      return res.status(404).json({ message: "Comments report is not available for this wave" });
+    if (!(kind === "report" ? snapshot?.reportPdfPath : snapshot?.commentsReportPdfPath)) {
+      return res.status(404).json({ message: PDF_KINDS[kind].missing });
     }
-    const pdfBuffer = await fetchReportPdf(snapshot.commentsReportPdfPath);
-    if (!pdfBuffer) {
-      return res.status(404).json({ message: "Comments report is not available for this wave" });
+    const now = Date.now();
+    for (const [t, v] of Array.from(pdfLinks.entries())) if (v.expires < now) pdfLinks.delete(t);
+    const token = randomBytes(24).toString("base64url");
+    pdfLinks.set(token, { waveId, churchId: req.churchId!, kind, expires: now + 10 * 60 * 1000 });
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json({ url: `/api/pdf/${token}/${PDF_KINDS[kind].filename}` });
+  });
+
+  app.get("/api/pdf/:token/:filename", async (req, res) => {
+    const link = pdfLinks.get(String(req.params.token));
+    if (!link || link.expires < Date.now()) {
+      return res.status(410).type("text/plain").send("This report link has expired. Return to your dashboard and open the report again.");
     }
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", 'attachment; filename="Comments-Report.pdf"');
-    res.send(pdfBuffer);
+    await sendChurchPdf(res, link.waveId, link.churchId, link.kind, "inline");
   });
 
   // -------------------------------------------------------------------
