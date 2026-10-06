@@ -9,11 +9,14 @@ import { churchApiRequest } from "@/lib/churchAuth";
 import { SurveyPlanner, readableError } from "./SurveyPlanner";
 import { defaultClosesAt } from "@shared/timeline";
 import type { ResponseBreakdown, SurveyPlan } from "@shared/surveyAccess";
+import { NextStepPanel, deriveJourneyState } from "@/components/journey/NextStepPanel";
 
 export interface WaveWithMeta {
   id: string; label: string; joinCode: string | null; status: string; paymentStatus?: string;
   minSampleSize: number; opensAt: string | null; closesAt: string | null; closedAt?: string | null;
   responseCount?: number;
+  orientationBookedAt?: string | null; orientationCompletedAt?: string | null; activatedAt?: string | null;
+  debriefBookedAt?: string | null; debriefCompletedAt?: string | null;
   snapshot?: { respondentCount: number; summaryJson?: string; reportPdfPath?: string | null; commentsReportPdfPath?: string | null; hasReportPdf?: boolean; hasCommentsReportPdf?: boolean } | null;
 }
 interface Props {
@@ -24,6 +27,7 @@ interface Props {
   onStartNew: (plan?: SurveyPlan) => void; onGoToPrepare: () => void; onClose: (id: string) => void;
   onDownloadReport: (wave: WaveWithMeta) => void; onDownloadCommentsReport?: (wave: WaveWithMeta) => void;
   onViewReport: (wave: WaveWithMeta) => void; onAbandonPending?: (id: string) => void; onDatesChanged?: () => void;
+  onNavigate?: (tab: string, anchorId?: string) => void;
 }
 const ageLabels = ["16-19", "20-29", "30-39", "40-49", "50-59", "60 and older"];
 const today = () => new Date().toLocaleDateString("en-CA");
@@ -48,6 +52,7 @@ export function PanelYourSurveys(props: Props) {
   const demoCount = demoMode === "target" ? 25 : demoMode === "live" ? 18 : 0;
   const demoWave: WaveWithMeta = { id: "grace-practice", label: "Grace Fellowship practice survey", joinCode: "DEMO ONLY",
     status: demoMode === "planning" ? "not_started" : "live", paymentStatus: "paid",
+    orientationCompletedAt: new Date().toISOString(), // the demo simulates a church that has completed orientation
     ...demoDates, responseCount: demoCount };
   const current = isDemo ? (["unpaid", "closed"].includes(demoMode) ? null : demoWave) : purchased;
   const active = !!current && ["live", "prep", "closing_soon"].includes(current.status);
@@ -77,6 +82,7 @@ export function PanelYourSurveys(props: Props) {
     age: ageLabels.map((label, i) => ({ label, count: demoCount === 25 ? [2, 4, 5, 5, 4, 5][i] : demoCount === 18 ? [1, 3, 4, 3, 3, 4][i] : 0 })),
   };
   const groups = isDemo ? demoBreakdown : breakdown;
+  const journeyState = deriveJourneyState({ current, active, reached, latestReport: latestReport ?? null });
   const errors = [props.error, props.closeError, props.downloadError, localError].filter(Boolean);
 
   function reportButtons(wave: WaveWithMeta) {
@@ -100,6 +106,8 @@ export function PanelYourSurveys(props: Props) {
   }
 
   return <div className="space-y-6">
+    {!loading && !props.loadError && <NextStepPanel state={journeyState} current={current} latestReport={latestReport ?? null} isDemo={isDemo}
+      onNavigate={(tab, anchor) => props.onNavigate?.(tab, anchor)} />}
     <section aria-labelledby="your-reports-title" className="space-y-3">
       <div><h1 id="your-reports-title" className="font-serif text-2xl font-semibold">Your Reports</h1>
         <p className="mt-1 text-sm text-muted-foreground">Your church account stays with you. Review past reports any time; purchase each new survey separately.</p></div>
@@ -120,7 +128,7 @@ export function PanelYourSurveys(props: Props) {
 
     <section aria-labelledby="present-survey-title" className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="present-survey-title" className="font-serif text-xl font-semibold">Present Survey</h2>
-        <Badge variant={active ? "default" : "secondary"}>{isDemo ? "Grace demo" : props.loadError ? "Temporarily unavailable" : loading ? "Loading" : current ? active ? "Live" : "Paid · awaiting confirmation" : "Planning only · purchase required"}</Badge></div>
+        <Badge variant={active ? "default" : "secondary"}>{isDemo ? "Grace demo" : props.loadError ? "Temporarily unavailable" : loading ? "Loading" : current ? active ? "Live" : current.orientationCompletedAt ? "Paid · ready to activate" : "Paid · orientation required" : "Planning only · purchase required"}</Badge></div>
       {isDemo && <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
         <p className="text-sm"><strong>Grace Fellowship demonstration.</strong> Try the different stages below. Dates, progress and closing are simulated for your visit; no real payments, responses or emails are created.</p>
         <div className="flex flex-wrap gap-2">{[["unpaid", "Before purchase"], ["planning", "Paid · plan dates"], ["live", "Live · 18 responses"], ["target", "50% reached"]].map(([value, label]) =>
@@ -129,7 +137,7 @@ export function PanelYourSurveys(props: Props) {
       </div>}
       {!isDemo && props.loadError && <p className="text-sm text-muted-foreground">Use “Try again” above to load your survey before managing it.</p>}
       {!loading && (isDemo || !props.loadError) && <Card><CardHeader className="pb-3"><CardTitle className="text-base font-serif">{current?.label ?? "Plan your next survey"}</CardTitle>
-        <p className="text-sm text-muted-foreground">{active ? "Your code is accepting responses. The planned closing date is a guide; closing requires a deliberate action once 50% is reached." : current ? "Your purchase is ready. Review the proposed dates, then confirm to activate the code immediately." : "No new survey is activated. Your login and previous reports remain available."}</p>
+        <p className="text-sm text-muted-foreground">{active ? "Your code is accepting responses. The planned closing date is a guide; closing requires a deliberate action once 50% is reached." : current ? (current.orientationCompletedAt ? "Your orientation is complete. Review the proposed dates, then confirm to activate the code immediately." : "Your purchase is ready. Plan your dates now; activation unlocks after your required orientation is complete.") : "No new survey is activated. Your login and previous reports remain available."}</p>
       </CardHeader><CardContent className="space-y-6">
         <SurveyPlanner key={`${current?.id ?? "future"}-${isDemo ? demoMode : ""}`} token={token} wave={current ? { ...current, responseCount: count } : null} isDemo={isDemo}
           demoPlan={demoDates} onChanged={onDatesChanged} onPurchase={props.onStartNew} onDemoConfirmed={(plan) => { setDemoDates(plan); setDemoMode("live"); }} />
@@ -145,7 +153,7 @@ export function PanelYourSurveys(props: Props) {
               try { await navigator.clipboard.writeText(current.joinCode ?? ""); setCopied(true); } catch { setLocalError("Copy the code shown here manually."); }
             }}>{copied ? "Copied" : "Copy code"}</Button>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div id="survey-progress" className="grid grid-cols-3 gap-3 scroll-mt-24">
             <div><p className="text-2xl font-semibold tabular-nums">{count}</p><p className="text-xs text-muted-foreground">Responses</p></div>
             <div><p className="text-2xl font-semibold tabular-nums">{target}</p><p className="text-xs text-muted-foreground">50% target of {total}</p></div>
             <div><p className="text-2xl font-semibold tabular-nums">{Math.round(count / Math.max(1, total) * 100)}%</p><p className="text-xs text-muted-foreground">Of all attendees aged 16+</p></div>

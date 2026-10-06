@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { calendarDate } from "./surveyAccess";
@@ -17,12 +17,22 @@ export const churches = pgTable("churches", {
   passwordHash: text("password_hash").notNull(),
   region: text("region"),
   surveyPlanJson: text("survey_plan_json"), // optional, provisional next-survey plan; never an activation
+  // Phase 1 client-journey contacts. The primary contact remains the account
+  // owner; these are optional operational recipients.
+  surveyCoordinatorName: text("survey_coordinator_name"),
+  surveyCoordinatorEmail: text("survey_coordinator_email"),
+  leadPastorName: text("lead_pastor_name"),
+  leadPastorEmail: text("lead_pastor_email"),
+  // Lead pastor is copied on report/debrief emails only when selected.
+  leadPastorReceivesResults: boolean("lead_pastor_receives_results").notNull().default(false),
+  growthPlanInterestAt: timestamp("growth_plan_interest_at", { withTimezone: true }),
+  emailOptInGrowthPlan: boolean("email_opt_in_growth_plan").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
 });
 
 export const insertChurchSchema = createInsertSchema(churches, {
   primaryContactEmail: z.string().email(),
-}).omit({ id: true, createdAt: true, communityCode: true, passwordHash: true, surveyPlanJson: true });
+}).pick({ name: true, primaryContactName: true, primaryContactEmail: true, primaryContactPhone: true, region: true });
 
 export type InsertChurch = z.infer<typeof insertChurchSchema>;
 export type Church = typeof churches.$inferSelect;
@@ -35,6 +45,11 @@ export const updateChurchContactSchema = z.object({
   primaryContactEmail: z.string().email().optional(),
   primaryContactPhone: z.string().optional(),
   region: z.string().optional(),
+  surveyCoordinatorName: z.string().trim().max(200).optional(),
+  surveyCoordinatorEmail: z.string().trim().email().or(z.literal("")).optional(),
+  leadPastorName: z.string().trim().max(200).optional(),
+  leadPastorEmail: z.string().trim().email().or(z.literal("")).optional(),
+  leadPastorReceivesResults: z.boolean().optional(),
 });
 
 export type UpdateChurchContact = z.infer<typeof updateChurchContactSchema>;
@@ -76,6 +91,14 @@ export const surveyWaves = pgTable("survey_waves", {
   stripeCheckoutSessionId: text("stripe_checkout_session_id"),
   stripePaymentIntentId: text("stripe_payment_intent_id"),
   paidAt: text("paid_at"),
+  // Phase 1 client journey. Each purchased survey has its own required
+  // orientation and facilitated results debrief. Booking is informational;
+  // only orientationCompletedAt (set by an admin/facilitator) unlocks activation.
+  orientationBookedAt: text("orientation_booked_at"), // YYYY-MM-DD appointment date, manual in Phase 1
+  orientationCompletedAt: timestamp("orientation_completed_at", { withTimezone: true }),
+  activatedAt: timestamp("activated_at", { withTimezone: true }),
+  debriefBookedAt: text("debrief_booked_at"), // YYYY-MM-DD appointment date, manual in Phase 1
+  debriefCompletedAt: timestamp("debrief_completed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
 });
 
@@ -292,3 +315,26 @@ export const legacySnapshots = pgTable("legacy_snapshots", {
 
 export type LegacySnapshotRow = typeof legacySnapshots.$inferSelect;
 export type InsertLegacySnapshotRow = typeof legacySnapshots.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Client-journey email audit log. One row per (message, recipient) attempt.
+// The unique idempotency key prevents duplicate sends across retries,
+// restarts, and overlapping cron runs; admin resends use a fresh key.
+// ---------------------------------------------------------------------------
+export const EMAIL_EVENT_STATUSES = ["sending", "sent", "failed", "skipped"] as const;
+export const churchEmailEvents = pgTable("church_email_events", {
+  id: text("id").primaryKey(),
+  churchId: text("church_id").notNull().references(() => churches.id),
+  waveId: text("wave_id").references(() => surveyWaves.id),
+  eventType: text("event_type").notNull(),
+  recipientEmail: text("recipient_email").notNull(),
+  recipientRole: text("recipient_role").notNull(), // primary | coordinator | pastor | inquirer | internal
+  status: text("status", { enum: EMAIL_EVENT_STATUSES }).notNull(),
+  providerMessageId: text("provider_message_id"),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  errorMessage: text("error_message"),
+  idempotencyKey: text("idempotency_key").notNull().unique(),
+  triggeredBy: text("triggered_by").notNull().default("system"), // system | admin
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
+});
+export type ChurchEmailEvent = typeof churchEmailEvents.$inferSelect;

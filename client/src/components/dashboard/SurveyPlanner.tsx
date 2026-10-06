@@ -9,6 +9,7 @@ import { churchApiRequest } from "@/lib/churchAuth";
 import { computeTimelineDates, defaultClosesAt } from "@shared/timeline";
 import { calendarDate, emptySurveyPlan, surveyPlanSchema, type SurveyPlan } from "@shared/surveyAccess";
 import type { WaveWithMeta } from "./PanelYourSurveys";
+import { BookingButton } from "@/lib/booking";
 
 export function readableError(error: unknown) {
   const text = String((error as Error)?.message ?? error).replace(/^\d+:\s*/, "");
@@ -34,6 +35,8 @@ export function SurveyPlanner({ token, wave, isDemo = false, demoPlan, onChanged
   const [confirmOpen, setConfirmOpen] = useState(false);
   const paid = wave?.paymentStatus === "paid";
   const active = paid && ["live", "prep", "closing_soon"].includes(wave?.status ?? "");
+  // Required orientation gate (also enforced by the server).
+  const orientationLocked = paid && !active && !wave?.orientationCompletedAt;
   const dirty = JSON.stringify(plan) !== baseline;
   const valid = surveyPlanSchema.safeParse(plan).success && !!plan.opensAt && !!plan.closesAt;
 
@@ -147,8 +150,8 @@ export function SurveyPlanner({ token, wave, isDemo = false, demoPlan, onChanged
           <CalendarDays className="mr-2 h-4 w-4" /> {expanded ? "Hide Survey Action Plan" : "Survey Action Plan"}
         </Button>
         {!active && <Button variant="outline" disabled={busy} onClick={() => saveDraft()} data-testid="button-save-draft">Save provisional plan</Button>}
-        <Button disabled={!paid || !valid || busy || (!!active && !dirty)} onClick={() => setConfirmOpen(true)} data-testid="button-confirm-plan">
-          {paid ? <Check className="mr-2 h-4 w-4" /> : <LockKeyhole className="mr-2 h-4 w-4" />}
+        <Button disabled={!paid || orientationLocked || !valid || busy || (!!active && !dirty)} onClick={() => setConfirmOpen(true)} data-testid="button-confirm-plan">
+          {paid && !orientationLocked ? <Check className="mr-2 h-4 w-4" /> : <LockKeyhole className="mr-2 h-4 w-4" />}
           {active ? "Confirm date changes" : "Confirm start date & activate"}
         </Button>
         <Button variant="outline" disabled={!active || dirty || !valid || busy} onClick={download} data-testid="button-download-ics">
@@ -156,6 +159,13 @@ export function SurveyPlanner({ token, wave, isDemo = false, demoPlan, onChanged
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">The calendar button downloads an .ics file for Apple Calendar, Google Calendar or Outlook. Import the file into your calendar; later changes are not synced automatically.</p>
+      {orientationLocked && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-4 space-y-3" role="note" data-testid="orientation-gate">
+          <p className="text-sm font-medium">Your survey has been purchased. Please complete your required Jesus Journey Survey Orientation before activating your participant code.</p>
+          <p className="text-xs text-muted-foreground">Booking the appointment does not activate the code. After your orientation call, your facilitator marks it complete and this button unlocks. You can save your provisional plan in the meantime.</p>
+          <BookingButton kind="orientation" disabled={isDemo} />
+        </div>
+      )}
       {!paid && (
         <div className="rounded-lg bg-muted/40 p-4 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm max-w-xl">Planning is free. A new purchase unlocks confirmation and a new survey code; your existing reports and login stay unchanged.</p>
