@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { SurveyCopyright, SURVEY_COPYRIGHT } from "@/components/SurveyCopyright";
 import { JJLogo } from "@/lib/logo";
 import { PATHWAYS, ITEM_BULLETS, GOALS } from "@shared/pathways";
 import { computePathwayScores, computeGoalScores, itemIsStrength, type ItemResponses } from "@shared/scoring";
@@ -378,7 +379,8 @@ export function Report({
         </section>
 
         <div className="hidden print:block text-xs text-muted-foreground text-center pt-6 border-t border-border">
-          Jesus Journey Survey — personal report, generated {new Date().toLocaleDateString()}
+          <div>Jesus Journey Survey — personal report, generated {new Date().toLocaleDateString()}</div>
+          <div className="pt-1" data-testid="text-report-print-copyright">{SURVEY_COPYRIGHT}</div>
         </div>
 
         <div className="flex flex-col items-center gap-3 pt-6 print:hidden">
@@ -388,6 +390,7 @@ export function Report({
           <Button variant="outline" onClick={onRestart} data-testid="button-restart">
             Start a new survey
           </Button>
+          <SurveyCopyright className="pt-2" />
         </div>
       </main>
     </div>
