@@ -9,6 +9,7 @@ import { churchApiRequest } from "@/lib/churchAuth";
 import { SurveyPlanner, readableError } from "./SurveyPlanner";
 import { defaultClosesAt } from "@shared/timeline";
 import type { ResponseBreakdown, SurveyPlan } from "@shared/surveyAccess";
+import { safeDemographicCounts, DEMOGRAPHIC_MIN_N } from "@shared/demographicPolicy";
 import { NextStepPanel, deriveJourneyState } from "@/components/journey/NextStepPanel";
 
 export interface WaveWithMeta {
@@ -76,10 +77,20 @@ export function PanelYourSurveys(props: Props) {
     return () => clearInterval(timer);
   }, [current?.id, current?.status, isDemo]);
 
-  const demoBreakdown: ResponseBreakdown = {
-    total: demoCount,
+  // The demo runs its simulated counts through the same 10-person policy the
+  // server applies to real surveys, so it never shows a group the live
+  // breakdown would withhold (e.g. Female 10 of 18 would reveal Male 8).
+  const demoRaw = {
     gender: [{ label: "Male", count: demoCount === 25 ? 12 : demoCount === 18 ? 8 : 0 }, { label: "Female", count: demoCount === 25 ? 13 : demoCount === 18 ? 10 : 0 }],
     age: ageLabels.map((label, i) => ({ label, count: demoCount === 25 ? [2, 4, 5, 5, 4, 5][i] : demoCount === 18 ? [1, 3, 4, 3, 3, 4][i] : 0 })),
+  };
+  const demoSafe = (rows: { label: string; count: number }[]) => Object.entries(safeDemographicCounts(Object.fromEntries(rows.map(r => [r.label, r.count])), demoCount)).map(([label, count]) => ({ label, count }));
+  const demoGender = demoSafe(demoRaw.gender), demoAge = demoSafe(demoRaw.age);
+  const demoBreakdown: ResponseBreakdown = {
+    total: demoCount,
+    suppressed: { gender: !demoGender.length, age: !demoAge.length },
+    gender: demoGender,
+    age: demoAge,
   };
   const groups = isDemo ? demoBreakdown : breakdown;
   const journeyState = deriveJourneyState({ current, active, reached, latestReport: latestReport ?? null });
@@ -166,10 +177,10 @@ export function PanelYourSurveys(props: Props) {
             <Button disabled={!reached || !!props.closingId} onClick={() => setCloseOpen(true)} data-testid="button-close-survey">Close survey & generate reports</Button>
           </div>
           {showGroups && <div className="rounded-lg border p-4 space-y-4" data-testid="respondent-breakdown">
-            <p className="text-sm text-muted-foreground">Breakdown of respondents only, not participation rates within church groups. No individual answers or identities are shown.</p>
+            <p className="text-sm text-muted-foreground">Breakdown of respondents only, not participation rates within church groups. No individual answers or identities are shown. To protect confidentiality, a breakdown appears only when every group in it has at least {DEMOGRAPHIC_MIN_N} respondents (or none), so no one can work out a smaller group by subtraction.</p>
             {!groups ? <p role="status">Loading breakdown…</p> : <div className="grid sm:grid-cols-2 gap-6">{[["Gender", ["Male", "Female"], groups.gender], ["Age", ageLabels, groups.age]].map(([heading, labels, rows]: any) =>
               <div key={heading}><h3 className="text-sm font-semibold mb-2">{heading}</h3>
-                {groups.suppressed?.[heading === "Gender" ? "gender" : "age"] ? <p className="text-sm text-muted-foreground">Insufficient responses to protect confidentiality</p> : rows.filter((r: any) => r.count >= 10 && r.label !== "Prefer not to say").map(({ label }: { label: string }) => {
+                {(groups.suppressed?.[heading === "Gender" ? "gender" : "age"] || !rows.some((r: any) => r.count >= 10 && r.label !== "Prefer not to say")) ? <p className="text-sm text-muted-foreground">Insufficient responses to protect confidentiality</p> : rows.filter((r: any) => r.count >= 10 && r.label !== "Prefer not to say").map(({ label }: { label: string }) => {
                   const n = rows.find((r: any) => r.label === label)?.count ?? 0;
                   return <div key={label} className="flex justify-between gap-2 py-1 text-sm"><span>{label}</span><span className="tabular-nums">{n} · {Math.round(n / Math.max(1, groups.total) * 100)}%</span></div>;
                 })}
