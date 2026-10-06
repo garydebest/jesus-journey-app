@@ -35,7 +35,7 @@ if (!connectionString) {
   throw new Error("DATABASE_URL is not set — required for Postgres connection.");
 }
 
-const pool = new Pool({
+export const pool = new Pool({
   connectionString,
   ssl: connectionString.includes("sslmode=") ? undefined : { rejectUnauthorized: false },
 });

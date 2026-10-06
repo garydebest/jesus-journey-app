@@ -26,6 +26,13 @@ export function destroySession(token: string): void {
   sessions.delete(token);
 }
 
+/** Signs out every session for a church, optionally keeping one (the current) token. */
+export function destroySessionsForChurch(churchId: string, exceptToken?: string): void {
+  for (const [token, record] of Array.from(sessions.entries())) {
+    if (record.churchId === churchId && token !== exceptToken) sessions.delete(token);
+  }
+}
+
 export function getChurchIdForToken(token: string | undefined): string | undefined {
   if (!token) return undefined;
   if (token === DASHBOARD_DEMO_TOKEN) return DEMO_CHURCH_ID;
@@ -79,6 +86,10 @@ export function requireChurchAuth(req: AuthedRequest, res: Response, next: NextF
 
 const adminSessions = new Map<string, number>(); // token -> createdAt
 const ADMIN_SESSION_TTL_MS = 1000 * 60 * 60 * 12; // 12 hours
+
+export function getAdminUsername(): string {
+  return (process.env.ADMIN_USERNAME || "admin").trim().toLowerCase();
+}
 
 export function getAdminPassword(): string {
   return process.env.ADMIN_KEY || "jesus-journey-admin";

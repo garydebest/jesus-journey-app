@@ -3,7 +3,7 @@ import { requestWithRetry, responseError } from "./apiTransport";
 
 interface AdminAuthState {
   token: string | null;
-  login: (password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -18,11 +18,11 @@ const API_BASE = "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
 
-  const login: AdminAuthState["login"] = useCallback(async (password) => {
+  const login: AdminAuthState["login"] = useCallback(async (username, password) => {
     const res = await fetch(`${API_BASE}/api/admin/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ username, password }),
     });
     if (!res.ok) {
       const text = (await res.text()) || res.statusText;

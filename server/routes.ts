@@ -20,11 +20,14 @@ import {
   restrictPublicDashboardDemo,
   requireAdminAuth,
   getAdminPassword,
+  getAdminUsername,
+  destroySessionsForChurch,
   createAdminSession,
   destroyAdminSession,
   type AuthedRequest,
 } from "./auth";
 import { z } from "zod";
+import { requestPasswordReset, completePasswordReset, changePassword, PasswordResetError } from "./passwordReset";
 import { PRICING_TIERS, priceCentsForTier, publicPricingList } from "./pricing";
 import { createCheckoutSession, retrieveCheckoutSession, verifyStripeWebhookSignature, isStripeConfigured } from "./stripe";
 import { currencyForRequest } from "./currency";
@@ -98,6 +101,48 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     }
     const token = createSession(church.id);
     res.json({ token, church: sanitizeChurch(church) });
+  });
+
+  // Forgot password: always the same response, whether or not the email has an account.
+  app.post("/api/churches/forgot-password", async (req, res) => {
+    const { email } = req.body as { email?: string };
+    const generic = { ok: true, message: "If an account uses that email, we've sent a link to reset the password. It expires in one hour." };
+    if (!email || typeof email !== "string" || !email.includes("@")) {
+      return res.status(400).json({ message: "Please enter the email address you sign in with." });
+    }
+    try {
+      await requestPasswordReset(email);
+    } catch (err: any) {
+      console.error("[password-reset] request failed:", err?.message ?? err);
+    }
+    res.json(generic);
+  });
+
+  app.post("/api/churches/reset-password", async (req, res) => {
+    const { token, password } = req.body as { token?: string; password?: string };
+    try {
+      const churchId = await completePasswordReset(String(token ?? ""), String(password ?? ""));
+      destroySessionsForChurch(churchId);
+      res.json({ ok: true });
+    } catch (err: any) {
+      if (err instanceof PasswordResetError) return res.status(400).json({ message: err.message });
+      console.error("[password-reset] reset failed:", err?.message ?? err);
+      res.status(500).json({ message: "We couldn't reset your password. Please try again." });
+    }
+  });
+
+  app.post("/api/churches/me/password", requireChurchAuth, async (req: AuthedRequest, res) => {
+    const { currentPassword, newPassword } = req.body as { currentPassword?: string; newPassword?: string };
+    try {
+      await changePassword(req.churchId!, String(currentPassword ?? ""), String(newPassword ?? ""));
+      const header = req.headers.authorization;
+      destroySessionsForChurch(req.churchId!, header?.startsWith("Bearer ") ? header.slice(7) : undefined);
+      res.json({ ok: true });
+    } catch (err: any) {
+      if (err instanceof PasswordResetError) return res.status(400).json({ message: err.message });
+      console.error("[password-change] failed:", err?.message ?? err);
+      res.status(500).json({ message: "We couldn't change your password. Please try again." });
+    }
   });
 
   app.post("/api/churches/logout", (req: AuthedRequest, res) => {
@@ -622,9 +667,10 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   // Admin (Gary) — separate login, session, and operator view
   // -------------------------------------------------------------------
   app.post("/api/admin/login", (req, res) => {
-    const { password } = req.body as { password?: string };
-    if (!password || password !== getAdminPassword()) {
-      return res.status(401).json({ message: "Incorrect admin password" });
+    const { username, password } = req.body as { username?: string; password?: string };
+    const usernameOk = typeof username === "string" && username.trim().toLowerCase() === getAdminUsername();
+    if (!usernameOk || !password || password !== getAdminPassword()) {
+      return res.status(401).json({ message: "Incorrect username or password" });
     }
     const token = createAdminSession();
     res.json({ token });

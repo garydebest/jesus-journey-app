@@ -16,6 +16,7 @@ import { AdminLogin } from "@/pages/AdminLogin";
 import { ChurchAuthProvider } from "@/lib/churchAuth";
 import { AdminAuthProvider } from "@/lib/adminAuth";
 import { Privacy } from "@/pages/Privacy";
+import { ResetPassword } from "@/pages/ResetPassword";
 
 function LandingRoute() {
   const [, setLocation] = useLocation();
@@ -31,6 +32,7 @@ function AppRouter() {
       <Route path="/join/:code" component={JoinSurveyFlow} />
       <Route path="/church">{() => <ChurchAuth />}</Route>
       <Route path="/church/login">{() => <ChurchAuth />}</Route>
+      <Route path="/church/reset/:token">{(params) => <ResetPassword token={params.token} />}</Route>
       <Route path="/church/signup">{() => <ChurchAuth initialMode="signup" />}</Route>
       <Route path="/demo">{() => (
         <ChurchAuthProvider publicDemo>
