@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { JJLogo } from "@/lib/logo";
+import { SurveyCopyright } from "@/components/SurveyCopyright";
 
 export function Landing({ onStartIndividual }: { onStartIndividual: () => void }) {
   const [, setLocation] = useLocation();
@@ -67,6 +68,7 @@ export function Landing({ onStartIndividual }: { onStartIndividual: () => void }
             Church leader? Sign in or set up your survey
           </button>
         </div>
+        <SurveyCopyright />
       </div>
     </div>
   );

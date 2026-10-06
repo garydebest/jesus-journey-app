@@ -1,3 +1,5 @@
+import { SurveyCopyright } from "@/components/SurveyCopyright";
+
 export function Privacy() {
   return <main className="max-w-2xl mx-auto px-6 py-12 space-y-6">
     <h1 className="text-xl font-semibold">Survey privacy notice</h1>
@@ -11,5 +13,6 @@ export function Privacy() {
     <p>Written comments may be included in a separate church comments report. Please avoid names or identifying details. Your personal report should be saved privately before you leave the survey. Independent surveys do not save your answers to the church database.</p>
     <p>These are descriptions of how the survey works, not a claim of legal compliance. Ask your church’s survey coordinator if you have questions before taking part.</p>
     <a className="inline-block underline" href="#/">Return to the survey home</a>
+    <SurveyCopyright className="pt-6 text-left" />
   </main>;
 }

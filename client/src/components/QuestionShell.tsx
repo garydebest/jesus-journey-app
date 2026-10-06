@@ -3,6 +3,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
 import { JJLogo } from "@/lib/logo";
+import { SurveyCopyright } from "@/components/SurveyCopyright";
 
 export function QuestionShell({
   progress,
@@ -40,6 +41,7 @@ export function QuestionShell({
             </button>
           )}
           {children}
+          <SurveyCopyright className="pt-8" />
         </div>
       </main>
       {footer && (

@@ -9,6 +9,7 @@ import { ChangeQuestion } from "./ChangeQuestion";
 import { DemographicQuestion } from "./DemographicQuestion";
 import { isShortForm, surveyItemsFor, retainedAnswers } from "@shared/shortForm";
 import { Report } from "./Report";
+import { SurveyCopyright } from "@/components/SurveyCopyright";
 import { DEMOGRAPHICS, MATURITY_OPTIONS_PRE, MATURITY_OPTIONS_POST } from "@shared/questions";
 import { emptyState, type SurveyState } from "@/lib/surveyState";
 import { apiRequest } from "@/lib/queryClient";
@@ -194,6 +195,7 @@ function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) 
               Begin the survey
             </Button>
           </div>
+          <SurveyCopyright className="pt-4" />
         </div>
       </div>
     );
@@ -313,6 +315,7 @@ function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) 
               {screen === "submitting" ? "Submitting..." : isDemo ? "Finish demo" : "Submit my response"}
             </Button>
           </div>
+          <SurveyCopyright className="pt-4" />
         </div>
       </div>
     );
@@ -344,6 +347,7 @@ function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) 
             <Button variant="outline" onClick={() => setLocation("/")} data-testid="button-demo-home">Back to home</Button>
           </div>
         )}
+        <SurveyCopyright className="pt-4" />
       </div>
     </div>
   );

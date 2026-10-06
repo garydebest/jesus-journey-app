@@ -10,6 +10,7 @@ Mirrors the structure confirmed from the original 2019 sample
 report" page, then comment pages grouped under colored maturity-band
 section headers with MALE/FEMALE tags.
 """
+from copyright_notice import draw_copyright, PAGE_Y_IN, COVER_Y_IN
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from reportlab.lib.colors import HexColor
@@ -74,6 +75,7 @@ def draw_footer(c, page_num, church_name, report_date):
 
     c.setFont("Inter-Medium", 9)
     c.drawRightString(PAGE_W - MARGIN, 0.24 * inch, f"pg {page_num}")
+    draw_copyright(c, PAGE_W, PAGE_Y_IN * inch)
     c.restoreState()
 
 
@@ -193,6 +195,7 @@ def page_cover(c, church_name, report_date):
     c.setFont("Inter-SemiBold", 7.6)
     c.setFillColor(HexColor("#FFFFFF"))
     c.drawString(lx + 0.02 * inch, ly - 0.135 * inch, "J E S U S   J O U R N E Y")
+    draw_copyright(c, PAGE_W, COVER_Y_IN * inch)
 
 
 def page_interpreting(c, church_name, report_date):

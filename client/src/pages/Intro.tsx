@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { JJLogo } from "@/lib/logo";
+import { SurveyCopyright } from "@/components/SurveyCopyright";
 
 export function Intro({ onStart }: { onStart: () => void }) {
   return (
@@ -29,6 +30,7 @@ export function Intro({ onStart }: { onStart: () => void }) {
           Fully anonymous &mdash; your responses are never stored. Be sure to print or save your
           report before you close this page.
         </p>
+        <SurveyCopyright className="pt-2" />
       </div>
     </div>
   );
