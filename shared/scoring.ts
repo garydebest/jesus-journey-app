@@ -47,3 +47,15 @@ export function computeGoalScores(pathwayScores: PathwayScore[]): Record<string,
 export function itemIsStrength(value: number): boolean {
   return value > 3;
 }
+
+/**
+ * Top three Strengths to Celebrate and three Opportunities to Explore from a
+ * full-form report. Same rule as the short form: highest scores first (ties by
+ * pathway number), then the lowest of the remaining pathways.
+ */
+export function selectTopPathways(scores: PathwayScore[]) {
+  const strengths = [...scores].sort((a, b) => b.score - a.score || a.num - b.num).slice(0, 3);
+  const chosen = new Set(strengths.map((p) => p.num));
+  const opportunities = scores.filter((p) => !chosen.has(p.num)).sort((a, b) => a.score - b.score || a.num - b.num).slice(0, 3);
+  return { strengths, opportunities };
+}

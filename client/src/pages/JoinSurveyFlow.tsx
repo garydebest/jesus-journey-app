@@ -321,7 +321,7 @@ function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) 
   if (!isDemo) {
     return <><div className="border-b bg-primary/5 px-4 py-3 text-center text-sm print:hidden" data-testid="group-report-confirmation">
       Your response has been submitted to {meta?.churchName}. Print or save your private report before leaving this page.
-    </div><Report items={state.items} preMaturity={state.preMaturity}
+    </div><Report summaryFirst items={state.items} preMaturity={state.preMaturity}
       postMaturity={state.postMaturity} change={state.change}
       onRestart={() => { setState(emptyState()); setComment(""); setLocation("/"); }} /></>;
   }

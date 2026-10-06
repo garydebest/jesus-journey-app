@@ -1,8 +1,9 @@
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { JJLogo } from "@/lib/logo";
 import { PATHWAYS, ITEM_BULLETS, GOALS } from "@shared/pathways";
-import { computePathwayScores, computeGoalScores, itemIsStrength, type ItemResponses } from "@shared/scoring";
+import { computePathwayScores, computeGoalScores, itemIsStrength, selectTopPathways, type ItemResponses, type PathwayScore } from "@shared/scoring";
 import { MATURITY_LABELS } from "@shared/questions";
 import { isShortForm, SHORT_FORM_NOTE } from "@shared/shortForm";
 import { ShortReportSections } from "@/components/ShortReportSections";
@@ -46,16 +47,22 @@ export function Report({
   postMaturity,
   change,
   onRestart,
+  summaryFirst = false,
 }: {
   items: ItemResponses;
   preMaturity?: number;
   postMaturity?: number;
   change?: number;
   onRestart: () => void;
+  /** Church participants see their top three Strengths and Opportunities first, with all sixteen on request. */
+  summaryFirst?: boolean;
 }) {
+  const [showAll, setShowAll] = useState(false);
   const short = isShortForm(preMaturity);
   const pathwayScores = short ? [] : computePathwayScores(items);
   const goalScores = short ? {} : computeGoalScores(pathwayScores);
+  const summary = summaryFirst && !short;
+  const top = summary ? selectTopPathways(pathwayScores) : null;
 
   const chartData = pathwayScores.map((p) => ({
     name: `P${p.num}`,
@@ -169,7 +176,14 @@ export function Report({
             simply to serve and encourage you toward Jesus' never ending invitation to live your life
             really and fully!
           </p>
-          {short ? <p className="text-sm text-muted-foreground leading-relaxed" data-testid="text-short-form-note">{SHORT_FORM_NOTE}</p> : <p className="text-sm text-muted-foreground leading-relaxed" data-testid="text-report-intro">
+          {short ? <p className="text-sm text-muted-foreground leading-relaxed" data-testid="text-short-form-note">{SHORT_FORM_NOTE}</p> : summary ? <p className="text-sm text-muted-foreground leading-relaxed" data-testid="text-report-intro-summary">
+            For each Goal, we measure progress along four Pathways. Pathways are means through which
+            your Journey of Faith can be helped to move forward. Below are the three Pathways where your
+            responses were strongest — your Strengths to Celebrate — and three Pathways that invite you
+            further — your Opportunities to Explore. Within each Pathway, a green dot marks a Strength to
+            Celebrate and an orange dot marks an Opportunity to Explore. If you would like to see all sixteen
+            Pathways, choose “View all sixteen Pathways” below.
+          </p> : <p className="text-sm text-muted-foreground leading-relaxed" data-testid="text-report-intro">
             For each Goal, we measure progress along four Pathways. Pathways are means through which
             your Journey of Faith can be helped to move forward. Below you'll see a chart with your
             average score for each Pathway, colored by Goal. Further down, each Pathway is broken
@@ -184,7 +198,26 @@ export function Report({
           </p>
         </section>
 
-        {short ? <ShortReportSections items={items} /> : <>
+        {top && <>
+          {([
+            ["strength", "Strengths to Celebrate", top.strengths],
+            ["opportunity", "Opportunities to Explore", top.opportunities],
+          ] as const).map(([kind, heading, selected]) => (
+            <section key={kind} className="space-y-4" data-testid={`section-summary-${kind}`}>
+              <h2 className="text-lg font-semibold">{heading}</h2>
+              {selected.map((score) => (
+                <PathwayCard key={score.num} pathwayNum={score.num} pathwayScores={pathwayScores} items={items} testPrefix="card-summary-pathway" />
+              ))}
+            </section>
+          ))}
+          <div className="flex justify-center print:hidden">
+            <Button variant="outline" aria-expanded={showAll} aria-controls="all-pathways" onClick={() => setShowAll((v) => !v)} data-testid="button-toggle-all-pathways">
+              {showAll ? "Hide the full sixteen Pathways" : "View all sixteen Pathways"}
+            </Button>
+          </div>
+        </>}
+
+        {short ? <ShortReportSections items={items} /> : (!summary || showAll) && <div id="all-pathways" className={summary ? "space-y-10 pt-6 border-t border-border" : "space-y-10"}>
         {/* Chart */}
         <section data-testid="section-pathway-chart">
           <h2 className="text-base font-semibold mb-4">Your 16 Pathways</h2>
@@ -247,69 +280,13 @@ export function Report({
             <h2 className="text-base font-semibold pt-2 border-t border-border">
               {goal.toUpperCase()}
             </h2>
-            {PATHWAYS.filter((p) => p.goal === goal).map((p) => {
-              const scoreEntry = pathwayScores.find((s) => s.num === p.num)!;
-              const band = bandLabel(scoreEntry.band);
-              const narrative = p.narrative[scoreEntry.band];
-              return (
-                <article
-                  key={p.num}
-                  className="rounded-lg border border-border p-5 space-y-3"
-                  data-testid={`card-pathway-${p.num}`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Pathway {p.num}</p>
-                      <h3 className="text-sm font-semibold" data-testid={`text-pathway-name-${p.num}`}>
-                        {p.name}
-                      </h3>
-                      <p className="text-xs text-muted-foreground italic mt-0.5">{p.tagline}</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-lg font-semibold tabular-nums" data-testid={`text-pathway-score-${p.num}`}>
-                        {scoreEntry.score.toFixed(2)}
-                      </p>
-                      <Badge
-                        className="border-0"
-                        style={{ background: band.bg, color: band.fg }}
-                        data-testid={`badge-pathway-band-${p.num}`}
-                      >
-                        {band.text}
-                      </Badge>
-                    </div>
-                  </div>
-                  <p className="text-sm leading-relaxed" data-testid={`text-pathway-narrative-${p.num}`}>
-                    {narrative}:
-                  </p>
-                  <ul className="space-y-2">
-                    {p.items.map((code) => {
-                      const val = items[code];
-                      const strong = typeof val === "number" && itemIsStrength(val);
-                      const swatch = strong ? BAND_STYLES.high.bg : BAND_STYLES.low.bg;
-                      return (
-                        <li
-                          key={code}
-                          className="flex items-start gap-2.5 text-sm text-foreground"
-                          data-testid={`text-item-bullet-${code}`}
-                        >
-                          <span
-                            className="mt-1 h-2.5 w-2.5 rounded-full shrink-0"
-                            style={{ background: swatch, printColorAdjust: "exact", WebkitPrintColorAdjust: "exact" }}
-                            aria-hidden="true"
-                          />
-                          <span><span className="sr-only">{strong ? "Strength to Celebrate: " : "Opportunity to Explore: "}</span>{ITEM_BULLETS[code]}</span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  <p className="text-xs text-muted-foreground">{p.scripture}</p>
-                </article>
-              );
-            })}
+            {PATHWAYS.filter((p) => p.goal === goal).map((p) => (
+              <PathwayCard key={p.num} pathwayNum={p.num} pathwayScores={pathwayScores} items={items} />
+            ))}
           </section>
         ))}
 
-        </>}
+        </div>}
 
         {/* Where Do I Go From Here */}
         <section
@@ -392,4 +369,66 @@ export function Report({
       </main>
     </div>
   );
+}
+
+function PathwayCard({ pathwayNum, pathwayScores, items, testPrefix = "card-pathway" }: {
+  pathwayNum: number; pathwayScores: PathwayScore[]; items: ItemResponses; testPrefix?: string;
+}) {
+  const p = PATHWAYS.find((x) => x.num === pathwayNum)!;
+              const scoreEntry = pathwayScores.find((s) => s.num === p.num)!;
+              const band = bandLabel(scoreEntry.band);
+              const narrative = p.narrative[scoreEntry.band];
+              return (
+                <article
+                  className="rounded-lg border border-border p-5 space-y-3"
+                  data-testid={`${testPrefix}-${p.num}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Pathway {p.num}</p>
+                      <h3 className="text-sm font-semibold" data-testid={`text-pathway-name-${p.num}`}>
+                        {p.name}
+                      </h3>
+                      <p className="text-xs text-muted-foreground italic mt-0.5">{p.tagline}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-lg font-semibold tabular-nums" data-testid={`text-pathway-score-${p.num}`}>
+                        {scoreEntry.score.toFixed(2)}
+                      </p>
+                      <Badge
+                        className="border-0"
+                        style={{ background: band.bg, color: band.fg }}
+                        data-testid={`badge-pathway-band-${p.num}`}
+                      >
+                        {band.text}
+                      </Badge>
+                    </div>
+                  </div>
+                  <p className="text-sm leading-relaxed" data-testid={`text-pathway-narrative-${p.num}`}>
+                    {narrative}:
+                  </p>
+                  <ul className="space-y-2">
+                    {p.items.map((code) => {
+                      const val = items[code];
+                      const strong = typeof val === "number" && itemIsStrength(val);
+                      const swatch = strong ? BAND_STYLES.high.bg : BAND_STYLES.low.bg;
+                      return (
+                        <li
+                          key={code}
+                          className="flex items-start gap-2.5 text-sm text-foreground"
+                          data-testid={`text-item-bullet-${code}`}
+                        >
+                          <span
+                            className="mt-1 h-2.5 w-2.5 rounded-full shrink-0"
+                            style={{ background: swatch, printColorAdjust: "exact", WebkitPrintColorAdjust: "exact" }}
+                            aria-hidden="true"
+                          />
+                          <span><span className="sr-only">{strong ? "Strength to Celebrate: " : "Opportunity to Explore: "}</span>{ITEM_BULLETS[code]}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <p className="text-xs text-muted-foreground">{p.scripture}</p>
+                </article>
+              );
 }
