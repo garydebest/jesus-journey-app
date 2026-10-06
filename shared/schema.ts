@@ -62,7 +62,9 @@ export type WaveStatus = (typeof WAVE_STATUSES)[number];
 
 // Church size tiers used for pricing. Dollar amounts live in server/pricing.ts
 // (not the schema) so they can be edited without a migration.
-export const SIZE_TIERS = ["small", "medium", "large", "extra_large"] as const;
+// Standard Plan ranges (adults 16+), approved October 6, 2026. Earlier waves may
+// still carry the retired placeholder keys small/medium/large/extra_large.
+export const SIZE_TIERS = ["upto_200", "r201_400", "r401_700", "r701_1200", "r1201_1500", "over_1500"] as const;
 export type SizeTier = (typeof SIZE_TIERS)[number];
 
 export const PAYMENT_STATUSES = ["unpaid", "paid", "refunded"] as const;
@@ -106,7 +108,8 @@ export const insertWaveSchema = createInsertSchema(surveyWaves, {
   label: z.string().trim().min(1).max(200),
   opensAt: calendarDate.nullish(),
   closesAt: calendarDate.nullish(),
-  sizeTier: z.enum(SIZE_TIERS),
+  // The server derives the tier from minSampleSize; any client value is ignored.
+  sizeTier: z.enum(SIZE_TIERS).optional(),
   minSampleSize: z.number().int().min(16, "Total number of adults must be at least 16.").max(1000000),
 }).pick({
   label: true,

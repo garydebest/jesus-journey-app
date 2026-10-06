@@ -68,6 +68,30 @@ export function currencyForRequest(req: { headers: Record<string, any> }): Suppo
   return currencyForCountry(countryFromRequest(req));
 }
 
+/**
+ * Pricing regions from the approved price sheet (October 6, 2026). Canada,
+ * USA, UK and Eurozone each have their own column; every other country
+ * (including unknown) uses the International column, charged in CAD.
+ */
+export type PricingRegion = "canada" | "usa" | "uk" | "europe" | "international";
+
+export function regionForCountry(countryCode: string): PricingRegion {
+  const code = countryCode.toUpperCase();
+  if (code === "CA") return "canada";
+  if (code === "US") return "usa";
+  if (code === "GB") return "uk";
+  if (EUROZONE_COUNTRIES.has(code)) return "europe";
+  return "international";
+}
+
+export const REGION_CURRENCY: Record<PricingRegion, SupportedCurrency> = {
+  canada: "cad", usa: "usd", uk: "gbp", europe: "eur", international: "cad",
+};
+
+export function regionForRequest(req: { headers: Record<string, any> }): PricingRegion {
+  return regionForCountry(countryFromRequest(req));
+}
+
 export const CURRENCY_SYMBOLS: Record<SupportedCurrency, string> = {
   cad: "CA$",
   usd: "US$",

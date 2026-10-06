@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { JJBrandLockup } from "@/lib/logo";
 import { useChurchAuth } from "@/lib/churchAuth";
@@ -70,13 +69,12 @@ export function ChurchDashboard() {
   const [minSample, setMinSample] = useState("16");
   const [opensAt, setOpensAt] = useState("");
   const [closesAt, setClosesAt] = useState("");
-  const [sizeTier, setSizeTier] = useState<SizeTier | "">("");
   const [creating, setCreating] = useState(false);
   const [closingId, setClosingId] = useState<string | null>(null);
   const [closeError, setCloseError] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
-  const [pricingTiers, setPricingTiers] = useState<Array<{ tier: SizeTier; label: string; description: string; price: number; currency: string }>>([]);
+  const [pricingTiers, setPricingTiers] = useState<Array<{ tier: SizeTier; label: string; min: number; max: number | null; price: number; currency: string }>>([]);
   const [checkoutBanner, setCheckoutBanner] = useState<{ kind: "success" | "cancelled" | "pending"; message: string } | null>(null);
 
   const loadWaves = useCallback(async () => {
@@ -150,10 +148,6 @@ export function ChurchDashboard() {
 
   async function handleCreateWave(e: React.FormEvent) {
     e.preventDefault();
-    if (!sizeTier) {
-      setError("Please select a church size to continue.");
-      return;
-    }
     if (!minSample || Number(minSample) < 16) {
       setError("Please enter your total number of adults, 16 or more, before continuing.");
       return;
@@ -166,14 +160,12 @@ export function ChurchDashboard() {
         minSampleSize: Number(minSample) || 16,
         opensAt: opensAt || undefined,
         closesAt: closesAt || undefined,
-        sizeTier,
       });
       const json = await res.json();
       setLabel("");
       setMinSample("16");
       setOpensAt("");
       setClosesAt("");
-      setSizeTier("");
       setCreateOpen(false);
       if (json.checkoutUrl) {
         window.location.href = json.checkoutUrl;
@@ -291,32 +283,26 @@ export function ChurchDashboard() {
                     <Label htmlFor="min-sample">What is your total number of adults (16+)?</Label>
                     <Input id="min-sample" type="number" min={16} value={minSample} onChange={(e) => setMinSample(e.target.value)} data-testid="input-min-sample" />
                     <p className="text-xs text-muted-foreground">
-                      Enter the total number of adults in your congregation or group (16 minimum). You'll need
-                      responses from at least half this number before you can close the survey and generate reports.
+                      Enter the total number of adults (16+) in your church community. A good estimate is your average
+                      attendance aged 16+, plus 50%. This sets your price, and you'll need responses from at least half
+                      this number before you can close the survey and generate reports.
                     </p>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>Church size</Label>
-                    <RadioGroup value={sizeTier} onValueChange={(v) => setSizeTier(v as SizeTier)} data-testid="radio-size-tier">
-                      {pricingTiers.map((t) => (
-                        <label
-                          key={t.tier}
-                          htmlFor={`tier-${t.tier}`}
-                          className="flex items-center justify-between gap-3 rounded-md border border-border p-3 cursor-pointer hover:bg-accent/40"
-                        >
-                          <div className="flex items-center gap-3">
-                            <RadioGroupItem value={t.tier} id={`tier-${t.tier}`} data-testid={`radio-tier-${t.tier}`} />
-                            <div>
-                              <div className="text-sm font-medium">{t.label}</div>
-                              <div className="text-xs text-muted-foreground">{t.description}</div>
-                            </div>
+                  <div className="space-y-1.5" data-testid="standard-plan-price">
+                    <Label>Standard Plan price</Label>
+                    {(() => {
+                      const n = Number(minSample);
+                      const t = n >= 16 ? pricingTiers.find((x) => n >= x.min && (x.max === null || n <= x.max)) : undefined;
+                      return t
+                        ? <div className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+                            <div className="text-sm font-medium" data-testid="text-price-range">{t.label}</div>
+                            <div className="text-sm font-semibold" data-testid="text-price-amount">{formatPrice(t.price, t.currency)}</div>
                           </div>
-                          <div className="text-sm font-semibold">{formatPrice(t.price, t.currency)}</div>
-                        </label>
-                      ))}
-                    </RadioGroup>
+                        : <p className="text-sm text-muted-foreground">Enter your total number of adults above to see your price.</p>;
+                    })()}
                     <p className="text-xs text-muted-foreground">
-                      One-time payment for this survey. You'll be taken to a secure Stripe checkout page next.
+                      Your price is set by your total number of adults (16+). One-time payment for this survey, including
+                      the orientation and results debrief. You'll be taken to a secure Stripe checkout page next.
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">

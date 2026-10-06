@@ -28,9 +28,9 @@ import {
 } from "./auth";
 import { z } from "zod";
 import { requestPasswordReset, completePasswordReset, changePassword, PasswordResetError } from "./passwordReset";
-import { PRICING_TIERS, priceCentsForTier, publicPricingList } from "./pricing";
+import { PRICING_TIERS, priceCentsForTier, publicPricingList, tierForAdults } from "./pricing";
 import { createCheckoutSession, retrieveCheckoutSession, verifyStripeWebhookSignature, isStripeConfigured } from "./stripe";
-import { currencyForRequest } from "./currency";
+import { REGION_CURRENCY, regionForRequest } from "./currency";
 import { runReminderSweep } from "./reminders";
 import { acceptsResponses, calendarDate, emptySurveyPlan, isDemoChurch, surveyPlanSchema } from "@shared/surveyAccess";
 import { isParticipantDemoCode, PARTICIPANT_DEMO_META } from "@shared/participantDemo";
@@ -211,9 +211,18 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   // -------------------------------------------------------------------
   // Pricing (public)
   // -------------------------------------------------------------------
+  // Public: the marketing site (jesusjourney.life) reads this to show the
+  // visitor's regional prices. Cloudflare sets CF-IPCountry on this request
+  // from the visitor's own IP, so the cross-site fetch prices correctly.
   app.get("/api/pricing", (req, res) => {
-    const currency = currencyForRequest(req);
-    res.json({ tiers: publicPricingList(currency), currency, stripeConfigured: isStripeConfigured() });
+    const origin = String(req.headers.origin ?? "");
+    if (/^https:\/\/(www\.)?jesusjourney\.life$/.test(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Vary", "Origin, CF-IPCountry");
+    }
+    res.setHeader("Cache-Control", "no-store");
+    const region = regionForRequest(req);
+    res.json({ tiers: publicPricingList(region), region, currency: REGION_CURRENCY[region], stripeConfigured: isStripeConfigured() });
   });
 
   // -------------------------------------------------------------------
@@ -238,22 +247,24 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     if (existingWaves.some((wave) => wave.paymentStatus === "paid" && wave.status !== "closed")) {
       return res.status(409).json({ message: "You already have a purchased survey. Confirm or complete it before buying another." });
     }
-    const tier = parsed.data.sizeTier;
-    const currency = currencyForRequest(req);
-    const priceCents = priceCentsForTier(tier, currency);
-    const wave = await storage.createWave(req.churchId!, parsed.data, priceCents, currency);
+    // Price is set by the church's total adults (16+), never by a client-chosen tier.
+    const tier = tierForAdults(parsed.data.minSampleSize);
+    const region = regionForRequest(req);
+    const currency = REGION_CURRENCY[region];
+    const priceCents = priceCentsForTier(tier, region);
+    const wave = await storage.createWave(req.churchId!, { ...parsed.data, sizeTier: tier }, priceCents, currency);
 
     const origin = `${req.protocol}://${req.get("host")}`;
     try {
       const session = await createCheckoutSession({
         amountCents: priceCents,
         currency,
-        productName: `Jesus Journey Survey — ${PRICING_TIERS[tier].label}`,
+        productName: `Jesus Journey Standard Plan — ${PRICING_TIERS[tier].label}`,
         productDescription: `${wave.label} for ${church.name}`,
         successUrl: `${origin}/#/dashboard?checkout=success&wave=${wave.id}`,
         cancelUrl: `${origin}/#/dashboard?checkout=cancelled&wave=${wave.id}`,
         customerEmail: church.primaryContactEmail,
-        metadata: { waveId: wave.id, churchId: church.id },
+        metadata: { waveId: wave.id, churchId: church.id, sizeTier: tier, pricingRegion: region },
       });
       await storage.setWaveCheckoutSession(wave.id, session.id);
       res.status(201).json({ wave: sanitizeWave(wave), checkoutUrl: session.url });
@@ -361,6 +372,10 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     if (!parsed.data.opensAt || !parsed.data.closesAt) return res.status(400).json({ message: "Set both a start date and a planned closing date." });
     if (wave.status === "not_started" && !wave.orientationCompletedAt) {
       return res.status(403).json({ message: ORIENTATION_REQUIRED_MESSAGE, code: "ORIENTATION_REQUIRED" });
+    }
+    const paidTier = wave.sizeTier && wave.sizeTier in PRICING_TIERS ? PRICING_TIERS[wave.sizeTier as keyof typeof PRICING_TIERS] : null;
+    if (paidTier?.max != null && parsed.data.minSampleSize > paidTier.max) {
+      return res.status(409).json({ message: `Your adult total is above the ${paidTier.label} range you purchased. Please contact admin@jesusjourney.life to move to the right range.`, code: "ABOVE_PURCHASED_RANGE" });
     }
     if (wave.status === "not_started" && parsed.data.closesAt < new Date().toISOString().slice(0, 10)) {
       return res.status(400).json({ message: "Choose a closing date that has not already passed." });
