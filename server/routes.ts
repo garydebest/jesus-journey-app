@@ -30,7 +30,7 @@ import {
 import { z } from "zod";
 import { requestPasswordReset, completePasswordReset, changePassword, PasswordResetError } from "./passwordReset";
 import { PRICING_TIERS, priceCentsForTier, publicPricingList, tierForAdults } from "./pricing";
-import { createCheckoutSession, retrieveCheckoutSession, verifyStripeWebhookSignature, isStripeConfigured } from "./stripe";
+import { createCheckoutSession, retrieveCheckoutSession, verifyStripeWebhookSignature, isStripeConfigured, sessionHasAutomaticTax, sessionMatchesWavePrice } from "./stripe";
 import { REGION_CURRENCY, regionForRequest } from "./currency";
 import { runReminderSweep } from "./reminders";
 import { acceptsResponses, calendarDate, emptySurveyPlan, isDemoChurch, surveyPlanSchema } from "@shared/surveyAccess";
@@ -273,8 +273,10 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     } catch (err: any) {
       // Roll back the unpaid wave so it doesn't clutter the dashboard as a
       // dead entry if Stripe couldn't be reached.
+      // No tax-disabled fallback: if Stripe Tax cannot calculate, stop here.
       await storage.deleteUnpaidWave(wave.id);
-      res.status(502).json({ message: `Could not start checkout: ${String(err?.message ?? err)}` });
+      console.error("Checkout session creation failed:", err?.message ?? err);
+      res.status(502).json({ message: "We couldn't start checkout or calculate tax just now. No payment was taken. Please try again in a few minutes, or contact admin@jesusjourney.life if this keeps happening." });
     }
   });
 
@@ -291,11 +293,17 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     try {
       const session = await retrieveCheckoutSession(wave.stripeCheckoutSessionId);
       if (session.payment_status === "paid") {
+        if (!sessionMatchesWavePrice(session, wave)) {
+          console.error(`Paid session ${session.id} subtotal/currency does not match wave ${wave.id}; not activating automatically`);
+          return res.json({ wave: sanitizeWave(wave) });
+        }
         const updated = await storage.markWavePaid(wave.id, session.payment_intent ?? undefined);
         void onWavePaid(wave.id);
         return res.json({ wave: sanitizeWave(updated) });
       }
-      res.json({ wave: sanitizeWave(wave), checkoutUrl: session.status === "open" ? session.url : null });
+      // Never resume a checkout created before tax collection began.
+      const resumable = session.status === "open" && sessionHasAutomaticTax(session);
+      res.json({ wave: sanitizeWave(wave), checkoutUrl: resumable ? session.url : null });
     } catch {
       res.json({ wave: sanitizeWave(wave) });
     }
@@ -996,6 +1004,12 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         const session = event.data.object;
         if (session.payment_status === "paid") {
           const wave = await storage.getWaveByCheckoutSessionId(session.id);
+          if (wave && !sessionMatchesWavePrice(session, wave)) {
+            // Base price is compared with the pre-tax subtotal (amount_total
+            // includes GST/HST). A mismatch needs manual review.
+            console.error(`Webhook: session ${session.id} subtotal ${session.amount_subtotal} ${session.currency} does not match wave ${wave.id} price ${wave.priceCents} ${wave.currency}; not activating`);
+            return res.json({ received: true });
+          }
           if (wave && wave.paymentStatus !== "paid") {
             await storage.markWavePaid(wave.id, session.payment_intent ?? undefined);
           }

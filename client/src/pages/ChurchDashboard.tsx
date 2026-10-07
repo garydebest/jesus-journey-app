@@ -307,13 +307,17 @@ export function ChurchDashboard() {
                       return t
                         ? <div className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
                             <div className="text-sm font-medium" data-testid="text-price-range">{t.label}</div>
-                            <div className="text-sm font-semibold" data-testid="text-price-amount">{formatPrice(t.price, t.currency)}</div>
+                            <div className="text-sm font-semibold" data-testid="text-price-amount">{formatPrice(t.price, t.currency)} <span className="font-normal text-muted-foreground">+ applicable tax</span></div>
                           </div>
                         : <p className="text-sm text-muted-foreground">Enter your total number of adults above to see your price.</p>;
                     })()}
                     <p className="text-xs text-muted-foreground">
                       Your price is set by your total number of adults (16+). One-time payment for this survey, including
                       the orientation and results debrief. You'll be taken to a secure Stripe checkout page next.
+                    </p>
+                    <p className="text-xs text-muted-foreground" data-testid="text-tax-note">
+                      Prices exclude applicable taxes. Taxes are calculated at checkout. GST/HST is calculated using your
+                      church's billing address, so please enter the church's address at checkout, not a personal address.
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
