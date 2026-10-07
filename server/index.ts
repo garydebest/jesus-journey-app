@@ -9,6 +9,17 @@ import { ensureBootstrapped } from "./storage";
 const app = express();
 const httpServer = createServer(app);
 
+// Search visibility: the public front door is jesusjourney.life. Keep every
+// page, report and file on this app domain out of search results. Crawling
+// stays allowed so search engines can see the noindex signal.
+app.use((_req, res, next) => {
+  res.setHeader("X-Robots-Tag", "noindex");
+  next();
+});
+app.get("/robots.txt", (_req, res) => {
+  res.type("text/plain").send("# Jesus Journey survey app: pages are noindex; public site is https://jesusjourney.life/\nUser-agent: *\nAllow: /\n");
+});
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
