@@ -9,7 +9,8 @@
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
     "test:demographics": "tsx script/regional-demographics-qa.ts && tsx script/regional-demographics-api-qa.ts && python3 -m unittest discover -s server/report-engine/tests -p 'test_regional_demographics.py'",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "test:stripe-tax": "tsx script/stripe-tax-qa.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

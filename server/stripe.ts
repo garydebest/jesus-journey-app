@@ -74,10 +74,12 @@ async function stripeRequest(path: string, params: Record<string, any>): Promise
 export const JJ_TAX_CODE = "txcd_20060048";
 
 // Seller GST/HST number shown on the post-payment invoice. This is the Stripe
-// tax-ID object (txi_...) for Gary Best Consulting's own registration, never a
-// customer tax ID. Unset = invoice still created, without the account tax ID.
+// tax-ID object (txi_...) for Gary Best Consulting's own registration
+// (ca_gst_hst 704203017RT0001, created Oct 6 2026), never a customer tax ID.
+// Not a secret. Env var allows an override without a code change.
+export const SELLER_TAX_ID_OBJECT = "txi_1UNkJuRrufl7GGLbJMe4c9zL";
 function sellerTaxIdObject(): string | undefined {
-  return process.env.STRIPE_ACCOUNT_TAX_ID_OBJECT || undefined;
+  return process.env.STRIPE_ACCOUNT_TAX_ID_OBJECT || SELLER_TAX_ID_OBJECT;
 }
 
 export interface CreateCheckoutSessionArgs {
@@ -123,8 +125,8 @@ export async function createCheckoutSession(args: CreateCheckoutSessionArgs) {
       enabled: true,
       invoice_data: {
         description: args.productDescription,
-        account_tax_ids: sellerTaxIdObject() ? [sellerTaxIdObject()] : undefined,
-        footer: "Gary Best Consulting — GST/HST 70420 3017 RT0001. Prices exclude applicable taxes.",
+        account_tax_ids: [sellerTaxIdObject()],
+        footer: "Gary Best Consulting. GST/HST registration 70420 3017 RT0001.",
         metadata: args.metadata,
       },
     },
