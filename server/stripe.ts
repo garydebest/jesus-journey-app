@@ -65,6 +65,23 @@ async function stripeRequest(path: string, params: Record<string, any>): Promise
   return json;
 }
 
+// Jesus Journey is sold as a consulting service (survey tools support the
+// core work: orientation, interpretation of results and a facilitated
+// debrief). Verified against Stripe's live tax-code list, Oct 2026:
+//   txcd_20060048 "Consulting Services" — "The provision of expertise or
+//   strategic advice that is presented for consideration and decision-making."
+// Set per line item so it never changes Gary's account-wide default.
+export const JJ_TAX_CODE = "txcd_20060048";
+
+// Seller GST/HST number shown on the post-payment invoice. This is the Stripe
+// tax-ID object (txi_...) for Gary Best Consulting's own registration
+// (ca_gst_hst 704203017RT0001, created Oct 6 2026), never a customer tax ID.
+// Not a secret. Env var allows an override without a code change.
+export const SELLER_TAX_ID_OBJECT = "txi_1UNkJuRrufl7GGLbJMe4c9zL";
+function sellerTaxIdObject(): string | undefined {
+  return process.env.STRIPE_ACCOUNT_TAX_ID_OBJECT || SELLER_TAX_ID_OBJECT;
+}
+
 export interface CreateCheckoutSessionArgs {
   amountCents: number;
   currency: string;
@@ -82,21 +99,60 @@ export async function createCheckoutSession(args: CreateCheckoutSessionArgs) {
     success_url: args.successUrl,
     cancel_url: args.cancelUrl,
     customer_email: args.customerEmail,
+    // Tax is added ON TOP of the advertised price, calculated by Stripe Tax
+    // from the church's billing address (never IP, currency or card origin).
+    // No shipping address: this is a non-shipped service.
+    automatic_tax: { enabled: true },
+    billing_address_collection: "required",
     line_items: [
       {
         quantity: 1,
         price_data: {
           currency: args.currency,
           unit_amount: args.amountCents,
+          tax_behavior: "exclusive",
           product_data: {
             name: args.productName,
             description: args.productDescription,
+            tax_code: JJ_TAX_CODE,
           },
         },
       },
     ],
+    // Post-payment invoice: the church's GST/HST-compliant record showing
+    // seller name and GST/HST number, subtotal, tax and total.
+    invoice_creation: {
+      enabled: true,
+      invoice_data: {
+        description: args.productDescription,
+        account_tax_ids: [sellerTaxIdObject()],
+        footer: "Gary Best Consulting. GST/HST registration 70420 3017 RT0001.",
+        metadata: args.metadata,
+      },
+    },
     metadata: args.metadata,
+    payment_intent_data: { metadata: args.metadata },
   });
+}
+
+/** Sessions created before Stripe Tax launched must not be resumed. */
+export function sessionHasAutomaticTax(session: any): boolean {
+  return Boolean(session?.automatic_tax?.enabled);
+}
+
+/**
+ * The church pays base price + tax, so amount_total is NOT the advertised
+ * price. Compare the pre-tax subtotal and currency with what the server
+ * priced for this wave.
+ */
+export function sessionMatchesWavePrice(
+  session: any,
+  wave: { priceCents: number | null; currency: string | null },
+): boolean {
+  if (wave.priceCents == null) return true;
+  const subtotal = Number(session?.amount_subtotal);
+  const sameCurrency = !wave.currency || String(session?.currency).toLowerCase() === String(wave.currency).toLowerCase();
+  return subtotal === wave.priceCents && sameCurrency;
 }
 
 export async function retrieveCheckoutSession(sessionId: string) {
