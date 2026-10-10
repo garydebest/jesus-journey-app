@@ -82,7 +82,7 @@ jobs:
         run: npm audit --omit=dev --audit-level=high > remaining-audit.log 2>&1 || true
       - name: Report outcome to draft PR 24
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           RESULT: '${{ job.status }}'
         with:
