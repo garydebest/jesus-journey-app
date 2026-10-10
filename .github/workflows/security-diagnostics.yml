@@ -6,6 +6,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: write
 jobs:
   diagnose:
     runs-on: ubuntu-latest
@@ -50,7 +51,9 @@ jobs:
               set -e
               echo 'STAGE: dependency installation'
               npm ci --ignore-scripts
-              echo 'STAGE: disposable database bootstrap'
+              echo 'STAGE: complete disposable database schema'
+              node -e 'const u = new URL(process.env.DATABASE_URL); if (process.env.CI !== "true" || !["localhost", "127.0.0.1"].includes(u.hostname) || u.pathname !== "/jj_preview") throw new Error("Refusing non-local test database");'
+              npm run db:push -- --force
               npx --no-install tsx -e 'import { ensureBootstrapped } from "./server/storage"; ensureBootstrapped().then(() => process.exit(0)).catch(error => { console.error(error); process.exit(1); });'
               echo 'STAGE: synthetic fixtures'
               npx --no-install tsx script/seed-preview.ts
