@@ -1,4 +1,5 @@
 import { Pool } from "pg";
+import { databaseSsl } from "./database-ssl";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, desc, and, sql } from "drizzle-orm";
 import type { SurveyPlan, ResponseBreakdown } from "@shared/surveyAccess";
@@ -37,7 +38,7 @@ if (!connectionString) {
 
 export const pool = new Pool({
   connectionString,
-  ssl: connectionString.includes("sslmode=") ? undefined : { rejectUnauthorized: false },
+  ssl: databaseSsl(connectionString),
 });
 export const db = drizzle(pool, { schema });
 
