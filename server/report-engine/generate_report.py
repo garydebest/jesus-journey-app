@@ -40,6 +40,8 @@ def normalize_row(row: dict) -> dict:
     not journey_pre."""
     r = dict(row)
     r["journey"] = r.get("journey_post")
+    # The opening self-assessment decides which questionnaire a person took.
+    r["short_form"] = r.get("journey_pre") in (1, 2)
     return r
 
 

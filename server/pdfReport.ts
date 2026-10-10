@@ -4,7 +4,6 @@ import path from "node:path";
 import { resolveModuleDir } from "./paths";
 import { ITEM_CODES, type ResponseRow } from "@shared/schema";
 import { persistReportPdf } from "./reportStorage";
-import { buildCohortReporting, needsCohortReporting } from "@shared/cohortReporting";
 import { classifyStoredResponse } from "@shared/shortForm";
 import { ethnicityLabels } from "@shared/demographicPolicy";
 import { parseChildren } from "@shared/reportMetrics";
@@ -78,16 +77,16 @@ export function generateChurchReportPdf(params: GenerateReportParams): Promise<G
 
     const opened = new Date(params.waveCreatedAt);
     const now = new Date();
-    const separated = needsCohortReporting(params.rows);
+    // Every church receives the full report. Short-form answers sit in each
+    // person's final-stage column; unasked statements are left blank.
     const payload = {
       church_name: params.churchName,
       report_date: formatDate(now),
       survey_period: `${formatDate(opened)} - ${formatDate(now)}`,
       out_path: outPath,
       comments_out_path: commentsOutPath,
-      rows: (separated ? params.rows.filter(row => classifyStoredResponse(row) !== "incomplete") : params.rows).map(toReportRow),
+      rows: params.rows.filter(row => classifyStoredResponse(row) !== "incomplete").map(toReportRow),
       had_comments: params.rows.some(row => row.commentText?.trim()),
-      cohort_report: separated ? buildCohortReporting(params.rows) : undefined,
     };
 
     const proc = spawn("python3", ["generate_report.py"], {

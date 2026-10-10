@@ -242,7 +242,11 @@ def score_respondent(row: dict, org_column: str) -> RespondentScore:
 
     journey_raw = norm.get("JOURNEY")
     journey = int(journey_raw) if journey_raw not in (None, "") else None
-    is_partial = journey is not None and journey < 3
+    # Short-form respondents (opening self-assessment Distant/Exploring) were
+    # asked 38 statements. Unasked statements are skipped, never scored, and
+    # the respondent stays in their final-stage group.
+    short_form = bool(norm.get("SHORT_FORM"))
+    is_partial = short_form or (journey is not None and journey < 3)
 
     pathway_scores = {}
     pathway_bands = {}
@@ -258,6 +262,12 @@ def score_respondent(row: dict, org_column: str) -> RespondentScore:
                 continue
             items_to_use = override
 
+        if short_form:
+            items_to_use = [code for code in items_to_use if norm.get(code.upper()) not in (None, "")]
+            if not items_to_use:
+                pathway_scores[pnum] = None
+                pathway_bands[pnum] = None
+                continue
         values = [item(code) for code in items_to_use]
         for code, v in zip(items_to_use, values):
             item_values[code] = v

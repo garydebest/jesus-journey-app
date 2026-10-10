@@ -26,7 +26,8 @@ class DennisCorrections(unittest.TestCase):
                  "Exploring": {"n": 8, "agreed": 8, "pct": 100}}
         self.assertEqual(_item_pct(stats, "Exploring"), 90)
         self.assertIsNone(_item_pct(stats, "Believing in God"))
-        self.assertEqual(_item_pct({"Exploring": {"n": 5, "agreed": 0, "pct": 0}}, "Exploring"), 0)
+        self.assertEqual(_item_pct({"Exploring": {"n": 10, "agreed": 0, "pct": 0}}, "Exploring"), 0)
+        self.assertEqual(_item_pct({"Exploring": {"n": 5, "agreed": 0, "pct": 0}}, "Exploring"), "withheld")  # under 10: dash
         self.assertGreater(_item_pct({"Exploring": {"n": 2000, "agreed": 1, "pct": .05}}, "Exploring"), 0)
 
     def test_children_multiselect(self):

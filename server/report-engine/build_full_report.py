@@ -862,9 +862,14 @@ def page_maturity_donut(c):
         text = ("Insufficient responses to protect confidentiality." if reflection["suppressed"]
                 else " | ".join(f'{row["label"]}: {row["pct"]:g}%' for row in reflection["values"]))
         ry = draw_body_paragraph(c, MARGIN, ry, text, PAGE_W - 2 * MARGIN, size=9, leading=12)
-        draw_body_paragraph(c, MARGIN, ry - 6,
+        ry = draw_body_paragraph(c, MARGIN, ry - 6,
                             "Opening versus closing self-assessment among people who answered both. "
                             "This is reflection during the survey, not spiritual growth over time.",
+                            PAGE_W - 2 * MARGIN, size=9, leading=12)
+        draw_body_paragraph(c, MARGIN, ry - 8,
+                            "These stages reflect how respondents described their relationship with Jesus at the end of the survey. "
+                            "They are not calculated from their pathway scores and should not be treated as a definitive measure "
+                            "of spiritual maturity.",
                             PAGE_W - 2 * MARGIN, size=9, leading=12)
 
 
@@ -1376,18 +1381,21 @@ def pathway_result_page(c, page_num, goal_name, items, col_labels=("Exploring\nJ
             for i, v in enumerate(vals):
                 cx = MARGIN + left_w + 0.2 * inch + i * col_w + col_w / 2
                 c.setFont("Inter-SemiBold", 9.3)
-                c.setFillColor(TEAL_DARK if (v is not None and v > 0) else INK_MUTED)
-                text = "" if v is None else "<1" if 0 < v < 1 else str(v)
+                withheld = v == "withheld"
+                c.setFillColor(TEAL_DARK if (v is not None and not withheld and v > 0) else INK_MUTED)
+                text = "" if v is None else "\u2013" if withheld else "<1" if 0 < v < 1 else str(v)
                 c.drawCentredString(cx, vy, text)
             y = row_top - row_h - 3
         y -= 0.14 * inch
 
     c.setFont("Inter", 7.6)
     c.setFillColor(INK_MUTED)
-    footnote = ("* Percent answering 4 or 5 among valid answers in each final maturity group. Exploring includes Distant. "
-                "Blank = no valid answers for this statement/group; 0 = answered, but nobody selected 4 or 5.")
+    footnote = ("* Each percentage in the table shows the % of respondents who answered the statement as \u201cmost of the time true\u201d "
+                "or \u201calways true\u201d of me. When a % number is missing in the \u201cExploring Jesus\u201d column, that question was not "
+                "asked of those respondents. A dash (\u2013) means fewer than 10 people in that group answered, so the result is withheld "
+                "for confidentiality. Exploring Jesus includes Distant.")
     lines = wrapped_lines(c, footnote, "Inter", 7.6, PAGE_W - 2 * MARGIN)
-    yy = 0.9 * inch
+    yy = 0.9 * inch + max(0, len(lines) - 2) * 10
     for ln in lines:
         c.drawString(MARGIN, yy, ln)
         yy -= 10
@@ -1559,7 +1567,7 @@ def page_all16_chart(c):
                          f"{name}: {text}")
         y -= 0.49 * inch
         c.setFont("Inter", 9)
-        c.drawString(MARGIN, y, "Goal averages: equal-weight average of the four pathway percentages within each goal.")
+        c.drawString(MARGIN, y, "Goal averages: the average percentage across the four pathways in each goal.")
         y -= 0.18 * inch
     chart_path = f"{ASSET_DIR}/all16_chart.png"
     make_all16_chart(chart_path)
@@ -1580,9 +1588,11 @@ def make_maturity_line_chart(path):
 
     x = np.arange(len(labels))
     fig, ax = plt.subplots(figsize=(9.2, 5.2), dpi=220)
-    ax.plot(x, believing, color=MPL_TEAL_LIGHT, marker="o", markersize=4, linewidth=2, label="Believing")
-    ax.plot(x, trusting, color=MPL_CORAL, marker="o", markersize=4, linewidth=2, label="Trusting")
-    ax.plot(x, centered, color=MPL_SAND, marker="o", markersize=4, linewidth=2.3, label="Centered")
+    for series, colour, width, name in ((believing, MPL_TEAL_LIGHT, 2, "Believing"), (trusting, MPL_CORAL, 2, "Trusting"),
+                                        (centered, MPL_SAND, 2.3, "Jesus Centered")):
+        if all(v is None for v in series):
+            continue  # fewer than 10 people: withheld for confidentiality
+        ax.plot(x, [np.nan if v is None else v for v in series], color=colour, marker="o", markersize=4, linewidth=width, label=name)
     ax.set_xticks(x)
     ax.set_xticklabels(labels, fontsize=7.6, rotation=45, ha="right", family="Inter", color=MPL_INK_MUTED)
     ax.set_ylim(0, 100)
@@ -1607,6 +1617,12 @@ def page_maturity_comparison(c):
     c.drawString(MARGIN, y, "Comparison across levels of spiritual maturity \u2014 average % who agree")
     y -= 0.16 * inch
     c.drawString(MARGIN, y, "this is true for them, for all questions on each Journey pathway.")
+    withheld = [name for name, series in (("Believing", REPORT_DATA.maturity_line_believing), ("Trusting", REPORT_DATA.maturity_line_trusting),
+                                          ("Jesus Centered", REPORT_DATA.maturity_line_centered)) if any(v is None for v in series)]
+    if withheld:
+        y -= 0.2 * inch
+        c.setFont("Inter", 9)
+        c.drawString(MARGIN, y, f"Not shown for confidentiality (fewer than 10 people): {', '.join(withheld)}.")
 
     chart_path = f"{ASSET_DIR}/maturity_line.png"
     make_maturity_line_chart(chart_path)
