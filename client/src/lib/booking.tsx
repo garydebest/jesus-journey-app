@@ -34,8 +34,15 @@ export function useBookingConfig(): BookingConfig | null {
   return config;
 }
 
-export function BookingButton({ kind, variant = "default", size = "default", className = "", disabled = false }: {
+/** Calendly passes utm_content back in its webhook, so the booking can be matched to the survey. */
+export function withSurveyTag(url: string | null, waveId?: string | null): string | null {
+  if (!url || !waveId) return url;
+  try { const u = new URL(url); u.searchParams.set("utm_source", "jj-app"); u.searchParams.set("utm_content", waveId); return u.toString(); } catch { return url; }
+}
+
+export function BookingButton({ kind, variant = "default", size = "default", className = "", disabled = false, waveId }: {
   kind: "orientation" | "debrief";
+  waveId?: string | null;
   variant?: "default" | "outline";
   size?: "default" | "sm";
   className?: string;
@@ -44,7 +51,7 @@ export function BookingButton({ kind, variant = "default", size = "default", cla
   const config = useBookingConfig();
   const label = kind === "orientation" ? "Book your orientation" : "Book your results debrief";
   if (!config) return <Button variant={variant} size={size} className={className} disabled>{label}</Button>;
-  const href = kind === "orientation" ? config.orientationUrl : config.debriefUrl;
+  const href = kind === "orientation" ? config.orientationUrl : withSurveyTag(config.debriefUrl, waveId);
   if (!href || disabled) {
     return <p className="text-sm text-muted-foreground rounded-md bg-muted/50 px-3 py-2" role="note" data-testid={`booking-fallback-${kind}`}>
       {disabled ? "Booking is not available in the demo." : config.fallbackMessage}

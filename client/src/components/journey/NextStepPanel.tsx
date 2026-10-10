@@ -12,6 +12,7 @@ export type JourneyState =
   | "debrief_complete";
 
 export interface JourneyWave {
+  id?: string;
   status: string;
   paymentStatus?: string;
   orientationBookedAt?: string | null;
@@ -97,7 +98,7 @@ export function NextStepPanel({ state, current, latestReport, isDemo, onNavigate
         {state === "collecting" && go("Monitor participation", "your-surveys", "survey-progress", "button-next-monitor")}
         {state === "target_reached" && go("Review closing checklist", "collect", "closing-checklist", "button-next-closing-checklist")}
         {state === "results_ready" && <>
-          {!latestReport?.debriefBookedAt && <BookingButton kind="debrief" disabled={isDemo} />}
+          {!latestReport?.debriefBookedAt && <BookingButton kind="debrief" disabled={isDemo} waveId={latestReport?.id} />}
           {go("Prepare for your debrief", "interpret", "debrief-preparation", "button-next-debrief-prep", "outline")}
         </>}
         {state === "debrief_complete" && go("View next-step resources", "act", undefined, "button-next-resources")}
