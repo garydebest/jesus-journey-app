@@ -1,0 +1,57 @@
+name: Optional dependency fallback checks
+on:
+  push:
+    branches: [security/readiness-2026-10-10]
+    paths: [.github/workflows/optional-dependency-check.yml]
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+jobs:
+  optional-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts
+      - name: Verify absent optional dependencies and safe fallback behavior
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          import Module,{createRequire} from 'node:module';
+          const require=createRequire(import.meta.url),lock=JSON.parse(fs.readFileSync('package-lock.json'));
+          assert.throws(()=>require.resolve('supports-color'),{code:'MODULE_NOT_FOUND'});
+          assert.throws(()=>require.resolve('pg-native'),{code:'MODULE_NOT_FOUND'});
+          assert.equal(lock.packages['node_modules/debug'].peerDependenciesMeta['supports-color'].optional,true);
+          assert.equal(lock.packages['node_modules/pg'].peerDependenciesMeta['pg-native'].optional,true);
+          const originalLoad=Module._load,originalWrite=process.stderr.write;let colorAttempts=0,nativeAttempts=0,log='';
+          Module._load=function(name,...args){if(name==='supports-color'||name==='pg-native'){if(name==='supports-color')colorAttempts++;else nativeAttempts++;const e=new Error('Intentionally absent optional package');e.code='MODULE_NOT_FOUND';throw e;}return originalLoad.call(this,name,...args);};
+          let driver;
+          try{const debug=require('debug');process.stderr.write=function(text){log+=String(text);return true;};debug.enable('jj-optional-check');debug('jj-optional-check')('fallback-ok');debug.disable();assert.match(log,/fallback-ok/);assert.ok(colorAttempts>0,'Expected guarded supports-color lookup');delete process.env.NODE_PG_FORCE_NATIVE;driver=require('pg');assert.equal(typeof driver.Client,'function');assert.equal(typeof driver.Pool,'function');assert.equal(nativeAttempts,0,'Standard pg import must not activate native driver');}finally{Module._load=originalLoad;process.stderr.write=originalWrite;}
+          const suspiciousSource=[];
+          function scan(dir){if(!fs.existsSync(dir))return;for(const e of fs.readdirSync(dir,{withFileTypes:true})){const p=dir+'/'+e.name;if(e.isDirectory()){if(!['report-engine','generated-reports','node_modules'].includes(e.name))scan(p);}else if(/\.[cm]?[jt]sx?$/.test(p)){const text=fs.readFileSync(p,'utf8');if(/pg-native|NODE_PG_FORCE_NATIVE|\bpg\.native\b/.test(text))suspiciousSource.push(p);}}}
+          scan('server');scan('shared');
+          const debugSource=fs.readFileSync('node_modules/debug/src/node.js','utf8');const index=debugSource.indexOf("require('supports-color')");
+          const report={commit:process.env.GITHUB_SHA,versions:{debug:lock.packages['node_modules/debug'].version,pg:lock.packages['node_modules/pg'].version},supportsColor:{absent:true,optional:true,guardedLookupAttempts:colorAttempts,loggingFallbackPassed:true,sourceExcerpt:index>=0?debugSource.slice(Math.max(0,index-80),index+700):'Inspect artifact source'},pgNative:{absent:true,optional:true,standardDriverImportPassed:true,nativeLookupAttempts:nativeAttempts,suspiciousSource},limitations:'No live database connection. Does not verify production NODE_PG_FORCE_NATIVE configuration, alternate native-driver aliases or arbitrary dynamic imports. This check classifies missing optional entries; it does not fix remaining styling advisories or approve deployment.'};
+          fs.writeFileSync('optional-dependency-report.json',JSON.stringify(report,null,2));
+          if(suspiciousSource.length)throw new Error('Native-driver source references require review');
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: optional-dependency-evidence
+          path: optional-dependency-report.json
+          if-no-files-found: warn
+      - name: Report verified fallbacks to PR 24
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs=require('fs');const report=fs.readFileSync('optional-dependency-report.json','utf8');
+            if(report.length>16000)throw new Error('Report exceeds bounded size');
+            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:24,body:'Optional dependency verification on '+context.sha+'\nNo dependencies installed beyond the lockfile, no production changes.\n```json\n'+report.replace(/`/g,"'")+'\n```'});
