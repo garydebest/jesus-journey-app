@@ -2,7 +2,7 @@ name: Isolated regression tests
 on:
   pull_request:
   push:
-    branches: [security/readiness-2026-10-10]
+    branches: [security/readiness-2026-10-10, security/login-rate-limits-2026-10-10]
   workflow_dispatch:
 permissions:
   contents: read
@@ -57,6 +57,11 @@ jobs:
       - name: Password reset and session regressions
         if: matrix.suite == 'password'
         run: npx --no-install tsx script/password-reset-qa.ts
+      - name: Sign-in and reset rate limits
+        if: matrix.suite == 'password'
+        run: |
+          npx --no-install tsx script/rate-limit-qa.ts
+          npx --no-install tsx script/rate-limit-api-qa.ts
       - name: Report retention, rendering, captured email and mocked booking regressions
         if: matrix.suite != 'password'
         run: npx --no-install tsx script/close-safety-qa.ts
