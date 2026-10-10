@@ -33,11 +33,13 @@ process.env.SUPABASE_URL = `http://127.0.0.1:${(objectServer.address() as any).p
 process.env.SUPABASE_SERVICE_ROLE_KEY = "synthetic-local-storage-emulator-only";
 // The QA sandbox runs Node 20; the Supabase SDK expects Node 22's native WebSocket.
 if (!globalThis.WebSocket) (globalThis as any).WebSocket = WebSocket;
+process.env.MAILER_TEST_OUTBOX = "1"; // capture journey email in memory; nothing is sent
 const { db, storage } = await import("../server/storage");
 const { closeSurvey, saveChurchResponse } = await import("../server/closeSurvey");
 const good = {
   church: async () => ({ok:true,storageKey:"synthetic.pdf",commentsStorageKey:"synthetic-comments.pdf"}),
   debrief: async () => ({ok:true,storageKey:"synthetic-debrief.pdf"}),
+  surveyReview: async () => ({ok:true,surveyReviewKey:"synthetic-review.pdf",facilitatorKey:"synthetic-facilitator.pdf",summaryJson:"{}"}),
 };
 const shortMode = process.env.JJ_QA_VARIANT === "short";
 const mixedMode = process.env.JJ_QA_VARIANT === "mixed";
@@ -87,6 +89,11 @@ try {
   await check("debriefing failure retains responses and creates no partial snapshot", async () => {
     const id=await fixture();
     await assert.rejects(closeSurvey(id,false,{...good,debrief:async()=>({ok:false,error:"Synthetic debrief failure"})}),{status:503});
+    await retained(id);
+  });
+  await check("Survey Review failure retains responses and creates no partial snapshot", async () => {
+    const id=await fixture();
+    await assert.rejects(closeSurvey(id,false,{...good,surveyReview:async()=>({ok:false,error:"Synthetic review failure"})}),{status:503});
     await retained(id);
   });
   await check("late database failure rolls back metadata, closure and deletion", async () => {
@@ -155,6 +162,24 @@ try {
     assert.equal((await storage.getWaveById(id))?.status,"closed");
     assert.equal(await storage.countResponsesByWave(id),0);
     assert.equal((await storage.getSnapshotByWave(id))?.commentsReportPdfPath,null);
+  });
+  await check("close saves Survey Review and Facilitator's Report; booking the debrief emails the Survey Review once", async () => {
+    const id=await fixture(false); await closeSurvey(id);
+    const saved=await storage.getDebriefingReportByWave(id);
+    assert.ok(saved?.surveyReviewPdfPath && saved.facilitatorPdfPath && saved.surveyReviewJson);
+    for (const key of [saved!.surveyReviewPdfPath!, saved!.facilitatorPdfPath!]) assert.equal(objects.get(key)?.subarray(0,5).toString(),"%PDF-");
+    const { testOutbox } = await import("../server/mailer");
+    const J = await import("../server/journey");
+    testOutbox.length = 0;
+    await storage.updateWaveJourney(id,{debriefBookedAt:"2026-11-03"});
+    await J.onDebriefBooked(id); await J.onDebriefBooked(id);
+    const sent=testOutbox.filter(m=>m.subject==="Your Survey Review for the results debrief");
+    assert.equal(sent.length,1,"sent once to the primary contact");
+    assert.equal(sent[0].attachments?.[0]?.filename,"Survey-Review.pdf");
+    assert.equal(sent[0].attachments?.[0]?.content.subarray(0,5).toString(),"%PDF-");
+    assert.match(sent[0].text,/Tuesday, November 3, 2026/);
+    const resent=await J.adminResend("debrief_booked",id);
+    assert.equal(resent[0]?.status,"sent");
   });
   console.log(JSON.stringify({passed:results.length,checks:results,storage:"Local emulator, not production Supabase",paymentTested:false},null,2));
 } finally {

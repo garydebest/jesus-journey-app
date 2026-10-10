@@ -239,6 +239,11 @@ export const debriefingReports = pgTable("debriefing_reports", {
   respondentCount: integer("respondent_count").notNull(),
   reportJson: text("report_json").notNull(), // full structured DebriefingReport (see shared/debriefing/types.ts)
   reportPdfPath: text("report_pdf_path"), // Supabase Storage object key in the "church-reports" bucket (e.g. "<waveId>-debrief.pdf")
+  // Survey Review (church-facing, emailed when the debrief is booked) and the Facilitator's Report that
+  // replaces the older debriefing PDF. Both are rendered from raw rows at close; the JSON is aggregate only.
+  surveyReviewPdfPath: text("survey_review_pdf_path"),
+  facilitatorPdfPath: text("facilitator_pdf_path"),
+  surveyReviewJson: text("survey_review_json"),
   generatedAt: timestamp("generated_at", { withTimezone: true }).notNull().default(sql`now()`),
 });
 

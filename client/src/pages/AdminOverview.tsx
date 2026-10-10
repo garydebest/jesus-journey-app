@@ -55,6 +55,8 @@ interface AdminWaveEntry {
   hasCommentsReportPdf: boolean;
   hasDebriefingReport: boolean;
   hasDebriefingReportPdf: boolean;
+  hasSurveyReviewPdf?: boolean;
+  hasFacilitatorPdf?: boolean;
 }
 
 interface LegacyPathwayFigure {
@@ -216,6 +218,25 @@ export function AdminOverview() {
       URL.revokeObjectURL(url);
     } catch (err: any) {
       setError(String(err?.message ?? "Debriefing report PDF is not available."));
+    } finally {
+      setDownloadingDebriefingId(null);
+    }
+  }
+
+  async function handleDownloadSavedPdf(entry: AdminWaveEntry, route: "survey-review.pdf" | "facilitator.pdf", filename: string) {
+    setDownloadingDebriefingId(`${entry.wave.id}:${route}`);
+    try {
+      const blob = await adminApiRequestBlob(token, `/api/admin/waves/${entry.wave.id}/${route}`);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setError(String(err?.message ?? "This report is not available."));
     } finally {
       setDownloadingDebriefingId(null);
     }
@@ -437,7 +458,29 @@ export function AdminOverview() {
                                   {downloadingWordcloudId === entry.wave.id ? "Preparing..." : "Wordcloud PDF"}
                                 </Button>
                               )}
-                              {entry.hasDebriefingReport && (
+                              {entry.hasFacilitatorPdf && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDownloadSavedPdf(entry, "facilitator.pdf", "Facilitators-Report.pdf")}
+                                  disabled={downloadingDebriefingId === `${entry.wave.id}:facilitator.pdf`}
+                                  data-testid={`button-admin-download-facilitator-${entry.wave.id}`}
+                                >
+                                  {downloadingDebriefingId === `${entry.wave.id}:facilitator.pdf` ? "Preparing..." : "Facilitator's Report"}
+                                </Button>
+                              )}
+                              {entry.hasSurveyReviewPdf && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDownloadSavedPdf(entry, "survey-review.pdf", "Survey-Review.pdf")}
+                                  disabled={downloadingDebriefingId === `${entry.wave.id}:survey-review.pdf`}
+                                  data-testid={`button-admin-download-survey-review-${entry.wave.id}`}
+                                >
+                                  {downloadingDebriefingId === `${entry.wave.id}:survey-review.pdf` ? "Preparing..." : "Survey Review"}
+                                </Button>
+                              )}
+                              {entry.hasDebriefingReport && !entry.hasFacilitatorPdf && (
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -447,7 +490,7 @@ export function AdminOverview() {
                                   Debriefing report
                                 </Button>
                               )}
-                              {entry.hasDebriefingReportPdf && (
+                              {entry.hasDebriefingReportPdf && !entry.hasFacilitatorPdf && (
                                 <Button
                                   size="sm"
                                   variant="outline"

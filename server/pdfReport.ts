@@ -19,7 +19,7 @@ const moduleDir = resolveModuleDir(
 const REPORT_ENGINE_DIR = path.resolve(moduleDir, "report-engine");
 const REPORTS_DIR = path.resolve(moduleDir, "..", "generated-reports");
 
-function toReportRow(row: ResponseRow): Record<string, unknown> {
+export function toReportRow(row: ResponseRow): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const code of ITEM_CODES) {
     const v = (row as any)[code];

@@ -110,8 +110,9 @@ export function AdminJourneyPanel({ token, churchName, wave, isDemo, onChanged }
             <div className="flex-1 space-y-1"><Label htmlFor="debrief-date" className="text-xs">Debrief booked for</Label>
               <Input id="debrief-date" type="date" value={debriefDate} onChange={(e) => setDebriefDate(e.target.value)} disabled={isDemo || busy} /></div>
             <Button size="sm" variant="outline" disabled={isDemo || busy || debriefDate === (wave.debriefBookedAt ?? "")}
-              onClick={() => patch({ debriefBookedAt: debriefDate || null }, "Debrief booking date saved.")}>Save</Button>
+              onClick={() => patch({ debriefBookedAt: debriefDate || null }, wave.debriefBookedAt ? "Debrief booking date saved." : "Debrief booking date saved. The church's Survey Review is being emailed.")}>Save</Button>
           </div>
+          {!wave.debriefBookedAt && <p className="text-xs text-muted-foreground">Saving the first booking date emails the church its Survey Review (PDF attached). Changing the date later does not send it again.</p>}
           <Button size="sm" variant={wave.debriefCompletedAt ? "ghost" : "default"} disabled={isDemo || busy}
             onClick={() => patch({ debriefCompleted: !wave.debriefCompletedAt }, wave.debriefCompletedAt ? "Debrief completion removed." : "Debrief marked complete.")}>
             {wave.debriefCompletedAt ? "Undo debrief completion" : "Mark debrief complete"}

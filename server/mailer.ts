@@ -34,7 +34,7 @@ function getTransporter() {
     return {
       sendMail: async (m: any) => {
         if (testFailures.has(String(m.to).toLowerCase())) throw new Error("Synthetic delivery failure");
-        testOutbox.push({ to: m.to, subject: m.subject, html: m.html, text: m.text });
+        testOutbox.push({ to: m.to, subject: m.subject, html: m.html, text: m.text, attachments: m.attachments });
         return { messageId: `test-${testOutbox.length}` };
       },
     } as unknown as ReturnType<typeof nodemailer.createTransport>;
@@ -50,11 +50,13 @@ function getTransporter() {
   return transporter;
 }
 
+export interface EmailAttachment { filename: string; content: Buffer; contentType?: string }
 export interface SendEmailArgs {
   to: string;
   subject: string;
   html: string;
   text: string;
+  attachments?: EmailAttachment[];
 }
 
 export interface SendEmailResult {
@@ -75,6 +77,7 @@ export async function sendEmailDetailed(args: SendEmailArgs): Promise<SendEmailR
       subject: args.subject,
       html: args.html,
       text: args.text,
+      attachments: args.attachments,
     });
     return { status: "sent", messageId: info?.messageId ?? null };
   } catch (err: any) {
