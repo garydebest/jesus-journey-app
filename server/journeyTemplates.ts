@@ -207,7 +207,7 @@ export function renderClientEmail(type: ClientEmailType, c: TemplateContext): Re
     case "debrief_booked":
       return layout("Your Survey Review for the results debrief", "Your Survey Review is attached. Please read it before the debrief call.", hello, [
         { kind: "p", text: `Thank you for booking your results debrief for ${c.churchName} (${c.debriefDate}). Your Survey Review is attached as a PDF.` },
-        { kind: "p", text: "The Survey Review is a short summary of your full Church Report. It shows what we discovered about ourselves, the strengths to celebrate and opportunities to investigate in each Goal, and questions for the conversation. Page references point to the full Church Report in your dashboard." },
+        { kind: "p", text: "The Survey Review is a short summary of your full Church Report. It shows what we discovered about ourselves, the strengths to celebrate and opportunities to investigate in each Goal, and questions for the conversation. Your full reports are in your dashboard." },
         { kind: "list", items: [
           "Share it with those who will join the call.",
           "Note two strengths to celebrate and two questions you would like to understand better.",

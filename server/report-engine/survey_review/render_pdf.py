@@ -93,7 +93,7 @@ def church_pdf(path, name, sel, B, L):
     s = []
     s.append(P("Survey Review", H1))
     s.append(P(E(name), SUBT))
-    s.append(P(E(f"{sel['n']} people took part. Strengths and opportunities compare our results with each other, so every church has both. Results for a stage or group appear only when it has at least 10 people. Page references point to our full church report."), SMALL))
+    s.append(P(E(f"{sel['n']} people took part. Strengths and opportunities compare our results with each other, so every church has both. Results for a stage or group appear only when it has at least 10 people." + (" Page references point to our full church report." if B.PAGES else "")), SMALL))
     s.append(P("What did we discover about ourselves?", H2))
     data = [[P("What we see", HEAD), P("Questions to consider", HEAD)]]
     for a in sel["about"]:
@@ -140,7 +140,7 @@ def church_pdf(path, name, sel, B, L):
 def facilitator_pdf(path, name, rows, sel, B, L):
     full = [r for r in rows if r["stage"] >= 3 and r.get("full_form", True)]
     s = [P("Facilitator's Report", H1), P(E(name), SUBT),
-         P(E("This report mirrors the church's Survey Review line by line. For each line it shows what it is based on, the key numbers and the page in the full church report where the church can see the same data."), BODY), Spacer(1, 4),
+         P(E("This report mirrors the church's Survey Review line by line. For each line it shows what it is based on, the key numbers and the page in the full church report where the church can see the same data." if B.PAGES else "This report mirrors the church's Survey Review line by line. For each line it shows what it is based on and the key numbers. This church received the combined short-form and full-survey report, so there are no page references."), BODY), Spacer(1, 4),
          P(E("Reading the numbers: the full church report shows the percentage answering Always or Most of the time true, by stage, and so does this report. Lines were chosen by comparing each statement's average score (1–5) with the church's average for statements of the same kind."), SMALL), Spacer(1, 6)]
     sc = sel["stage_counts"]
     s.append(table([[P(h, HEAD_S) for h in ["Who took part", "Distant", "Exploring", "Believing", "Trusting", "Jesus Centered", "Total"]],
@@ -151,20 +151,20 @@ def facilitator_pdf(path, name, rows, sel, B, L):
     data = [[P(h, HEAD_S) for h in ["Line in the church report", "Numbers", "Full report"]]]
     for a in sel["about"]:
         nums = B.about_numbers(a["key"], rows, sel) or "Stage-matched comparison; passes the strict chance check. Not shown in the full report."
-        pg = L.ABOUT_PAGE.get(a["key"])
+        pg = L.ABOUT_PAGE.get(a["key"]) if B.PAGES else None
         data.append([P(E(a["obs"]), CELL_S), P(E(nums), CELL_S), P("p. " + pg if pg else "Not shown", CELL_S)])
     s.append(table(data, [W * .44, W * .42, W * .14], HEAD_S))
     for gi, g in enumerate(L.GOALS):
         G = sel["goals"][g]
-        blk = ([P("What did we learn about our journey together?", H2)] if gi == 0 else []) + [Spacer(1, 6), band(gi + 1, g, f"Full report pages {L.GOAL_PAGE[g] - 3}–{L.GOAL_PAGE[g]}"), Spacer(1, 6)]
+        blk = ([P("What did we learn about our journey together?", H2)] if gi == 0 else []) + [Spacer(1, 6), band(gi + 1, g, f"Full report pages {L.GOAL_PAGE[g] - 3}–{L.GOAL_PAGE[g]}" if B.PAGES else L.GOALS[g]), Spacer(1, 6)]
         if sel["greatest_strength"] == g or sel["greatest_opportunity"] == g:
             lab = "greatest strength" if sel["greatest_strength"] == g else "greatest opportunity"
-            blk.append(P(E(f"Marked as our {lab}: this Goal's practices average {G['standing']:+.2f} compared with all our practices (Goal chart, p. {L.GOAL_PAGE[g]})."), SMALL))
+            blk.append(P(E(f"Marked as our {lab}: this Goal's practices average {G['standing']:+.2f} compared with all our practices{f" (Goal chart, p. {L.GOAL_PAGE[g]})" if B.PAGES else ""}."), SMALL))
         data = [[P(h, HEAD_S) for h in ["", "Line", "Based on", "Numbers", "Page"]]]
         for side, lst in (("Strength", G["strengths"]), ("Opportunity", G["opportunities"])):
             for _, t, src in lst:
                 based, nums = B.evidence(src, sel, full)
-                data.append([P(side, CELL_S), P(E(t), CELL_S), P(E(based), CELL_S), P(E(nums), CELL_S), P(str(L.PATHWAY_PAGE[B.src_pathway(src)]), CELL_S)])
+                data.append([P(side, CELL_S), P(E(t), CELL_S), P(E(based), CELL_S), P(E(nums), CELL_S), P(str(L.PATHWAY_PAGE[B.src_pathway(src)]) if B.PAGES else "–", CELL_S)])
         blk.append(table(data, [W * .14, W * .23, W * .19, W * .36, W * .08], HEAD_S, pad=7))
         if G["not_shown"]: blk.append(P(E("Also qualified but not shown (limit of 4 per cell): " + "; ".join(t for _, t, _ in G["not_shown"])), SMALL))
         s.append(KeepTogether(blk))

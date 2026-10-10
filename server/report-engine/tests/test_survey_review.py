@@ -87,6 +87,17 @@ class SurveyReviewTest(unittest.TestCase):
         self.assertTrue(res["summary"]["goal_tables_withheld"])
         self.assertIn("to protect confidentiality", " ".join(texts[0].split()))
 
+    def test_page_references_only_with_full_report_layout(self):
+        rows = church(60, 3)
+        with tempfile.TemporaryDirectory() as d:
+            for layout, expect in ((True, True), (False, False)):
+                c, f = Path(d) / "c.pdf", Path(d) / "f.pdf"
+                subprocess.run([sys.executable, str(ENGINE / "generate_survey_review.py")], input=json.dumps(
+                    {"church_name": "T", "rows": rows, "church_out": str(c), "facilitator_out": str(f), "full_report_layout": layout}),
+                    capture_output=True, text=True, cwd=ENGINE, check=True)
+                text = " ".join(" ".join(pg.extract_text() for pg in PdfReader(str(c)).pages).split())
+                self.assertEqual("see page" in text, expect)
+
     def test_no_valid_stage_fails_cleanly(self):
         res, _ = run([{"journey_post": None}])
         self.assertFalse(res["ok"])
