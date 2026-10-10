@@ -16,6 +16,7 @@ def main():
     import engine as B
     import phrase_library as L
     import render_pdf as RP
+    B.PAGES = bool(payload.get("full_report_layout", True))
     rows = B.from_report_rows(payload.get("rows") or [])
     if not rows:
         raise ValueError("No responses with a valid journey stage")

@@ -273,8 +273,13 @@ def src_pathway(src):
     if kind == "item": return next(p["num"] for p in PATHWAYS if rest in p["items"])
     return int(rest.split(":")[0])
 
+# Page references only make sense when the church received the 38-page full report.
+# Churches with any short-form (Distant/Exploring) responses receive the cohort report instead.
+PAGES = True
+
+
 def with_page(text, page):
-    if not page: return text
+    if not page or not PAGES: return text
     t = text.rstrip(".")
     if t.endswith(")"): return t[:-1] + f"; see page {page})."
     return t + L.SEE_PAGE.format(page=page) + "."
