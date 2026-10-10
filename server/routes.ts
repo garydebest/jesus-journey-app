@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { limits, clientAddress, accountKey, rejectIfLimited, safeEqual } from "./rate-limit";
 import { verifyCalendlySignature, handleCalendlyEvent } from "./calendly";
 import type { Express, Request } from "express";
 import type { Server } from "node:http";
@@ -72,6 +73,9 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   // Church self-serve auth
   // -------------------------------------------------------------------
   app.post("/api/churches/signup", async (req, res) => {
+    const signupIp = clientAddress(req);
+    if (rejectIfLimited(res, [[limits.signupPerAddress, signupIp]])) return;
+    limits.signupPerAddress.hit(signupIp);
     const parsed = insertChurchSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ message: "Invalid signup data", errors: parsed.error.flatten() });
@@ -95,14 +99,19 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     if (!email || !password) {
       return res.status(400).json({ message: "Email and password are required" });
     }
+    const ip = clientAddress(req);
+    const acct = accountKey(email);
+    if (rejectIfLimited(res, [[limits.loginPerAccount, acct], [limits.loginPerAddress, ip]])) return;
+    const fail = () => {
+      limits.loginPerAccount.hit(acct);
+      limits.loginPerAddress.hit(ip);
+      return res.status(401).json({ message: "Invalid email or password" });
+    };
     const church = await storage.getChurchByEmail(email);
-    if (!church) {
-      return res.status(401).json({ message: "Invalid email or password" });
-    }
+    if (!church) return fail();
     const ok = await bcrypt.compare(password, church.passwordHash);
-    if (!ok) {
-      return res.status(401).json({ message: "Invalid email or password" });
-    }
+    if (!ok) return fail();
+    limits.loginPerAccount.clear(acct);
     const token = createSession(church.id);
     res.json({ token, church: sanitizeChurch(church) });
   });
@@ -114,6 +123,12 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     if (!email || typeof email !== "string" || !email.includes("@")) {
       return res.status(400).json({ message: "Please enter the email address you sign in with." });
     }
+    const ip = clientAddress(req);
+    if (rejectIfLimited(res, [[limits.resetRequestPerAddress, ip]])) return;
+    limits.resetRequestPerAddress.hit(ip);
+    const acct = accountKey(email);
+    if (limits.resetRequestPerEmail.blockedFor(acct) > 0) return res.json(generic); // same reply; no extra email
+    limits.resetRequestPerEmail.hit(acct);
     try {
       await requestPasswordReset(email);
     } catch (err: any) {
@@ -124,6 +139,9 @@ export async function registerRoutes(httpServer: Server, app: Express) {
 
   app.post("/api/churches/reset-password", async (req, res) => {
     const { token, password } = req.body as { token?: string; password?: string };
+    const ip = clientAddress(req);
+    if (rejectIfLimited(res, [[limits.resetCompletePerAddress, ip]])) return;
+    limits.resetCompletePerAddress.hit(ip);
     try {
       const churchId = await completePasswordReset(String(token ?? ""), String(password ?? ""));
       destroySessionsForChurch(churchId);
@@ -738,10 +756,17 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   // -------------------------------------------------------------------
   app.post("/api/admin/login", (req, res) => {
     const { username, password } = req.body as { username?: string; password?: string };
-    const usernameOk = typeof username === "string" && username.trim().toLowerCase() === getAdminUsername();
-    if (!usernameOk || !password || password !== getAdminPassword()) {
+    const ip = clientAddress(req);
+    if (rejectIfLimited(res, [[limits.adminPerAddress, ip], [limits.adminGlobal, "admin"]])) return;
+    const usernameOk = typeof username === "string" && safeEqual(username.trim().toLowerCase(), getAdminUsername());
+    const passwordOk = typeof password === "string" && password.length > 0 && safeEqual(password, getAdminPassword());
+    if (!usernameOk || !passwordOk) {
+      limits.adminPerAddress.hit(ip);
+      limits.adminGlobal.hit("admin");
+      console.warn("[security] failed admin sign-in");
       return res.status(401).json({ message: "Incorrect username or password" });
     }
+    limits.adminPerAddress.clear(ip);
     const token = createAdminSession();
     res.json({ token });
   });
