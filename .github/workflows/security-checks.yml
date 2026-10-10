@@ -33,7 +33,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm audit --omit=dev --audit-level=high
+      - run: node script/audit-gate.mjs
   python-audit:
     runs-on: ubuntu-latest
     timeout-minutes: 15
