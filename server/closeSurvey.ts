@@ -7,13 +7,14 @@ import { computeWaveAggregate } from "@shared/aggregate";
 import { buildDebriefingReport } from "@shared/debriefing/engine";
 import { generateChurchReportPdf } from "./pdfReport";
 import { generateDebriefingReportPdf } from "./debriefingPdf";
+import { generateSurveyReviewPdfs } from "./surveyReviewPdf";
 
 export class SurveyCloseError extends Error {
   constructor(public status: number, message: string, public code?: string) { super(message); }
 }
 
 const reportFailureMessage = "The reports could not all be generated and safely saved. No responses have been deleted and your survey remains open. Please try again, or contact support if the problem continues.";
-const renderers = { church: generateChurchReportPdf, debrief: generateDebriefingReportPdf };
+const renderers = { church: generateChurchReportPdf, debrief: generateDebriefingReportPdf, surveyReview: generateSurveyReviewPdfs };
 
 /**
  * The wave lock serializes closing with response submission across processes.
@@ -48,6 +49,8 @@ export async function closeSurvey(waveId: string, force = false, reports = rende
       });
       const debriefPdf = await reports.debrief(waveId, debrief);
       if (!debriefPdf.ok || !debriefPdf.storageKey) throw new Error(debriefPdf.error ?? "Debriefing PDF was not saved");
+      const review = await reports.surveyReview({ waveId, churchName: church?.name ?? "Your Church", rows });
+      if (!review.ok || !review.surveyReviewKey || !review.facilitatorKey) throw new Error(review.error ?? "Survey Review PDFs were not saved");
 
       // No snapshot is exposed before every required PDF is saved and verified.
       const [snapshot] = await tx.insert(aggregateSnapshots).values({
@@ -59,6 +62,8 @@ export async function closeSurvey(waveId: string, force = false, reports = rende
         id: randomUUID(), waveId, churchId: wave.churchId,
         respondentCount: debrief.respondentCount, reportJson: JSON.stringify(debrief),
         reportPdfPath: debriefPdf.storageKey,
+        surveyReviewPdfPath: review.surveyReviewKey, facilitatorPdfPath: review.facilitatorKey,
+        surveyReviewJson: review.summaryJson ?? null,
       });
       const now = new Date().toISOString();
       const [closed] = await tx.update(surveyWaves).set({

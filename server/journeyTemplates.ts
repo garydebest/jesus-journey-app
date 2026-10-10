@@ -17,6 +17,7 @@ export const CLIENT_EMAIL_TYPES = [
   "close_or_extend",
   "reports_ready",
   "debrief_reminder",
+  "debrief_booked",
   "growth_interest_ack",
 ] as const;
 export type ClientEmailType = (typeof CLIENT_EMAIL_TYPES)[number];
@@ -46,6 +47,7 @@ export const EMAIL_TYPE_LABELS: Record<ClientEmailType | InternalEmailType, stri
   close_or_extend: "Close or extend",
   reports_ready: "Reports ready",
   debrief_reminder: "Debrief reminder",
+  debrief_booked: "Survey Review for your debrief (PDF attached)",
   growth_interest_ack: "Growth Plan interest acknowledgement",
   internal_new_purchase: "Internal: new paid survey",
   internal_orientation_followup_needed: "Internal: orientation needs follow-up",
@@ -74,6 +76,7 @@ export interface TemplateContext {
   reportsUrl: string;
   orientationUrl: string | null;
   debriefUrl: string | null;
+  debriefDate: string;
 }
 
 interface Block { kind: "p" | "list" | "button" | "booking" | "strong-p"; text?: string; items?: string[]; label?: string; href?: string | null }
@@ -200,6 +203,17 @@ export function renderClientEmail(type: ClientEmailType, c: TemplateContext): Re
       return layout("Book your Jesus Journey results debrief", "Your reports are ready; the next step is to interpret them together.", hello, [
         { kind: "p", text: "Your church reports are ready. Please schedule the next step: a Jesus Journey Survey Results Debrief. Ask participants to read the reports, note two strengths to celebrate and two questions to understand better, and come ready to listen and pray." },
         { kind: "booking", label: "Book your results debrief", href: c.debriefUrl },
+      ], ["Jesus Journey"]);
+    case "debrief_booked":
+      return layout("Your Survey Review for the results debrief", "Your Survey Review is attached. Please read it before the debrief call.", hello, [
+        { kind: "p", text: `Thank you for booking your results debrief for ${c.churchName} (${c.debriefDate}). Your Survey Review is attached as a PDF.` },
+        { kind: "p", text: "The Survey Review is a short summary of your full Church Report. It shows what we discovered about ourselves, the strengths to celebrate and opportunities to investigate in each Goal, and questions for the conversation. Page references point to the full Church Report in your dashboard." },
+        { kind: "list", items: [
+          "Share it with those who will join the call.",
+          "Note two strengths to celebrate and two questions you would like to understand better.",
+          "Come ready to listen and pray together. The debrief is for understanding, not for rushing to solutions.",
+        ] },
+        { kind: "button", label: "Open your full reports", href: c.reportsUrl },
       ], ["Jesus Journey"]);
     case "growth_interest_ack":
       return layout("Thank you for your interest in the Jesus Journey Growth Plan", "We will be in touch about next steps.", hello, [

@@ -4,7 +4,7 @@ import type { Server } from "node:http";
 import bcrypt from "bcryptjs";
 import { storage, OrientationRequiredError, ORIENTATION_REQUIRED_MESSAGE } from "./storage";
 import { bookingConfig } from "./journeyConfig";
-import { onWavePaid, onOrientationCompleted, onSurveyActivated, onReportsReady, onDebriefCompleted, onGrowthPlanInterest, runJourneySweep, adminResend, RESENDABLE } from "./journey";
+import { onWavePaid, onOrientationCompleted, onSurveyActivated, onReportsReady, onDebriefBooked, onDebriefCompleted, onGrowthPlanInterest, runJourneySweep, adminResend, RESENDABLE } from "./journey";
 import { EMAIL_TYPE_LABELS, type ClientEmailType } from "./journeyTemplates";
 import { insertChurchSchema, insertWaveSchema, updateChurchContactSchema, ITEM_CODES, requiredResponsesForClose } from "@shared/schema";
 import { TIMELINE_PHASES, computeTimelineDates, defaultClosesAt } from "@shared/timeline";
@@ -12,6 +12,7 @@ import { buildTimelineIcs } from "./ics";
 import { closeSurvey, saveChurchResponse, SurveyCloseError } from "./closeSurvey";
 import { fetchReportPdf } from "./reportStorage";
 import { renderDebriefingPdfBuffer } from "./debriefingPdf";
+import { SURVEY_REVIEW_FILENAME, FACILITATOR_FILENAME } from "./surveyReviewPdf";
 import { projectReportForDisplay } from "@shared/debriefing/reportProjection";
 import { projectChurchPdf } from "./churchPdfProjection";
 import {
@@ -793,6 +794,8 @@ export async function registerRoutes(httpServer: Server, app: Express) {
                   hasCommentsReportPdf: !!snapshot?.commentsReportPdfPath,
                   hasDebriefingReport: !!debriefing,
                   hasDebriefingReportPdf: !!debriefing,
+                  hasSurveyReviewPdf: !!debriefing?.surveyReviewPdfPath,
+                  hasFacilitatorPdf: !!debriefing?.facilitatorPdfPath,
                 };
               }),
           );
@@ -925,6 +928,8 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     const updated = await storage.updateWaveJourney(wave.id, update);
     if (update.orientationCompletedAt) void onOrientationCompleted(wave.id);
     if (update.debriefCompletedAt && !wave.debriefCompletedAt) void onDebriefCompleted(wave.id);
+    // First time a debrief date is recorded for a closed survey: email the church its Survey Review (sent once).
+    if (update.debriefBookedAt && !wave.debriefBookedAt && wave.status === "closed") void onDebriefBooked(wave.id);
     res.json({ wave: sanitizeWave(updated) });
   });
 
@@ -956,6 +961,24 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     const { reportJson, ...metadata } = debriefing;
     res.json({ debriefing: { ...metadata, report: projectReportForDisplay(JSON.parse(reportJson)) } });
   });
+
+  // Survey Review (church-facing) and Facilitator's Report, saved at close.
+  for (const [route, field, filename] of [
+    ["survey-review.pdf", "surveyReviewPdfPath", SURVEY_REVIEW_FILENAME],
+    ["facilitator.pdf", "facilitatorPdfPath", FACILITATOR_FILENAME],
+  ] as const) {
+    app.get(`/api/admin/waves/:id/${route}`, requireAdminAuth, async (req, res) => {
+      const debriefing = await storage.getDebriefingReportByWave(String(req.params.id));
+      const key = debriefing?.[field];
+      if (!key) return res.status(404).json({ message: "This report is not available for this survey" });
+      const pdf = await fetchReportPdf(key);
+      if (!pdf) return res.status(503).json({ message: "The saved report could not be loaded. Please try again." });
+      res.setHeader("Cache-Control", "private, no-store");
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.send(pdf);
+    });
+  }
 
   app.get("/api/admin/waves/:id/debriefing.pdf", requireAdminAuth, async (req, res) => {
     const debriefing = await storage.getDebriefingReportByWave(String(req.params.id));

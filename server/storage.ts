@@ -148,6 +148,13 @@ export function ensureBootstrapped(): Promise<void> {
       await ensureColumn("churches", "lead_pastor_receives_results", "lead_pastor_receives_results BOOLEAN NOT NULL DEFAULT false");
       await ensureColumn("churches", "growth_plan_interest_at", "growth_plan_interest_at TIMESTAMPTZ");
       await ensureColumn("churches", "email_opt_in_growth_plan", "email_opt_in_growth_plan BOOLEAN NOT NULL DEFAULT false");
+      // Survey Review and Facilitator's Report (October 2026).
+      const { rows: hasDebriefTable } = await pool.query(`SELECT to_regclass('debriefing_reports') AS t`);
+      if (hasDebriefTable[0]?.t) {
+        await ensureColumn("debriefing_reports", "survey_review_pdf_path", "survey_review_pdf_path TEXT");
+        await ensureColumn("debriefing_reports", "facilitator_pdf_path", "facilitator_pdf_path TEXT");
+        await ensureColumn("debriefing_reports", "survey_review_json", "survey_review_json TEXT");
+      }
       await ensureColumn("survey_waves", "orientation_booked_at", "orientation_booked_at TEXT");
       await ensureColumn("survey_waves", "orientation_completed_at", "orientation_completed_at TIMESTAMPTZ");
       await ensureColumn("survey_waves", "activated_at", "activated_at TIMESTAMPTZ");

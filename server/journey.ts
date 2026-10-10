@@ -14,7 +14,9 @@ import { storage } from "./storage";
 import type { Church, SurveyWave } from "@shared/schema";
 import { requiredResponsesForClose } from "@shared/schema";
 import { acceptsResponses, isDemoChurch } from "@shared/surveyAccess";
-import { sendEmailDetailed, isMailerConfigured } from "./mailer";
+import { sendEmailDetailed, isMailerConfigured, type EmailAttachment } from "./mailer";
+import { fetchReportPdf } from "./reportStorage";
+import { SURVEY_REVIEW_FILENAME } from "./surveyReviewPdf";
 import { appBaseUrl, bookingConfig, internalNotificationsEmail, journeyEmailsEnabled } from "./journeyConfig";
 import {
   renderClientEmail, renderInternalEmail,
@@ -71,6 +73,7 @@ export function recipientsFor(type: ClientEmailType, church: Church): Recipient[
     case "close_or_extend":
       list = [coordinator, primary]; break;
     case "reports_ready":
+    case "debrief_booked":
       list = [primary, coordinator, pastor]; break;
   }
   const out: Recipient[] = [];
@@ -97,6 +100,7 @@ function contextFor(church: Church, wave: SurveyWave | null, recipient: Recipien
     reportsUrl: `${base}/#/dashboard?tab=your-surveys`,
     orientationUrl: booking.orientationUrl,
     debriefUrl: booking.debriefUrl,
+    debriefDate: displayDate(wave?.debriefBookedAt),
   };
 }
 
@@ -110,7 +114,7 @@ function canEmail(church: Church) {
  * Sends one client-journey message to each applicable recipient, once per
  * (type, wave, slot, role). `slot` distinguishes repeating reminders.
  */
-export async function sendClientEmail(type: ClientEmailType, church: Church, wave: SurveyWave | null, slot: string, triggeredBy: "system" | "admin" = "system"): Promise<SendOutcome[]> {
+export async function sendClientEmail(type: ClientEmailType, church: Church, wave: SurveyWave | null, slot: string, triggeredBy: "system" | "admin" = "system", attachments?: EmailAttachment[]): Promise<SendOutcome[]> {
   if (!canEmail(church)) return [];
   const count = wave && wave.status !== "closed" ? await storage.countResponsesByWave(wave.id) : 0;
   const outcomes: SendOutcome[] = [];
@@ -123,7 +127,7 @@ export async function sendClientEmail(type: ClientEmailType, church: Church, wav
     });
     if (!claim) { outcomes.push({ recipient: recipient.email, role: recipient.role, status: "duplicate" }); continue; }
     const email = renderClientEmail(type, contextFor(church, wave, recipient, count));
-    const result = await sendEmailDetailed({ to: recipient.email, subject: email.subject, html: email.html, text: email.text });
+    const result = await sendEmailDetailed({ to: recipient.email, subject: email.subject, html: email.html, text: email.text, attachments });
     await storage.finishEmailEvent(claim.id, { status: result.status, providerMessageId: result.messageId, errorMessage: result.error });
     outcomes.push({ recipient: recipient.email, role: recipient.role, status: result.status });
     if (result.status === "failed") {
@@ -213,6 +217,29 @@ export const onReportsReady = (waveId: string) => safely("reports trigger", asyn
   if (!snapshot?.reportPdfPath) return; // reports not durably saved: never announce
   await sendClientEmail("reports_ready", ctx.church, ctx.wave, "once");
   await sendInternalEmail("internal_reports_ready", ctx.church, ctx.wave, "once");
+  // A debrief date recorded before closing: the Survey Review goes out now.
+  if (ctx.wave.debriefBookedAt) await onDebriefBooked(waveId);
+});
+
+/** The church's Survey Review PDF, if this wave was closed with the October 2026 report engine. */
+async function surveyReviewAttachment(waveId: string): Promise<EmailAttachment[] | null> {
+  const debriefing = await storage.getDebriefingReportByWave(waveId);
+  if (!debriefing?.surveyReviewPdfPath) return null;
+  const content = await fetchReportPdf(debriefing.surveyReviewPdfPath);
+  if (!content) return null;
+  return [{ filename: SURVEY_REVIEW_FILENAME, content, contentType: "application/pdf" }];
+}
+
+/** Admin recorded the debrief booking: send the Survey Review once. */
+export const onDebriefBooked = (waveId: string) => safely("debrief booked trigger", async () => {
+  const ctx = await load(waveId);
+  if (!ctx || ctx.wave.status !== "closed" || !ctx.wave.debriefBookedAt) return;
+  const attachments = await surveyReviewAttachment(waveId);
+  if (!attachments) {
+    await sendInternalEmail("internal_delivery_failed", ctx.church, ctx.wave, "survey-review-missing", "The debrief was booked, but this survey has no saved Survey Review PDF, so it was not emailed.");
+    return;
+  }
+  await sendClientEmail("debrief_booked", ctx.church, ctx.wave, "once", "system", attachments);
 });
 
 export const onDebriefCompleted = (waveId: string) => safely("debrief trigger", async () => {
@@ -307,7 +334,7 @@ export async function runJourneySweep(now = new Date()): Promise<JourneySweepRes
 }
 
 /** Admin "send / resend" for key milestone messages. Always uses a fresh idempotency key. */
-export const RESENDABLE: ClientEmailType[] = ["purchase_confirmed", "orientation_reminder", "orientation_followup", "survey_activated", "reports_ready", "debrief_reminder"];
+export const RESENDABLE: ClientEmailType[] = ["purchase_confirmed", "orientation_reminder", "orientation_followup", "survey_activated", "reports_ready", "debrief_reminder", "debrief_booked"];
 
 export async function adminResend(type: ClientEmailType, waveId: string): Promise<SendOutcome[]> {
   const ctx = await load(waveId);
@@ -315,6 +342,12 @@ export async function adminResend(type: ClientEmailType, waveId: string): Promis
   if (type === "reports_ready") {
     const snapshot = await storage.getSnapshotByWave(waveId);
     if (ctx.wave.status !== "closed" || !snapshot?.reportPdfPath) throw new Error("Reports are not saved for this survey yet.");
+  }
+  if (type === "debrief_booked") {
+    if (ctx.wave.status !== "closed" || !ctx.wave.debriefBookedAt) throw new Error("Record the debrief booking date first.");
+    const attachments = await surveyReviewAttachment(waveId);
+    if (!attachments) throw new Error("This survey has no saved Survey Review PDF.");
+    return sendClientEmail(type, ctx.church, ctx.wave, `resend-${Date.now()}`, "admin", attachments);
   }
   if (type === "survey_activated" && !acceptsResponses(ctx.wave)) throw new Error("This survey is not active.");
   if (type === "orientation_followup" && !ctx.wave.orientationCompletedAt) throw new Error("Orientation has not been marked complete.");
