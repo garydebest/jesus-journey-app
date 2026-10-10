@@ -1,0 +1,59 @@
+name: JavaScript dependency reachability
+on:
+  push:
+    branches: [security/readiness-2026-10-10]
+    paths: [.github/workflows/javascript-reachability.yml]
+permissions:
+  contents: read
+  issues: write
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts
+      - name: Instrument build locally without committing application changes
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          let text=fs.readFileSync('script/build.ts','utf8');
+          const replacements=[['rm, readFile, cp, mkdir','rm, readFile, cp, mkdir, writeFile'],['await esbuild({','const inspectedBuild = await esbuild({'],['logLevel: "info",','logLevel: "info", metafile: true,'],['console.log("copying report engine (python) assets...");','await writeFile("server-dependency-graph.json", JSON.stringify(inspectedBuild.metafile));\n  console.log("copying report engine (python) assets...");']];
+          for(const [before,after] of replacements){if(text.split(before).length!==2)throw new Error('Build source changed; review required');text=text.replace(before,after);}
+          fs.writeFileSync('script/build.ts',text);
+          NODE
+      - run: npm run check && npm run build
+      - name: Capture audit and exact dependency evidence
+        run: |
+          npm audit --omit=dev --json > javascript-audit.json || test "$?" -eq 1
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const names=['braces','chokidar','micromatch','fast-glob','tailwindcss','@tailwindcss/typography','tailwindcss-animate','postcss-nested','postcss-selector-parser'];
+          const graph=JSON.parse(fs.readFileSync('server-dependency-graph.json')),lock=JSON.parse(fs.readFileSync('package-lock.json')),audit=JSON.parse(fs.readFileSync('javascript-audit.json'));
+          const inputs=Object.keys(graph.inputs),externalImports=Object.values(graph.outputs).flatMap(o=>o.imports.filter(i=>i.external).map(i=>i.path));
+          const sourceMentions=[];
+          function walk(dir){if(!fs.existsSync(dir))return;for(const e of fs.readdirSync(dir,{withFileTypes:true})){const p=dir+'/'+e.name;if(e.isDirectory()){if(!['report-engine','node_modules','generated-reports'].includes(e.name))walk(p);}else if(/\.[cm]?[jt]sx?$/.test(p)){const text=fs.readFileSync(p,'utf8');const found=names.filter(n=>text.includes(n));if(found.length)sourceMentions.push({file:p,names:found});}}}
+          walk('server');walk('shared');
+          const report={commit:process.env.GITHUB_SHA,audit:audit.metadata?.vulnerabilities,findings:Object.entries(audit.vulnerabilities||{}).map(([name,v])=>({name,severity:v.severity,nodes:v.nodes,fixAvailable:v.fixAvailable})),compiledServerMatches:inputs.filter(p=>names.some(n=>p.includes('node_modules/'+n+'/'))),externalImports,sourceMentions,installedVersions:Object.entries(lock.packages||{}).filter(([p])=>names.some(n=>p.endsWith('node_modules/'+n))).map(([path,v])=>({path,version:v.version})),limitations:'Static compiled-server evidence, not complete request-time tracing. External dependencies require transitive review. Source mentions are not proof of imports. No production deployment or data access; remaining audit findings are not suppressed.'};
+          fs.writeFileSync('reachability-report.json',JSON.stringify(report,null,2));
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: javascript-dependency-evidence
+          path: |
+            server-dependency-graph.json
+            javascript-audit.json
+            reachability-report.json
+      - name: Publish bounded metadata to PR 24
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs=require('fs');
+            const report=fs.readFileSync('reachability-report.json','utf8');
+            if(report.length>22000)throw new Error('Evidence exceeds safe comment size; inspect artifact');
+            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:24,body:'JavaScript dependency inspection on '+context.sha+'\nNo application-source changes committed, no styling changes, no deployment.\n```json\n'+report.replace(/`/g,"'")+'\n```'});
