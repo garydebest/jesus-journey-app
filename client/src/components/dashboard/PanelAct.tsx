@@ -20,7 +20,7 @@ export function PanelAct({ latestReport = null, isDemo = false, token = null }: 
           <p className="text-sm text-muted-foreground leading-relaxed">Your survey purchase includes a facilitated results debrief with your leadership team. We help you understand the major themes, celebrate strengths, explore growth opportunities with care, and identify appropriate next steps before you plan wider action.</p>
           {latestReport?.debriefCompletedAt ? <p className="text-sm font-medium" role="status">Your results debrief is complete.</p>
             : latestReport?.debriefBookedAt ? <p className="text-sm font-medium" role="status">Your results debrief is booked.</p>
-            : latestReport ? <BookingButton kind="debrief" disabled={isDemo} />
+            : latestReport ? <BookingButton kind="debrief" disabled={isDemo} waveId={latestReport?.id} />
             : <p className="text-sm text-muted-foreground">Booking opens when your reports are ready.</p>}
         </section>
         <GrowthPlanCard isDemo={isDemo} token={token} hasReports={!!latestReport} />

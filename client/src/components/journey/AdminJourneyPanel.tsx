@@ -112,7 +112,7 @@ export function AdminJourneyPanel({ token, churchName, wave, isDemo, onChanged }
             <Button size="sm" variant="outline" disabled={isDemo || busy || debriefDate === (wave.debriefBookedAt ?? "")}
               onClick={() => patch({ debriefBookedAt: debriefDate || null }, wave.debriefBookedAt ? "Debrief booking date saved." : "Debrief booking date saved. The church's Survey Review is being emailed.")}>Save</Button>
           </div>
-          {!wave.debriefBookedAt && <p className="text-xs text-muted-foreground">Saving the first booking date emails the church its Survey Review (PDF attached). Changing the date later does not send it again.</p>}
+          {!wave.debriefBookedAt && <p className="text-xs text-muted-foreground">Bookings made through the dashboard's Calendly link fill this in automatically and email the church its Survey Review (PDF attached). If a booking arrives another way, saving the first date here sends it. It is sent only once.</p>}
           <Button size="sm" variant={wave.debriefCompletedAt ? "ghost" : "default"} disabled={isDemo || busy}
             onClick={() => patch({ debriefCompleted: !wave.debriefCompletedAt }, wave.debriefCompletedAt ? "Debrief completion removed." : "Debrief marked complete.")}>
             {wave.debriefCompletedAt ? "Undo debrief completion" : "Mark debrief complete"}

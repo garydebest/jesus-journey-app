@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { verifyCalendlySignature, handleCalendlyEvent } from "./calendly";
 import type { Express, Request } from "express";
 import type { Server } from "node:http";
 import bcrypt from "bcryptjs";
@@ -999,6 +1000,28 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   });
 
   // -------------------------------------------------------------------
+  // Calendly webhook — a booked "Debriefing Call" records the debrief date and
+  // emails the Survey Review once. Signed with CALENDLY_WEBHOOK_SIGNING_KEY.
+  app.post("/api/calendly/webhook", async (req, res) => {
+    const key = process.env.CALENDLY_WEBHOOK_SIGNING_KEY;
+    if (!key) return res.status(503).json({ error: "Calendly webhook not configured" });
+    const rawBody = req.rawBody as Buffer | undefined;
+    if (!rawBody) return res.status(400).json({ error: "Missing body" });
+    const check = verifyCalendlySignature(rawBody, req.headers["calendly-webhook-signature"] as string | undefined, key);
+    if (!check.valid) {
+      console.error("Calendly webhook signature verification failed:", check.reason);
+      return res.status(400).json({ error: "Invalid signature" });
+    }
+    try {
+      const outcome = await handleCalendlyEvent(req.body);
+      console.log("Calendly webhook:", req.body?.event, outcome);
+      res.json({ ok: true, outcome });
+    } catch (err: any) {
+      console.error("Calendly webhook handling error:", err?.message ?? err);
+      res.status(500).json({ error: "Handling failed" });
+    }
+  });
+
   // Stripe webhook — authoritative source of truth for payment completion.
   // Uses req.rawBody (captured by the express.json `verify` hook in
   // server/index.ts) for signature verification, since Stripe signs the

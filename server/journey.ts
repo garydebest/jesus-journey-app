@@ -99,9 +99,15 @@ function contextFor(church: Church, wave: SurveyWave | null, recipient: Recipien
     collectUrl: `${base}/#/dashboard?tab=collect`,
     reportsUrl: `${base}/#/dashboard?tab=your-surveys`,
     orientationUrl: booking.orientationUrl,
-    debriefUrl: booking.debriefUrl,
+    debriefUrl: tagSurvey(booking.debriefUrl, wave?.id),
     debriefDate: displayDate(wave?.debriefBookedAt),
   };
+}
+
+/** Calendly returns utm_content in its webhook, matching the booking to this survey. */
+function tagSurvey(url: string | null, waveId?: string | null): string | null {
+  if (!url || !waveId) return url;
+  try { const u = new URL(url); u.searchParams.set("utm_source", "jj-app"); u.searchParams.set("utm_content", waveId); return u.toString(); } catch { return url; }
 }
 
 export interface SendOutcome { recipient: string; role: string; status: "sent" | "failed" | "skipped" | "duplicate" }

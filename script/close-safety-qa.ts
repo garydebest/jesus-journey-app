@@ -181,6 +181,34 @@ try {
     const resent=await J.adminResend("debrief_booked",id);
     assert.equal(resent[0]?.status,"sent");
   });
+  await check("Calendly booking records the date and emails the Survey Review once; reschedule and cancel behave", async () => {
+    const id=await fixture(false); await closeSurvey(id);
+    const { testOutbox } = await import("../server/mailer");
+    const C = await import("../server/calendly");
+    const crypto = await import("node:crypto");
+    // signature
+    const body=Buffer.from(JSON.stringify({a:1})), t=Math.floor(Date.now()/1000);
+    const sig=crypto.createHmac("sha256","k").update(`${t}.${body}`).digest("hex");
+    assert.equal(C.verifyCalendlySignature(body,`t=${t},v1=${sig}`,"k").valid,true);
+    assert.equal(C.verifyCalendlySignature(body,`t=${t},v1=${sig}`,"wrong").valid,false);
+    assert.equal(C.meetingDate("2026-11-04T03:30:00Z","America/Vancouver"),"2026-11-03");
+    const ev=(event:string, start:string, extra:any={})=>({event,payload:{email:"x@example.org",name:"Pat",timezone:"America/Vancouver",tracking:{utm_content:id},
+      scheduled_event:{name:"Debriefing Call",start_time:start},...extra}});
+    testOutbox.length=0;
+    assert.equal(await C.handleCalendlyEvent({event:"invitee.created",payload:{...ev("x","2026-11-03T18:00:00Z").payload,scheduled_event:{name:"JJ Free Consultation",start_time:"2026-11-03T18:00:00Z"}}}),"ignored");
+    assert.equal(await C.handleCalendlyEvent(ev("invitee.created","2026-11-03T18:00:00Z")),"booked");
+    assert.equal((await storage.getWaveById(id))?.debriefBookedAt,"2026-11-03");
+    const review=()=>testOutbox.filter(m=>m.subject==="Your Survey Review for the results debrief").length;
+    assert.equal(review(),1);
+    assert.equal(await C.handleCalendlyEvent(ev("invitee.canceled","2026-11-03T18:00:00Z",{rescheduled:true})),"ignored");
+    assert.equal(await C.handleCalendlyEvent(ev("invitee.created","2026-11-05T18:00:00Z")),"rescheduled");
+    assert.equal((await storage.getWaveById(id))?.debriefBookedAt,"2026-11-05");
+    assert.equal(review(),1,"no second Survey Review on reschedule");
+    assert.equal(await C.handleCalendlyEvent(ev("invitee.canceled","2026-11-05T18:00:00Z")),"canceled");
+    assert.equal((await storage.getWaveById(id))?.debriefBookedAt,null);
+    assert.equal(await C.handleCalendlyEvent({event:"invitee.created",payload:{email:"nobody@example.org",tracking:{},scheduled_event:{name:"Debriefing Call",start_time:"2026-11-03T18:00:00Z"}}}),"unmatched");
+    assert.ok(testOutbox.some(m=>m.subject==="Calendly debrief booking needs matching"));
+  });
   console.log(JSON.stringify({passed:results.length,checks:results,storage:"Local emulator, not production Supabase",paymentTested:false},null,2));
 } finally {
   objectServer.close();
