@@ -143,13 +143,18 @@ def _pooled_row(entries, labels, combine_exploring=False):
     return result
 
 
+WITHHELD = "withheld"
+
+
 def _item_pct(by_mat, label):
     """The Exploring column includes Distant; no observation remains None."""
     labels = ["Distant", "Exploring"] if label == "Exploring" else [label]
     stats = [by_mat[key] for key in labels if key in by_mat]
     n = sum(stat["n"] for stat in stats)
     if not n:
-        return None
+        return None  # not asked of anyone in this group: blank
+    if n < MIN_N:
+        return WITHHELD  # fewer than 10 answers: dash, withheld for confidentiality
     # New aggregates retain exact positive counts. Compatibility fallback for
     # older in-memory fixtures, not a reconstruction of saved reports.
     agreed = sum(stat.get("agreed", stat["pct"] * stat["n"] / 100) for stat in stats)
@@ -360,9 +365,11 @@ def build_from_aggregates(
             believing = by_mat.get("Believing in God")
             trusting = by_mat.get("Trusting God")
             centered = by_mat.get("God Centered")
-            maturity_line_believing[pnum - 1] = round(believing["pct"]) if believing else 0
-            maturity_line_trusting[pnum - 1] = round(trusting["pct"]) if trusting else 0
-            maturity_line_centered[pnum - 1] = round(centered["pct"]) if centered else 0
+            # Groups below the privacy floor are left off the comparison chart.
+            ok = lambda g: g is not None and g.get("n", 0) >= MIN_N
+            maturity_line_believing[pnum - 1] = round(believing["pct"]) if ok(believing) else None
+            maturity_line_trusting[pnum - 1] = round(trusting["pct"]) if ok(trusting) else None
+            maturity_line_centered[pnum - 1] = round(centered["pct"]) if ok(centered) else None
 
         average = (round(sum(precise_values) / len(precise_values), 1)
                    if all(value is not None for value in precise_values) else None)

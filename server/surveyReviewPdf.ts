@@ -12,7 +12,6 @@ import { resolveModuleDir } from "./paths";
 import { persistReportPdf } from "./reportStorage";
 import { toReportRow } from "./pdfReport";
 import type { ResponseRow } from "@shared/schema";
-import { needsCohortReporting } from "@shared/cohortReporting";
 
 const moduleDir = resolveModuleDir(
   typeof import.meta !== "undefined" ? import.meta.url : undefined,
@@ -54,8 +53,8 @@ export async function generateSurveyReviewPdfs({ waveId, churchName, rows }: Sur
       });
       proc.stdin.on("error", error => { clearTimeout(timeout); proc.kill("SIGKILL"); reject(error); });
       proc.stdin.end(JSON.stringify({ church_name: churchName, rows: rows.map(toReportRow), church_out: churchOut, facilitator_out: facilitatorOut,
-        // Page references point into the 38-page full report, which is produced only when every response is a full survey.
-        full_report_layout: !needsCohortReporting(rows) }));
+        // Every church receives the 38-page full report, so page references always apply.
+        full_report_layout: true }));
     });
     const review = await persistReportPdf(waveId, churchOut, `${waveId}-survey-review.pdf`);
     if (!review.ok) return { ok: false, error: review.error };
