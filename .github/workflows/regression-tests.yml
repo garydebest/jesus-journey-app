@@ -1,0 +1,62 @@
+name: Isolated regression tests
+on:
+  pull_request:
+  push:
+    branches: [security/readiness-2026-10-10]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [password, full, short, mixed]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: jj
+          POSTGRES_PASSWORD: jj
+          POSTGRES_DB: jj_preview
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U jj -d jj_preview" --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      DATABASE_URL: postgres://jj:jj@localhost:5432/jj_preview?sslmode=disable
+      MAILER_TEST_OUTBOX: '1'
+      ADMIN_KEY: qa-admin-key
+      ADMIN_USERNAME: admin
+      NODE_ENV: test
+      MPLBACKEND: Agg
+      JJ_QA_VARIANT: '${{ matrix.suite }}'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          lfs: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install application and report dependencies
+        run: |
+          npm ci --ignore-scripts
+          python -m pip install -r server/report-engine/requirements.txt
+      - name: Initialize complete disposable database schema
+        run: |
+          node -e 'const u = new URL(process.env.DATABASE_URL); if (process.env.CI !== "true" || !["localhost", "127.0.0.1"].includes(u.hostname) || u.pathname !== "/jj_preview") throw new Error("Refusing non-local test database");'
+          npm run db:push -- --force
+          npx --no-install tsx -e 'import { ensureBootstrapped } from "./server/storage"; ensureBootstrapped().then(() => process.exit(0)).catch(error => { console.error(error); process.exit(1); });'
+      - name: Seed local synthetic fixtures
+        run: npx --no-install tsx script/seed-preview.ts
+      - name: Password reset and session regressions
+        if: matrix.suite == 'password'
+        run: npx --no-install tsx script/password-reset-qa.ts
+      - name: Report retention, rendering, captured email and mocked booking regressions
+        if: matrix.suite != 'password'
+        run: npx --no-install tsx script/close-safety-qa.ts

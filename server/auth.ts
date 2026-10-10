@@ -92,7 +92,11 @@ export function getAdminUsername(): string {
 }
 
 export function getAdminPassword(): string {
-  return process.env.ADMIN_KEY || "jesus-journey-admin";
+  const key = process.env.ADMIN_KEY;
+  if (process.env.NODE_ENV === "production" && (!key?.trim() || key === "jesus-journey-admin")) {
+    throw new Error("Production administrator authentication is not securely configured");
+  }
+  return key || "jesus-journey-admin";
 }
 
 export function createAdminSession(): string {

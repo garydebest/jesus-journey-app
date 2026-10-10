@@ -1,12 +1,15 @@
 import "dotenv/config";
 import express, { Response, NextFunction } from 'express';
 import type { Request } from 'express';
+import { securityHeaders, safeServerErrorMessage } from "./security";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "node:http";
 import { ensureBootstrapped } from "./storage";
 
 const app = express();
+app.disable("x-powered-by");
+app.use(securityHeaders);
 const httpServer = createServer(app);
 
 // Search visibility: the public front door is jesusjourney.life. Keep every
@@ -53,7 +56,8 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+      const route = typeof req.route?.path === "string" ? req.route.path : "/api";
+      let logLine = `${req.method} ${route} ${res.statusCode} in ${duration}ms`;
       // Never log response bodies: auth responses contain bearer tokens and
       // report responses can contain sensitive church information.
 
@@ -70,9 +74,10 @@ app.use((req, res, next) => {
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    const message = safeServerErrorMessage(status, err.message || "Internal Server Error");
 
-    console.error("Internal Server Error:", err);
+    if (process.env.NODE_ENV === "production") console.error("Request failed", { status });
+    else console.error("Internal Server Error:", err);
 
     if (res.headersSent) {
       return next(err);

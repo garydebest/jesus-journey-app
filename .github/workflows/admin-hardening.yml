@@ -1,0 +1,79 @@
+name: Test administrator fallback hardening
+on:
+  push:
+    branches: [security/readiness-2026-10-10]
+    paths: [.github/workflows/admin-hardening.yml]
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+jobs:
+  harden:
+    if: github.ref == 'refs/heads/security/readiness-2026-10-10'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: jj
+          POSTGRES_PASSWORD: jj
+          POSTGRES_DB: jj_preview
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U jj -d jj_preview" --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      DATABASE_URL: postgres://jj:jj@localhost:5432/jj_preview?sslmode=disable
+      MAILER_TEST_OUTBOX: '1'
+      ADMIN_KEY: qa-admin-key
+      ADMIN_USERNAME: admin
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: security/readiness-2026-10-10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prepare exact guarded authentication change
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const p='server/auth.ts', text=fs.readFileSync(p,'utf8');
+          const before='export function getAdminPassword(): string {\n  return process.env.ADMIN_KEY || "jesus-journey-admin";\n}';
+          const after='export function getAdminPassword(): string {\n  const key = process.env.ADMIN_KEY;\n  if (process.env.NODE_ENV === "production" && (!key?.trim() || key === "jesus-journey-admin")) {\n    throw new Error("Production administrator authentication is not securely configured");\n  }\n  return key || "jesus-journey-admin";\n}';
+          if(text.split(before).length!==2) throw new Error('Authentication source changed; manual review required');
+          fs.writeFileSync(p,text.replace(before,after));
+          NODE
+      - name: Install and verify build
+        run: |
+          npm ci --ignore-scripts
+          npm run check
+          npm run build
+      - name: Verify production fail-closed behaviour without real credentials
+        run: |
+          npx --no-install tsx -e 'import assert from "node:assert/strict"; import {getAdminPassword} from "./server/auth"; process.env.NODE_ENV="production"; delete process.env.ADMIN_KEY; assert.throws(()=>getAdminPassword()); process.env.ADMIN_KEY="jesus-journey-admin"; assert.throws(()=>getAdminPassword()); process.env.ADMIN_KEY="   "; assert.throws(()=>getAdminPassword()); process.env.ADMIN_KEY="synthetic-configured-test-key"; assert.equal(getAdminPassword(),"synthetic-configured-test-key"); process.env.NODE_ENV="test"; delete process.env.ADMIN_KEY; assert.equal(getAdminPassword(),"jesus-journey-admin");'
+      - name: Verify isolated account and administrator regressions
+        run: |
+          node -e 'const u=new URL(process.env.DATABASE_URL); if(process.env.CI!=="true" || !["localhost","127.0.0.1"].includes(u.hostname) || u.pathname!=="/jj_preview") throw new Error("Refusing non-local database");'
+          npm run db:push -- --force
+          npx --no-install tsx -e 'import {ensureBootstrapped} from "./server/storage"; ensureBootstrapped().then(()=>process.exit(0)).catch(e=>{console.error(e);process.exit(1);});'
+          npx --no-install tsx script/seed-preview.ts
+          npx --no-install tsx script/password-reset-qa.ts
+      - name: Save tested authentication change only to security branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add server/auth.ts
+          git commit -m "Reject missing or default admin credentials in production"
+          git push origin HEAD:security/readiness-2026-10-10
+          git rev-parse HEAD > admin-tested-commit.txt
+      - name: Report outcome to PR 24
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          RESULT: '${{ job.status }}'
+        with:
+          script: |
+            const fs=require('fs');
+            const sha=fs.existsSync('admin-tested-commit.txt')?fs.readFileSync('admin-tested-commit.txt','utf8').trim():'No tested authentication commit saved';
+            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:24,body:'Administrator fallback hardening: '+process.env.RESULT+'\n'+sha+'\nOnly production missing/default credential behaviour changes. Build, fail-closed checks and isolated password/session suite are required before saving. No deployment, credential rotation, MFA activation or production SQL execution. Verify live ADMIN_KEY configuration and rotation before release. Database role remains unverified.'});

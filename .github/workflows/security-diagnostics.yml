@@ -1,0 +1,77 @@
+name: Security diagnostics
+on:
+  push:
+    branches: [security/readiness-2026-10-10]
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [password, javascript-audit]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: jj
+          POSTGRES_PASSWORD: jj
+          POSTGRES_DB: jj_preview
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U jj -d jj_preview" --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      DATABASE_URL: postgres://jj:jj@localhost:5432/jj_preview?sslmode=disable
+      MAILER_TEST_OUTBOX: '1'
+      ADMIN_KEY: qa-admin-key
+      ADMIN_USERNAME: admin
+      NODE_ENV: test
+      SUITE: '${{ matrix.suite }}'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Capture diagnostic output
+        id: diagnostic
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          if [ "$SUITE" = javascript-audit ]; then
+            npm audit --omit=dev --audit-level=high 2>&1 | tee diagnostic.log
+          else
+            (
+              set -e
+              echo 'STAGE: dependency installation'
+              npm ci --ignore-scripts
+              echo 'STAGE: complete disposable database schema'
+              node -e 'const u = new URL(process.env.DATABASE_URL); if (process.env.CI !== "true" || !["localhost", "127.0.0.1"].includes(u.hostname) || u.pathname !== "/jj_preview") throw new Error("Refusing non-local test database");'
+              npm run db:push -- --force
+              npx --no-install tsx -e 'import { ensureBootstrapped } from "./server/storage"; ensureBootstrapped().then(() => process.exit(0)).catch(error => { console.error(error); process.exit(1); });'
+              echo 'STAGE: synthetic fixtures'
+              npx --no-install tsx script/seed-preview.ts
+              echo 'STAGE: password/session assertions'
+              npx --no-install tsx script/password-reset-qa.ts
+            ) 2>&1 | tee diagnostic.log
+          fi
+      - name: Publish bounded diagnostic output to draft PR 24
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          RESULT: '${{ steps.diagnostic.outcome }}'
+        with:
+          script: |
+            const fs = require('fs');
+            const text = fs.existsSync('diagnostic.log') ? fs.readFileSync('diagnostic.log', 'utf8').slice(-18000) : 'No diagnostic output was captured; inspect workflow setup.';
+            const safe = text.replace(/postgres(?:ql)?:\/\/[^\s]+/g, '[database URL redacted]').replace(/Bearer\s+[^\s]+/gi, 'Bearer [redacted]').replace(/reset\/[A-Za-z0-9_-]+/g, 'reset/[redacted]').replace(/`/g, "'");
+            await github.rest.issues.createComment({owner: context.repo.owner, repo: context.repo.repo, issue_number: 24, body: 'Security diagnostic: ' + process.env.SUITE + '\nCommit: ' + context.sha + '\nResult: ' + process.env.RESULT + '\nSynthetic/local environment only; no production credentials.\n\n```text\n' + safe + '\n```'});
+      - name: Preserve failure status
+        if: steps.diagnostic.outcome != 'success'
+        run: exit 1

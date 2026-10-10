@@ -1,0 +1,43 @@
+name: Database certificate verification probe
+on:
+  push:
+    branches: [security/readiness-2026-10-10]
+    paths: [.github/workflows/database-certificate-probe.yml, script/database-certificate-probe.mjs]
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+jobs:
+  certificate-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Strict certificate and hostname verification without database login
+        id: probe
+        continue-on-error: true
+        run: node script/database-certificate-probe.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: database-certificate-evidence
+          path: database-certificate-report.json
+          if-no-files-found: error
+      - name: Publish bounded verification result to PR 24
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs=require('fs');
+            if(!fs.existsSync('database-certificate-report.json'))throw new Error('No certificate result available');
+            const report=fs.readFileSync('database-certificate-report.json','utf8');
+            if(report.length>12000)throw new Error('Certificate report exceeds safe size');
+            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:24,body:'Database certificate probe on '+context.sha+'\nNo password, database login, SQL, or production configuration change.\n```json\n'+report.replace(/`/g,"'")+'\n```'});
+      - name: Preserve verification failure
+        if: steps.probe.outcome != 'success'
+        run: exit 1
