@@ -135,7 +135,7 @@ export interface DebriefingReport {
   };
 
   // Systematic strength/opportunity verdict for each of the four named
-  // maturity stages (Exploring, Believing, Trusting, God Centered) —
+  // maturity stages (Exploring, Believing, Trusting, Jesus Centered) —
   // "Distant" is intentionally excluded. Distinct from
   // maturityAndChange.insights, which only surfaces statistical outliers.
   maturityStageAssessment: Insight[];

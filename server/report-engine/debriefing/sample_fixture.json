@@ -52,7 +52,7 @@
       {
         "kind": "opportunity",
         "headline": "Respondents at the most mature stage report the lowest rate of active growth.",
-        "detail": "Only 20% of \"God Centered\" respondents (n=30) say they're currently growing, vs. 74.91% across earlier stages. This can be a healthy plateau, or a sign that mature believers need a different kind of challenge or invitation to keep growing.",
+        "detail": "Only 20% of \"Jesus Centered\" respondents (n=30) say they're currently growing, vs. 74.91% across earlier stages. This can be a healthy plateau, or a sign that mature believers need a different kind of challenge or invitation to keep growing.",
         "corroboration": 1,
         "directionalOnly": false,
         "section": "Maturity & Change"
@@ -829,7 +829,7 @@
         "pct": 35.24
       },
       {
-        "label": "God Centered",
+        "label": "Jesus Centered",
         "count": 30,
         "pct": 14.29
       }
@@ -859,7 +859,7 @@
       },
       {
         "fromLabel": "Trusting",
-        "toLabel": "God Centered",
+        "toLabel": "Jesus Centered",
         "fromCount": 74,
         "toOrHigherCount": 30,
         "advanceRate": 0.14
@@ -891,7 +891,7 @@
         "sameOrFadingPct": 24.32
       },
       {
-        "maturityLabel": "God Centered",
+        "maturityLabel": "Jesus Centered",
         "n": 30,
         "growingPct": 20,
         "sameOrFadingPct": 80
@@ -902,7 +902,7 @@
       {
         "kind": "opportunity",
         "headline": "Respondents at the most mature stage report the lowest rate of active growth.",
-        "detail": "Only 20% of \"God Centered\" respondents (n=30) say they're currently growing, vs. 74.91% across earlier stages. This can be a healthy plateau, or a sign that mature believers need a different kind of challenge or invitation to keep growing.",
+        "detail": "Only 20% of \"Jesus Centered\" respondents (n=30) say they're currently growing, vs. 74.91% across earlier stages. This can be a healthy plateau, or a sign that mature believers need a different kind of challenge or invitation to keep growing.",
         "corroboration": 1,
         "directionalOnly": false,
         "section": "Maturity & Change"
@@ -936,11 +936,11 @@
     },
     {
       "kind": "opportunity",
-      "headline": "The \"God Centered\" stage is an opportunity to explore — only 20% report actively growing, below the church-wide average.",
-      "detail": "30 respondents describe themselves as \"God Centered.\" 20% report currently growing; 80% report staying the same or fading — vs. 67.14% growing church-wide.",
+      "headline": "The \"Jesus Centered\" stage is an opportunity to explore — only 20% report actively growing, below the church-wide average.",
+      "detail": "30 respondents describe themselves as \"Jesus Centered.\" 20% report currently growing; 80% report staying the same or fading — vs. 67.14% growing church-wide.",
       "corroboration": 1,
       "directionalOnly": false,
-      "section": "Maturity Stage Assessment — God Centered"
+      "section": "Maturity Stage Assessment — Jesus Centered"
     }
   ],
   "pathwaysByGoal": [
@@ -976,7 +976,7 @@
               "n": 74
             },
             {
-              "stage": "God Centered",
+              "stage": "Jesus Centered",
               "score": 4.7,
               "n": 30
             }
@@ -1012,7 +1012,7 @@
               "n": 74
             },
             {
-              "stage": "God Centered",
+              "stage": "Jesus Centered",
               "score": 4.67,
               "n": 30
             }
@@ -1048,7 +1048,7 @@
               "n": 74
             },
             {
-              "stage": "God Centered",
+              "stage": "Jesus Centered",
               "score": 4.47,
               "n": 30
             }
@@ -1084,7 +1084,7 @@
               "n": 74
             },
             {
-              "stage": "God Centered",
+              "stage": "Jesus Centered",
               "score": 4.43,
               "n": 30
             }
@@ -1126,7 +1126,7 @@
               "n": 74
             },
             {
-              "stage": "God Centered",
+              "stage": "Jesus Centered",
               "score": 4.35,
               "n": 30
             }
@@ -1162,7 +1162,7 @@
               "n": 74
             },
             {
-              "stage": "God Centered",
+              "stage": "Jesus Centered",
               "score": 4.53,
               "n": 30
             }
@@ -1198,7 +1198,7 @@
               "n": 74
             },
             {
-              "stage": "God Centered",
+              "stage": "Jesus Centered",
               "score": 4.32,
               "n": 30
             }
@@ -1234,7 +1234,7 @@
               "n": 74
             },
             {
-              "stage": "God Centered",
+              "stage": "Jesus Centered",
               "score": 4.34,
               "n": 30
             }
@@ -1276,7 +1276,7 @@
               "n": 74
             },
             {
-              "stage": "God Centered",
+              "stage": "Jesus Centered",
               "score": 4.45,
               "n": 30
             }
@@ -1312,7 +1312,7 @@
               "n": 74
             },
             {
-              "stage": "God Centered",
+              "stage": "Jesus Centered",
               "score": 4.33,
               "n": 30
             }
@@ -1348,7 +1348,7 @@
               "n": 74
             },
             {
-              "stage": "God Centered",
+              "stage": "Jesus Centered",
               "score": 3.44,
               "n": 30
             }
@@ -1357,7 +1357,7 @@
           "reversals": [
             {
               "fromStage": "Trusting",
-              "toStage": "God Centered",
+              "toStage": "Jesus Centered",
               "pointDrop": 0.31
             }
           ]
@@ -1390,7 +1390,7 @@
               "n": 74
             },
             {
-              "stage": "God Centered",
+              "stage": "Jesus Centered",
               "score": 4.33,
               "n": 30
             }
@@ -1432,7 +1432,7 @@
               "n": 74
             },
             {
-              "stage": "God Centered",
+              "stage": "Jesus Centered",
               "score": 4.52,
               "n": 30
             }
@@ -1468,7 +1468,7 @@
               "n": 74
             },
             {
-              "stage": "God Centered",
+              "stage": "Jesus Centered",
               "score": 4.34,
               "n": 30
             }
@@ -1504,7 +1504,7 @@
               "n": 74
             },
             {
-              "stage": "God Centered",
+              "stage": "Jesus Centered",
               "score": 4.38,
               "n": 30
             }
@@ -1540,7 +1540,7 @@
               "n": 74
             },
             {
-              "stage": "God Centered",
+              "stage": "Jesus Centered",
               "score": 4.39,
               "n": 30
             }

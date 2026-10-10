@@ -24,7 +24,7 @@ const SYSTEMATIC_SECTION_IDS = new Set(["ageGroup", "singlesVsMarried", "childre
 
 // Only these four maturity stages get a systematic verdict, per Gary's
 // request — "Distant" is intentionally excluded.
-const MATURITY_STAGES_IN_SCOPE = ["Exploring", "Believing", "Trusting", "God Centered"];
+const MATURITY_STAGES_IN_SCOPE = ["Exploring", "Believing", "Trusting", "Jesus Centered"];
 
 const NEAR_ZERO_MATURITY_GAP = 0.15; // below this, frame as "holding steady" rather than a directional claim
 
@@ -120,7 +120,7 @@ function maturityStageVerdict(stage: MaturityChangeCrosstab, churchAvgGrowingPct
 }
 
 /** One strength/opportunity verdict for each of the four named maturity
- *  stages (Exploring, Believing, Trusting, God Centered) — "Distant" is
+ *  stages (Exploring, Believing, Trusting, Jesus Centered) — "Distant" is
  *  intentionally excluded per Gary's request. */
 export function buildMaturityStageAssessment(changeByMaturity: MaturityChangeCrosstab[]): Insight[] {
   const allGrowingValues = changeByMaturity.map((s) => s.growingPct * s.n);

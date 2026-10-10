@@ -62,7 +62,7 @@ MATURITY_LABELS = OrderedDict([
     (2, "Exploring"),
     (3, "Believing in God"),
     (4, "Trusting God"),
-    (5, "God Centered"),
+    (5, "Jesus Centered"),
 ])
 # 4-band collapse used only by the change-profile cross-tab's maturity column
 # (Distant folded into Exploring, per real-report convention of dropping/
@@ -71,7 +71,7 @@ MATURITY_4BAND = OrderedDict([
     (1, "Exploring"), (2, "Exploring"),
     (3, "Believing in God"),
     (4, "Trusting God"),
-    (5, "God Centered"),
+    (5, "Jesus Centered"),
 ])
 
 CHANGE_LABELS = OrderedDict([
@@ -574,7 +574,7 @@ def run_self_test():
     mat = maturity_profile(rows)
     assert mat["sample_size"] == 4
     assert mat["distribution"]["breakdown"]["Trusting God"]["n"] == 2
-    assert mat["distribution"]["breakdown"]["God Centered"]["n"] == 1
+    assert mat["distribution"]["breakdown"]["Jesus Centered"]["n"] == 1
     assert "Distant" not in mat["distribution"]["breakdown"], "zero-count bands must be omitted"
     assert "relationship_status" not in mat["crosstab_by_dimension"], "must NOT cross-tab relationship_status"
     assert "race_ethnicity" not in mat["crosstab_by_dimension"], "must NOT cross-tab race_ethnicity"
@@ -582,12 +582,12 @@ def run_self_test():
     # Cross-tab direction: keyed by demographic VALUE (e.g. "Female"), each
     # holding a % breakdown ACROSS maturity groups -- NOT the other way
     # around. Row 1 (Female, journey_post=4 -> "Trusting God") and row 3
-    # (Female, journey_post=5 -> "God Centered") are both female, so
+    # (Female, journey_post=5 -> "Jesus Centered") are both female, so
     # "Female" should show a 50/50 split between those two groups.
     gender_xtab = mat["crosstab_by_dimension"]["gender"]
     assert "Female" in gender_xtab and "Male" in gender_xtab, "must be keyed by demographic value"
     assert gender_xtab["Female"]["breakdown"]["Trusting God"]["pct"] == 50.0, gender_xtab["Female"]
-    assert gender_xtab["Female"]["breakdown"]["God Centered"]["pct"] == 50.0, gender_xtab["Female"]
+    assert gender_xtab["Female"]["breakdown"]["Jesus Centered"]["pct"] == 50.0, gender_xtab["Female"]
     assert gender_xtab["Male"]["breakdown"]["Exploring"]["pct"] == 50.0, gender_xtab["Male"]
     assert gender_xtab["Male"]["breakdown"]["Trusting God"]["pct"] == 50.0, gender_xtab["Male"]
     print("maturity_profile PASSED (no pre/post pair, correct 7-dim cross-tab in demographic->maturity direction, zero-bands omitted).")
@@ -597,14 +597,14 @@ def run_self_test():
     assert chg["distribution"]["breakdown"]["Growing significantly"]["n"] == 2
     assert "maturity_4band" in chg["crosstab_by_dimension_4band"]
     mat4 = chg["crosstab_by_dimension_4band"]["maturity_4band"]
-    assert set(mat4.keys()) <= {"Believing in God", "Trusting God", "God Centered", "Exploring"}
+    assert set(mat4.keys()) <= {"Believing in God", "Trusting God", "Jesus Centered", "Exploring"}
     print("change_profile PASSED (collapsed 4-band cross-tab, narrower dimension set).")
 
     com = comments_report(rows)
     assert "Trusting God" in com["by_maturity_group"]
     assert com["by_maturity_group"]["Trusting God"][0]["comment"] == "Grateful for this church."
     assert com["by_maturity_group"]["Trusting God"][0]["gender"] == "Female"
-    assert "God Centered" in com["by_maturity_group"]
+    assert "Jesus Centered" in com["by_maturity_group"]
     print("comments_report PASSED (verbatim, grouped by maturity, tagged by gender only).")
 
     print("\nAll self-tests PASSED.")

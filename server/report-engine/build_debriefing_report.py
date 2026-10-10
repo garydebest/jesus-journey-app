@@ -792,7 +792,7 @@ def render_maturity(c, report, church_name, report_date, page_num):
         c.setFont("Inter", 9.3)
         c.setFillColor(INK_MUTED)
         c.drawString(MARGIN + 0.18 * inch, flow.y - 0.40 * inch,
-                     "The most mature group (God Centered) shows the lowest active-growth rate.")
+                     "The most mature group (Jesus Centered) shows the lowest active-growth rate.")
         flow.y -= card_h + 0.2 * inch
 
     # Change-by-maturity crosstab
@@ -816,7 +816,7 @@ def render_maturity(c, report, church_name, report_date, page_num):
 
 def render_maturity_stage_assessment(c, report, church_name, report_date, page_num):
     """Explicit strength/opportunity verdict for each of the four named
-    maturity stages -- Exploring, Believing, Trusting, God Centered.
+    maturity stages -- Exploring, Believing, Trusting, Jesus Centered.
     \"Distant\" is intentionally excluded, per Gary's request. Distinct from
     the plateau-only flag on the Maturity & Change pages."""
     assessment = report.get("maturityStageAssessment") or []
@@ -826,7 +826,7 @@ def render_maturity_stage_assessment(c, report, church_name, report_date, page_n
 
     flow.c.setFont("Inter", 9.8)
     flow.c.setFillColor(INK_MUTED)
-    intro = ("Each stage of the journey \u2014 Exploring, Believing, Trusting, and God Centered \u2014 "
+    intro = ("Each stage of the journey \u2014 Exploring, Believing, Trusting, and Jesus Centered \u2014 "
              "is given an explicit strength or opportunity verdict below, based on how its active-growth "
              "rate compares to the church-wide average.")
     flow.y = draw_body_paragraph(flow.c, MARGIN, flow.y, intro, PAGE_W - 2 * MARGIN,

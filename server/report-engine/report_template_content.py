@@ -194,7 +194,7 @@ GOAL_PATHWAY_NUMBERS = {
 }
 
 # church_report.py's MATURITY_LABELS use "God" wording ("Believing in
-# God", "Trusting God", "God Centered"); the PDF template's donut/
+# God", "Trusting God", "Jesus Centered"); the PDF template's donut/
 # crosstab labels use "Jesus" wording. Maps church_report.py's label ->
 # template display label. "Distant"/"Exploring" are unchanged.
 MATURITY_LABEL_DISPLAY = {
@@ -202,7 +202,7 @@ MATURITY_LABEL_DISPLAY = {
     "Exploring": "Exploring",
     "Believing in God": "Beginning in Jesus",
     "Trusting God": "Trusting in Jesus",
-    "God Centered": "Jesus Centered",
+    "Jesus Centered": "Jesus Centered",
 }
 
 # Order used for the 5-band maturity donut and the demographic crosstabs'
@@ -211,10 +211,10 @@ MATURITY_LABEL_DISPLAY = {
 # SUMMARY_CROSSTAB_GROUPS = [3, 4, 5] plus Exploring=2 for the 4-column
 # per-item/demographic tables).
 MATURITY_LABEL_ORDER_5BAND = [
-    "Distant", "Exploring", "Believing in God", "Trusting God", "God Centered",
+    "Distant", "Exploring", "Believing in God", "Trusting God", "Jesus Centered",
 ]
 MATURITY_LABEL_ORDER_4COL = [
-    "Exploring", "Believing in God", "Trusting God", "God Centered",
+    "Exploring", "Believing in God", "Trusting God", "Jesus Centered",
 ]
 
 # change_profile()'s CHANGE_4BAND labels already match the template's

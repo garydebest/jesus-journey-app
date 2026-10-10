@@ -222,7 +222,7 @@ def build_from_aggregates(
     # ---------------- Spiritual maturity profile (pages 10-13) ----------------
     mat_breakdown = maturity["distribution"]["breakdown"]
     maturity_donut_values = [round(_pct(mat_breakdown, lbl), 1) for lbl in MATURITY_LABEL_ORDER_5BAND]
-    trusting_plus_centered = _pct(mat_breakdown, "Trusting God") + _pct(mat_breakdown, "God Centered")
+    trusting_plus_centered = _pct(mat_breakdown, "Trusting God") + _pct(mat_breakdown, "Jesus Centered")
     maturity_combined_stat = f"{trusting_plus_centered:.1f}%"
 
     mat_xtab = maturity["crosstab_by_dimension"]
@@ -287,12 +287,12 @@ def build_from_aggregates(
     def chg_dim(dim, value_key):
         return _change_row(chg_xtab.get(dim, {}), value_key)
 
-    maturity_4band_order = ["Exploring", "Believing in God", "Trusting God", "God Centered"]
+    maturity_4band_order = ["Exploring", "Believing in God", "Trusting God", "Jesus Centered"]
     maturity_4band_display = {
         "Exploring": "Exploring Jesus",
         "Believing in God": "Beginning in Jesus",
         "Trusting God": "Trusting in Jesus",
-        "God Centered": "Jesus Centered",
+        "Jesus Centered": "Jesus Centered",
     }
 
     change_crosstab_diversity_table = [
@@ -364,7 +364,7 @@ def build_from_aggregates(
             by_mat = agg_pathway["pct_always_mostly_by_maturity"]
             believing = by_mat.get("Believing in God")
             trusting = by_mat.get("Trusting God")
-            centered = by_mat.get("God Centered")
+            centered = by_mat.get("Jesus Centered")
             # Groups below the privacy floor are left off the comparison chart.
             ok = lambda g: g is not None and g.get("n", 0) >= MIN_N
             maturity_line_believing[pnum - 1] = round(believing["pct"]) if ok(believing) else None
