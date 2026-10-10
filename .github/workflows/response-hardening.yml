@@ -1,0 +1,87 @@
+name: Test response security protections
+on:
+  push:
+    branches: [security/readiness-2026-10-10]
+    paths: [.github/workflows/response-hardening.yml]
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+jobs:
+  harden:
+    if: github.ref == 'refs/heads/security/readiness-2026-10-10'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: jj
+          POSTGRES_PASSWORD: jj
+          POSTGRES_DB: jj_preview
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U jj -d jj_preview" --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      DATABASE_URL: postgres://jj:jj@localhost:5432/jj_preview?sslmode=disable
+      MAILER_TEST_OUTBOX: '1'
+      ADMIN_KEY: qa-admin-key
+      ADMIN_USERNAME: admin
+      NODE_ENV: test
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: security/readiness-2026-10-10
+          lfs: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare exact guarded entrypoint patch
+        run: |
+          test "$(git hash-object server/index.ts)" = 7e7e7f6c6106f19ed1542cb8604a28cc88966a8d
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          let text=fs.readFileSync('server/index.ts','utf8');
+          const replacements=[['import { registerRoutes } from "./routes";','import { securityHeaders, safeServerErrorMessage } from "./security";\nimport { registerRoutes } from "./routes";'],['const app = express();','const app = express();\napp.disable("x-powered-by");\napp.use(securityHeaders);'],['let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;','const route = typeof req.route?.path === "string" ? req.route.path : "/api";\n      let logLine = `${req.method} ${route} ${res.statusCode} in ${duration}ms`;'],['const message = err.message || "Internal Server Error";','const message = safeServerErrorMessage(status, err.message || "Internal Server Error");'],['console.error("Internal Server Error:", err);','if (process.env.NODE_ENV === "production") console.error("Request failed", { status });\n    else console.error("Internal Server Error:", err);']];
+          for(const [before,after] of replacements){if(text.split(before).length!==2)throw new Error('Entrypoint changed; review required');text=text.replace(before,after);}
+          fs.writeFileSync('server/index.ts',text);
+          NODE
+      - name: Install and verify build
+        run: |
+          npm ci --ignore-scripts
+          python -m pip install -r server/report-engine/requirements.txt
+          npm run check
+          npm run build
+      - name: Test headers, caching and production error messages on a disposable local HTTP server
+        run: |
+          npx --no-install tsx -e 'import assert from "node:assert/strict"; import express from "express"; import {securityHeaders,safeServerErrorMessage} from "./server/security"; (async()=>{process.env.NODE_ENV="production";const app=express();app.disable("x-powered-by");app.use(securityHeaders);app.get("/",(_q,r)=>r.send("synthetic"));app.get("/api/check",(_q,r)=>r.json({ok:true}));const server=app.listen(0,"127.0.0.1");await new Promise<void>(resolve=>server.once("listening",resolve));try{const address=server.address();assert.ok(address&&typeof address!=="string");const base="http://127.0.0.1:"+address.port;const r=await fetch(base+"/api/check");assert.equal(r.headers.get("cache-control"),"private, no-store");assert.equal(r.headers.get("x-content-type-options"),"nosniff");assert.equal(r.headers.get("referrer-policy"),"strict-origin-when-cross-origin");assert.equal(r.headers.get("strict-transport-security"),"max-age=31536000");assert.equal(r.headers.get("x-frame-options"),"DENY");assert.equal(r.headers.get("content-security-policy"),"frame-ancestors '\''none'\''");assert.equal(r.headers.get("x-powered-by"),null);const root=await fetch(base+"/");assert.equal(root.headers.get("cache-control"),null);assert.equal(safeServerErrorMessage(500,"synthetic-secret"),"Internal Server Error");assert.equal(safeServerErrorMessage(503,"synthetic-secret"),"Internal Server Error");assert.equal(safeServerErrorMessage(400,"Validation failed"),"Validation failed");process.env.NODE_ENV="test";const dev=await fetch(base+"/api/check");assert.equal(dev.headers.get("x-frame-options"),null);assert.equal(dev.headers.get("strict-transport-security"),null);assert.equal(safeServerErrorMessage(500,"local-debug"),"local-debug");}finally{server.closeAllConnections();await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));}})().catch(e=>{console.error(e);process.exit(1)});'
+      - name: Verify isolated account and report regressions
+        run: |
+          node -e 'const u=new URL(process.env.DATABASE_URL);if(process.env.CI!=="true"||!["localhost","127.0.0.1"].includes(u.hostname)||u.pathname!=="/jj_preview")throw new Error("Refusing non-local database");'
+          npm run db:push -- --force
+          npx --no-install tsx -e 'import {ensureBootstrapped} from "./server/storage";ensureBootstrapped().then(()=>process.exit(0)).catch(e=>{console.error(e);process.exit(1)});'
+          npx --no-install tsx script/seed-preview.ts
+          npx --no-install tsx script/password-reset-qa.ts
+          JJ_QA_VARIANT=full npx --no-install tsx script/close-safety-qa.ts
+          JJ_QA_VARIANT=short npx --no-install tsx script/close-safety-qa.ts
+          JJ_QA_VARIANT=mixed npx --no-install tsx script/close-safety-qa.ts
+      - name: Save entrypoint patch only after successful tests
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add server/index.ts
+          git commit -m "Apply tested headers, API no-store and production-error protections"
+          git push origin HEAD:security/readiness-2026-10-10
+          git rev-parse HEAD > response-tested-commit.txt
+      - name: Report outcome to PR 24
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          RESULT: '${{ job.status }}'
+        with:
+          script: |
+            const fs=require('fs');const sha=fs.existsSync('response-tested-commit.txt')?fs.readFileSync('response-tested-commit.txt','utf8').trim():'No entrypoint patch saved';
+            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:24,body:'Response hardening: '+process.env.RESULT+'\n'+sha+'\nBuild, isolated HTTP header/error tests and password/full/short/mixed report suites required before saving entrypoint. No merge, deployment or production DB access. CSP is frame-ancestors only, not a comprehensive script policy. Database TLS, MFA and login limits unchanged.'});

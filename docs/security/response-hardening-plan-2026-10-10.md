@@ -1,0 +1,7 @@
+# Response protection batch - October 10, 2026
+
+Gary Best Consulting. Optional-dependency job 114271096532 succeeded on 1a252655a5e2966b26031eee6184af7d0f020550 and published report 6100269043. Logging fallback passed with supports-color deliberately unavailable; standard pg Client/Pool loaded with zero pg-native lookups; native-driver source scan returned no matches. Production native-driver settings were not inspected.
+
+New branch-only batch adds baseline nosniff/referrer headers, production HSTS without includeSubDomains, production anti-framing headers and a frame-ancestors-only CSP. API responses receive private/no-store. Express identification is disabled. Production 5xx messages become generic, production error logs omit the raw exception, and API request logs use route templates rather than concrete token-bearing paths. Validation messages are preserved. Development framing remains allowed.
+
+The entrypoint patch is guarded by exact source blob SHA and exact replacements. Save server/index.ts only after build, local synthetic header/error tests and isolated password/full/short/mixed regressions pass. The helper module and workflow alone do not activate these protections. No production changes, merge or deployment. Comprehensive CSP, login limits, MFA, TLS certificate verification and live browser/isolation tests remain open. Separate project wiki not updated by this repository record.
