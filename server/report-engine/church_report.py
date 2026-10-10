@@ -50,7 +50,7 @@ church reports supplied by Dennis prove this guess wrong on every point:
      4 pathways as 4 separate percentage bars, side by side.
   4. Item- and pathway-level percentages are cross-tabbed by the
      respondent's self-reported SPIRITUAL MATURITY GROUP (Exploring /
-     Believing / Trusting / God Centered at the item level; Believing /
+     Believing / Trusting / Jesus Centered at the item level; Believing /
      Trusting / Centered only at the pathway-summary level, with Exploring
      explicitly excluded there as "too few / less comparable").
   5. Real church reports also include Demographics, Spiritual Maturity
@@ -69,13 +69,13 @@ KNOWN GAP — the spiritual maturity group mapping
 --------------------------------------------------
 Real church reports segment every statistic by a 4-5 level self-reported
 "spiritual maturity" question (Distant / Exploring / Believing in God /
-Trusting God / God Centered), separate from the 63 pathway items. The
+Trusting God / Jesus Centered), separate from the 63 pathway items. The
 recovered source code stores a `journey` integer column and branches on
 `journey < 3` vs `journey >= 3`, but nowhere DEFINES what journey values
 1/2/3/4/5 mean in maturity-group terms. This script assumes (needs Mike/
 Dennis confirmation):
     journey 1 -> Distant, 2 -> Exploring, 3 -> Believing in God,
-    4 -> Trusting God, 5 -> God Centered
+    4 -> Trusting God, 5 -> Jesus Centered
 This is a reasonable guess (matches the 5-level ordinal language used
 throughout the sample reports and the code's own <3 vs >=3 partial-survey
 split lining up with "Distant/Exploring have fewer questions") but is NOT
@@ -191,7 +191,7 @@ MATURITY_LABELS = {
     2: "Exploring",
     3: "Believing in God",
     4: "Trusting God",
-    5: "God Centered",
+    5: "Jesus Centered",
 }
 # Per real church reports: the 16-pathway summary bar/line chart (pg 36-37
 # equivalent) compares only Believing/Trusting/Centered, explicitly excluding

@@ -6,8 +6,8 @@ import { ITEM_CODES } from "../schema";
  * checked against ground truth before it ever touches a real church's data:
  *
  *  1. A pathway reversal: "Journeying with Others" (A7,A8,A9,P5) scores LOWER
- *     for "God Centered" respondents than for "Trusting" respondents.
- *  2. A top-stage growth plateau: "God Centered" respondents report much
+ *     for "Jesus Centered" respondents than for "Trusting" respondents.
+ *  2. A top-stage growth plateau: "Jesus Centered" respondents report much
  *     lower "currently growing" rates than earlier stages.
  *  3. A give/receive gap: A8/P5 (giving support) score higher than A7/A9
  *     (receiving support) for everyone — a one-directional relational pattern.

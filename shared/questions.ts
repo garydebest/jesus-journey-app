@@ -16,7 +16,7 @@ export const MATURITY_OPTIONS_POST = [
   { value: 5, label: "I see Jesus as the center of my life and I am committed to becoming like Jesus in all parts of my life." },
 ];
 
-export const MATURITY_LABELS = ["", "Distant", "Exploring", "Believing", "Trusting", "God Centered"];
+export const MATURITY_LABELS = ["", "Distant", "Exploring", "Believing", "Trusting", "Jesus Centered"];
 
 export const CHANGE_OPTIONS = [
   { value: 1, label: "Growing significantly" },

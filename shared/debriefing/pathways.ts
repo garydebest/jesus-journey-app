@@ -8,11 +8,11 @@ import { mean, round2, meetsSampleFloor, isMaterial } from "./helpers";
 /**
  * For each of the 16 pathways, computes the church-wide average AND the
  * trajectory of that pathway's average score across the 5 maturity stages
- * (Distant -> God Centered), using each respondent's own journeyPost stage.
+ * (Distant -> Jesus Centered), using each respondent's own journeyPost stage.
  * A healthy pathway should climb monotonically with maturity stage. A dip
  * (reversal) at some stage is the anomaly Gary specifically asked about —
  * e.g. a pathway that is strong for "Trusting" respondents but unexpectedly
- * weaker for "God Centered" respondents.
+ * weaker for "Jesus Centered" respondents.
  */
 export function analyzePathways(rows: ResponseRow[]): { pathways: PathwayAnalysis[]; insights: Insight[] } {
   const byStage = new Map<number, ResponseRow[]>();

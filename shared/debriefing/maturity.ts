@@ -64,11 +64,11 @@ export function analyzeMaturityAndChange(rows: ResponseRow[]): {
   const insights: Insight[] = [];
 
   // The specific anomaly Gary named: people at the top maturity stage
-  // ("God Centered") reporting the LOWEST rate of active growth — a plateau
+  // ("Jesus Centered") reporting the LOWEST rate of active growth — a plateau
   // signal, since "growing" and "already arrived" can coexist in healthy
   // discipleship, but a sharp drop at the top stage is worth flagging.
-  const topStage = changeByMaturity.find((c) => c.maturityLabel === "God Centered");
-  const otherStages = changeByMaturity.filter((c) => c.maturityLabel !== "God Centered" && meetsSampleFloor(c.n));
+  const topStage = changeByMaturity.find((c) => c.maturityLabel === "Jesus Centered");
+  const otherStages = changeByMaturity.filter((c) => c.maturityLabel !== "Jesus Centered" && meetsSampleFloor(c.n));
   let plateauAtTopFlag = false;
   if (topStage && meetsSampleFloor(topStage.n) && otherStages.length > 0) {
     const otherAvgGrowing = mean(otherStages.map((s) => s.growingPct));
@@ -77,7 +77,7 @@ export function analyzeMaturityAndChange(rows: ResponseRow[]): {
       insights.push({
         kind: "opportunity",
         headline: "Respondents at the most mature stage report the lowest rate of active growth.",
-        detail: `Only ${topStage.growingPct}% of "God Centered" respondents (n=${topStage.n}) say they're currently growing, vs. ${round2(otherAvgGrowing)}% across earlier stages. This can be a healthy plateau, or a sign that mature believers need a different kind of challenge or invitation to keep growing.`,
+        detail: `Only ${topStage.growingPct}% of "Jesus Centered" respondents (n=${topStage.n}) say they're currently growing, vs. ${round2(otherAvgGrowing)}% across earlier stages. This can be a healthy plateau, or a sign that mature believers need a different kind of challenge or invitation to keep growing.`,
         corroboration: 1,
         directionalOnly: !meetsSampleFloor(topStage.n),
         section: "Maturity & Change",
@@ -91,7 +91,7 @@ export function analyzeMaturityAndChange(rows: ResponseRow[]): {
   if (topTwo >= 50) {
     insights.push({
       kind: "strength",
-      headline: `${topTwo}% of respondents describe themselves as "Trusting" or "God Centered" in their walk with God.`,
+      headline: `${topTwo}% of respondents describe themselves as "Trusting" or "Jesus Centered" in their walk with God.`,
       detail: `The church's respondent base is concentrated in the two most mature stages, averaging ${averageMaturity} on the 5-point maturity scale.`,
       corroboration: 1,
       directionalOnly: false,

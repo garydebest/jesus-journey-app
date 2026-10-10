@@ -18,7 +18,7 @@ class DennisCorrections(unittest.TestCase):
 
     def test_unequal_and_absent_categories(self):
         entries = [{"n": 2, "breakdown": {"Exploring": {"n": 2}}},
-                   {"n": 8, "breakdown": {"God Centered": {"n": 8}}}, {}]
+                   {"n": 8, "breakdown": {"Jesus Centered": {"n": 8}}}, {}]
         self.assertEqual(_pooled_row(entries, MATURITY_LABEL_ORDER_4COL, True), [20, 0, 0, 80])
 
     def test_item_denominators(self):
