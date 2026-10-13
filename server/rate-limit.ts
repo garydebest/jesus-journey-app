@@ -40,6 +40,8 @@ export const limits = {
   loginPerAddress: new Limiter(20, 15 * MIN),
   adminPerAddress: new Limiter(5, 15 * MIN),
   adminGlobal: new Limiter(30, 15 * MIN),
+  adminPerAccount: new Limiter(5, 15 * MIN),
+  adminCodePerAddress: new Limiter(10, 15 * MIN),
   // password reset and signup requests (every request counts)
   resetRequestPerEmail: new Limiter(3, 60 * MIN),
   resetRequestPerAddress: new Limiter(10, 60 * MIN),

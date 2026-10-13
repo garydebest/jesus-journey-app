@@ -13,6 +13,9 @@ import { ChurchDashboard } from "@/pages/ChurchDashboard";
 import { ChurchSettings } from "@/pages/ChurchSettings";
 import { AdminOverview } from "@/pages/AdminOverview";
 import { AdminLogin } from "@/pages/AdminLogin";
+import { AdminResetPassword } from "@/pages/AdminResetPassword";
+import { AdminConfirmEmail } from "@/pages/AdminConfirmEmail";
+import { AdminAccount } from "@/pages/AdminAccount";
 import { ChurchAuthProvider } from "@/lib/churchAuth";
 import { AdminAuthProvider } from "@/lib/adminAuth";
 import { Privacy } from "@/pages/Privacy";
@@ -42,6 +45,9 @@ function AppRouter() {
       <Route path="/dashboard" component={ChurchDashboard} />
       <Route path="/settings" component={ChurchSettings} />
       <Route path="/admin/login" component={AdminLogin} />
+      <Route path="/admin/reset/:token">{(params) => <AdminResetPassword token={params.token} />}</Route>
+      <Route path="/admin/confirm-email/:token">{(params) => <AdminConfirmEmail token={params.token} />}</Route>
+      <Route path="/admin/account" component={AdminAccount} />
       <Route path="/admin" component={AdminOverview} />
       <Route component={NotFound} />
     </Switch>
