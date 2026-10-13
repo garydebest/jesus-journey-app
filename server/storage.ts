@@ -135,6 +135,8 @@ export function ensureBootstrapped(): Promise<void> {
       await pool.query(bootstrapSql);
       await ensureColumn("churches", "primary_contact_phone", "primary_contact_phone TEXT");
       await ensureColumn("churches", "survey_plan_json", "survey_plan_json TEXT");
+      await ensureColumn("churches", "last_sign_in_at", "last_sign_in_at TIMESTAMPTZ");
+      await ensureColumn("churches", "unused_warning_sent_at", "unused_warning_sent_at TIMESTAMPTZ");
       await ensureColumn("survey_waves", "size_tier", "size_tier TEXT");
       await ensureColumn("survey_waves", "payment_status", "payment_status TEXT NOT NULL DEFAULT 'unpaid'");
       await ensureColumn("survey_waves", "price_cents", "price_cents INTEGER");

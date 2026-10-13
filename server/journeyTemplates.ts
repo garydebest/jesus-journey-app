@@ -19,6 +19,8 @@ export const CLIENT_EMAIL_TYPES = [
   "debrief_reminder",
   "debrief_booked",
   "growth_interest_ack",
+  "welcome_discovery",
+  "unused_account_warning",
 ] as const;
 export type ClientEmailType = (typeof CLIENT_EMAIL_TYPES)[number];
 
@@ -33,6 +35,7 @@ export const INTERNAL_EMAIL_TYPES = [
   "internal_debrief_completed",
   "internal_growth_interest",
   "internal_delivery_failed",
+  "internal_new_signup",
 ] as const;
 export type InternalEmailType = (typeof INTERNAL_EMAIL_TYPES)[number];
 
@@ -49,6 +52,9 @@ export const EMAIL_TYPE_LABELS: Record<ClientEmailType | InternalEmailType, stri
   debrief_reminder: "Debrief reminder",
   debrief_booked: "Survey Review for your debrief (PDF attached)",
   growth_interest_ack: "Growth Plan interest acknowledgement",
+  welcome_discovery: "Welcome and free Discovery call",
+  unused_account_warning: "Unused account deletion notice",
+  internal_new_signup: "Internal: new account registered",
   internal_new_purchase: "Internal: new paid survey",
   internal_orientation_followup_needed: "Internal: orientation needs follow-up",
   internal_orientation_completed: "Internal: orientation completed",
@@ -77,6 +83,9 @@ export interface TemplateContext {
   orientationUrl: string | null;
   debriefUrl: string | null;
   debriefDate: string;
+  discoveryUrl?: string | null;
+  signInUrl?: string;
+  deletionDate?: string;
 }
 
 interface Block { kind: "p" | "list" | "button" | "booking" | "strong-p"; text?: string; items?: string[]; label?: string; href?: string | null }
@@ -215,6 +224,20 @@ export function renderClientEmail(type: ClientEmailType, c: TemplateContext): Re
         ] },
         { kind: "button", label: "Open your full reports", href: c.reportsUrl },
       ], ["Jesus Journey"]);
+    case "welcome_discovery":
+      // Wording approved by Gary Best, October 13, 2026.
+      return layout("Thank you for your interest in the Jesus Journey Survey", "Book a free Discovery call to find out more.", hello, [
+        { kind: "p", text: "Thank you for your interest in the Jesus Journey Survey. We would love to answer any of your questions and show you how the Survey could help your community along the way of becoming more like Jesus. Follow the link for a free Discovery call in order to find out more." },
+        { kind: "booking", label: "Book a free Discovery call", href: c.discoveryUrl ?? null },
+      ], ["With gratitude,", "Jesus Journey"]);
+    case "unused_account_warning":
+      return layout("Your Jesus Journey account will be deleted soon", "Sign in to keep your account.", hello, [
+        { kind: "p", text: `The Jesus Journey account for ${c.churchName} has not been used for a while and no survey has been purchased. To keep our records tidy and your information private, unused accounts are deleted after six months.` },
+        { kind: "strong-p", text: `Your account will be deleted on ${c.deletionDate}. To keep it, simply sign in before then.` },
+        { kind: "button", label: "Sign in to keep my account", href: c.signInUrl ?? c.dashboardUrl },
+        { kind: "p", text: "If you no longer need the account, you don't need to do anything. You are always welcome to register again later. We would also be glad to talk about whether the Survey is a good fit for your church." },
+        { kind: "booking", label: "Book a free Discovery call", href: c.discoveryUrl ?? null },
+      ], ["With gratitude,", "Jesus Journey"]);
     case "growth_interest_ack":
       return layout("Thank you for your interest in the Jesus Journey Growth Plan", "We will be in touch about next steps.", hello, [
         { kind: "p", text: "Thank you for your interest. The Jesus Journey Growth Plan is a separate paid one-year coaching program for churches seeking guided help turning survey insight into focused priorities, practical action, leadership rhythms, and meaningful progress." },
@@ -246,6 +269,7 @@ const INTERNAL_SUBJECT: Record<InternalEmailType, string> = {
   internal_debrief_completed: "Debrief completed",
   internal_growth_interest: "Growth Plan interest",
   internal_delivery_failed: "Email delivery failed",
+  internal_new_signup: "New account registered",
 };
 
 const INTERNAL_ACTION: Record<InternalEmailType, string> = {
@@ -259,6 +283,7 @@ const INTERNAL_ACTION: Record<InternalEmailType, string> = {
   internal_debrief_completed: "The facilitated results debrief was marked complete.",
   internal_growth_interest: "The church asked about the separate paid Growth Plan. Please follow up about fit, timing, and next steps.",
   internal_delivery_failed: "A client-journey email could not be delivered. Check the email history in the admin view and resend if needed.",
+  internal_new_signup: "A church registered an account. No survey has been purchased yet. They were sent the welcome email with the free Discovery call link. If no survey is purchased and nobody signs in for six months, the account is deleted automatically (with a notice 14 days before).",
 };
 
 export function renderInternalEmail(type: InternalEmailType, c: InternalContext): RenderedEmail {

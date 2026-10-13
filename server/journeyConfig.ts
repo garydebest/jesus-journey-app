@@ -22,6 +22,8 @@ export function bookingConfig() {
   return {
     orientationUrl: httpsUrl(process.env.ORIENTATION_CALENDLY_URL),
     debriefUrl: httpsUrl(process.env.DEBRIEF_CALENDLY_URL),
+    // Free Discovery call offered in the welcome email after registration.
+    discoveryUrl: httpsUrl(process.env.DISCOVERY_CALENDLY_URL),
     // Intentionally unset in Phase 1: Growth Plan uses an interest form.
     growthPlanUrl: httpsUrl(process.env.GROWTH_PLAN_CALENDLY_URL),
     supportEmail: SUPPORT_EMAIL,

@@ -155,12 +155,12 @@ function validatePassword(pw: string, email: string) {
 
 // --- Activity log -----------------------------------------------------------
 
-export async function logAdminActivity(who: AdminIdentity | null | undefined, action: string, detail?: string | null) {
+export async function logAdminActivity(who: AdminIdentity | null | undefined, action: string, detail?: string | null, actorLabel?: string) {
   try {
     await ensureAdminTables();
     await pool.query(
       `INSERT INTO admin_activity (id, admin_user_id, admin_name, action, detail) VALUES ($1, $2, $3, $4, $5)`,
-      [randomUUID(), who?.id ?? null, who ? `${who.name} (${who.email})` : "Shared admin login", action, detail ?? null],
+      [randomUUID(), who?.id ?? null, who ? `${who.name} (${who.email})` : actorLabel ?? "Shared admin login", action, detail ?? null],
     );
   } catch (err: any) {
     console.error("[admin-activity] could not record:", err?.message ?? err);

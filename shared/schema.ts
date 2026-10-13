@@ -27,6 +27,10 @@ export const churches = pgTable("churches", {
   leadPastorReceivesResults: boolean("lead_pastor_receives_results").notNull().default(false),
   growthPlanInterestAt: timestamp("growth_plan_interest_at", { withTimezone: true }),
   emailOptInGrowthPlan: boolean("email_opt_in_growth_plan").notNull().default(false),
+  // Unused-account cleanup: accounts that never purchased a survey are deleted
+  // after six months without a sign-in, with a notice 14 days before.
+  lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
+  unusedWarningSentAt: timestamp("unused_warning_sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
 });
 

@@ -10,6 +10,7 @@
 // activation, or report closure.
 // ---------------------------------------------------------------------------
 
+import { scheduledDeletionDate } from "./unusedAccounts";
 import { storage } from "./storage";
 import type { Church, SurveyWave } from "@shared/schema";
 import { requiredResponsesForClose } from "@shared/schema";
@@ -61,6 +62,8 @@ export function recipientsFor(type: ClientEmailType, church: Church): Recipient[
   switch (type) {
     case "purchase_confirmed":
     case "growth_interest_ack":
+    case "welcome_discovery":
+    case "unused_account_warning":
       list = [primary]; break;
     case "orientation_reminder":
     case "orientation_followup":
@@ -101,6 +104,9 @@ function contextFor(church: Church, wave: SurveyWave | null, recipient: Recipien
     orientationUrl: booking.orientationUrl,
     debriefUrl: tagSurvey(booking.debriefUrl, wave?.id),
     debriefDate: displayDate(wave?.debriefBookedAt),
+    discoveryUrl: booking.discoveryUrl,
+    signInUrl: `${base}/#/church/login`,
+    deletionDate: displayDate(scheduledDeletionDate(church)),
   };
 }
 

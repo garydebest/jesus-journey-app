@@ -65,6 +65,9 @@ jobs:
       - name: Individual administrator accounts and two-factor sign-in
         if: matrix.suite == 'password'
         run: npx --no-install tsx script/admin-accounts-qa.ts
+      - name: Welcome email and unused-account cleanup
+        if: matrix.suite == 'password'
+        run: npx --no-install tsx script/unused-accounts-qa.ts
       - name: Report retention, rendering, captured email and mocked booking regressions
         if: matrix.suite != 'password'
         run: npx --no-install tsx script/close-safety-qa.ts
