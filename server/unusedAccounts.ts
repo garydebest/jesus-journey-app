@@ -134,6 +134,7 @@ async function deleteUnusedChurch(church: Church, now: Date): Promise<boolean> {
 
 export interface UnusedAccountSweepResult {
   enabled: boolean;
+  welcomesSent: number;
   checked: number;
   noticesSent: number;
   deleted: number;
@@ -142,11 +143,27 @@ export interface UnusedAccountSweepResult {
 }
 
 export async function runUnusedAccountSweep(now = new Date()): Promise<UnusedAccountSweepResult> {
-  const result: UnusedAccountSweepResult = { enabled: process.env.UNUSED_ACCOUNT_CLEANUP !== "off", checked: 0, noticesSent: 0, deleted: 0, skippedProtected: 0, errors: [] };
+  const result: UnusedAccountSweepResult = { enabled: process.env.UNUSED_ACCOUNT_CLEANUP !== "off", welcomesSent: 0, checked: 0, noticesSent: 0, deleted: 0, skippedProtected: 0, errors: [] };
   if (!result.enabled) return result;
   const { sendClientEmail } = await import("./journey");
   const deletedNames: string[] = [];
   const noticeCutoff = (c: Church) => addMonths(lastActiveAt(c), UNUSED_MONTHS).getTime() - NOTICE_DAYS * DAY;
+
+  // Catch-up welcome (approved Oct 13, 2026): a never-purchased account that has
+  // never had a welcome email attempt gets one. Covers accounts registered
+  // before the welcome email existed; the email history makes it once-only.
+  for (const church of await storage.getAllChurches()) {
+    try {
+      if (now.getTime() >= noticeCutoff(church)) continue; // its cleanup notice is due instead
+      if ((await protectionReasons(church)).length > 0) continue;
+      const prior = await pool.query(`SELECT 1 FROM church_email_events WHERE church_id = $1 AND event_type = 'welcome_discovery' LIMIT 1`, [church.id]);
+      if (prior.rows.length > 0) continue;
+      const outcomes = await sendClientEmail("welcome_discovery", church, null, "signup");
+      if (outcomes.some((o) => o.status === "sent")) result.welcomesSent++;
+    } catch (err: any) {
+      result.errors.push(`welcome ${church.id}: ${err?.message ?? err}`);
+    }
+  }
 
   for (const church of await storage.getAllChurches()) {
     if (now.getTime() < noticeCutoff(church)) continue;
