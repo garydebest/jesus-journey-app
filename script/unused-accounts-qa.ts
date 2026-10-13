@@ -60,6 +60,19 @@ await test("registering sends the branded welcome email with the Discovery call 
   await settle();
 });
 
+await test("the daily run sends a catch-up welcome once to never-purchased accounts that never got one", async () => {
+  await pool.query(`DELETE FROM church_email_events WHERE church_id = $1 AND event_type = 'welcome_discovery'`, [idB]);
+  testOutbox.length = 0;
+  const r1 = await runUnusedAccountSweep();
+  assert.ok(r1.welcomesSent >= 1);
+  assert.equal(testOutbox.filter((m) => m.to === B && /interest in the Jesus Journey Survey/.test(m.subject)).length, 1);
+  assert.equal(testOutbox.filter((m) => m.to === A).length, 0, "already welcomed at sign-up");
+  assert.equal(testOutbox.filter((m) => /paid@example.test/.test(m.to)).length, 0, "purchased accounts never get it");
+  testOutbox.length = 0;
+  await runUnusedAccountSweep();
+  assert.equal(testOutbox.filter((m) => m.to === B).length, 0, "only once");
+});
+
 await test("signing in records the last sign-in", async () => {
   const r = await post("/api/churches/login", { email: A, password: "password-123" });
   assert.equal(r.status, 200);
