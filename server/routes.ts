@@ -28,8 +28,11 @@ import {
   destroySessionsForChurch,
   createAdminSession,
   destroyAdminSession,
+  requireAdminOwner,
+  type AdminRequest,
   type AuthedRequest,
 } from "./auth";
+import * as adminAccounts from "./adminAccounts";
 import { z } from "zod";
 import { requestPasswordReset, completePasswordReset, changePassword, PasswordResetError } from "./passwordReset";
 import { PRICING_TIERS, priceCentsForTier, publicPricingList, tierForAdults } from "./pricing";
@@ -754,28 +757,248 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   // -------------------------------------------------------------------
   // Admin (Gary) — separate login, session, and operator view
   // -------------------------------------------------------------------
-  app.post("/api/admin/login", (req, res) => {
-    const { username, password } = req.body as { username?: string; password?: string };
+  // --- Administrator sign-in: email + password, then an authenticator code ---
+  const adminAccountError = (res: any, err: any, fallback: string) => {
+    if (err instanceof adminAccounts.AdminAccountError) return res.status(err.status).json({ message: err.message });
+    console.error("[admin-accounts]", fallback, err?.message ?? err);
+    return res.status(500).json({ message: fallback });
+  };
+
+  app.post("/api/admin/login", async (req, res) => {
+    const { email, username, password } = req.body as { email?: string; username?: string; password?: string };
     const ip = clientAddress(req);
-    if (rejectIfLimited(res, [[limits.adminPerAddress, ip], [limits.adminGlobal, "admin"]])) return;
-    const usernameOk = typeof username === "string" && safeEqual(username.trim().toLowerCase(), getAdminUsername());
-    const passwordOk = typeof password === "string" && password.length > 0 && safeEqual(password, getAdminPassword());
-    if (!usernameOk || !passwordOk) {
+    const personal = typeof email === "string" && email.includes("@");
+    // Per-account limit applies to personal email sign-ins only (the shared login keeps its per-address limit).
+    const checks: Array<[typeof limits.adminPerAddress, string]> = [[limits.adminPerAddress, ip], [limits.adminGlobal, "admin"]];
+    if (personal) checks.push([limits.adminPerAccount, accountKey(email)]);
+    if (rejectIfLimited(res, checks)) return;
+    const fail = () => {
       limits.adminPerAddress.hit(ip);
       limits.adminGlobal.hit("admin");
+      if (personal) limits.adminPerAccount.hit(accountKey(email));
       console.warn("[security] failed admin sign-in");
-      return res.status(401).json({ message: "Incorrect username or password" });
+      return res.status(401).json({ message: "Incorrect email or password" });
+    };
+    try {
+      if (personal) {
+        const step = await adminAccounts.beginAdminLogin(email!, String(password ?? ""));
+        if (!step) return fail();
+        limits.adminPerAddress.clear(ip);
+        return res.json(step);
+      }
+      // Legacy shared login: only until the first owner finishes two-factor setup.
+      if (!(await adminAccounts.legacyAdminLoginAllowed())) return fail();
+      const usernameOk = typeof username === "string" && safeEqual(username.trim().toLowerCase(), getAdminUsername());
+      const passwordOk = typeof password === "string" && password.length > 0 && safeEqual(password, getAdminPassword());
+      if (!usernameOk || !passwordOk) return fail();
+      limits.adminPerAddress.clear(ip);
+      const token = createAdminSession();
+      await adminAccounts.logAdminActivity(null, "Signed in with the shared admin login");
+      res.json({ token });
+    } catch (err: any) {
+      adminAccountError(res, err, "Sign-in is temporarily unavailable. Please try again.");
     }
-    limits.adminPerAddress.clear(ip);
-    const token = createAdminSession();
-    res.json({ token });
   });
 
-  app.post("/api/admin/logout", (req, res) => {
-    const header = req.headers.authorization;
-    const token = header?.startsWith("Bearer ") ? header.slice(7) : undefined;
-    if (token) destroyAdminSession(token);
+  const codeStep = (fn: (challenge: string, code: string) => Promise<unknown>) => async (req: Request, res: any) => {
+    const ip = clientAddress(req);
+    if (rejectIfLimited(res, [[limits.adminCodePerAddress, ip]])) return;
+    const { challenge, code } = req.body as { challenge?: string; code?: string };
+    try {
+      const result = await fn(String(challenge ?? ""), String(code ?? ""));
+      limits.adminCodePerAddress.clear(ip);
+      res.json(result);
+    } catch (err: any) {
+      limits.adminCodePerAddress.hit(ip);
+      if (err instanceof adminAccounts.AdminAccountError) console.warn("[security] failed admin code");
+      adminAccountError(res, err, "Sign-in is temporarily unavailable. Please try again.");
+    }
+  };
+  app.post("/api/admin/login/code", codeStep(adminAccounts.completeAdminCode));
+  app.post("/api/admin/login/enroll", codeStep(adminAccounts.completeAdminEnrollment));
+
+  // Forgot password or first-time setup: same reply whether or not the email has an account.
+  app.post("/api/admin/forgot-password", async (req, res) => {
+    const { email } = req.body as { email?: string };
+    const generic = { ok: true, message: "If that email has an administrator account, we've sent it a link. Check your inbox (and spam folder)." };
+    if (!email || typeof email !== "string" || !email.includes("@")) {
+      return res.status(400).json({ message: "Please enter the email address you sign in with." });
+    }
+    const ip = clientAddress(req);
+    if (rejectIfLimited(res, [[limits.resetRequestPerAddress, ip]])) return;
+    limits.resetRequestPerAddress.hit(ip);
+    const acct = "admin:" + accountKey(email);
+    if (limits.resetRequestPerEmail.blockedFor(acct) > 0) return res.json(generic);
+    limits.resetRequestPerEmail.hit(acct);
+    try {
+      await adminAccounts.requestAdminPasswordLink(email);
+    } catch (err: any) {
+      console.error("[admin-accounts] link request failed:", err?.message ?? err);
+    }
+    res.json(generic);
+  });
+
+  app.post("/api/admin/reset-password/check", async (req, res) => {
+    const ip = clientAddress(req);
+    if (rejectIfLimited(res, [[limits.resetCompletePerAddress, ip]])) return;
+    const info = await adminAccounts.describeAdminLink(String((req.body as any)?.token ?? "")).catch(() => null);
+    if (!info) limits.resetCompletePerAddress.hit(ip);
+    res.json(info ? { valid: true, ...info } : { valid: false });
+  });
+
+  app.post("/api/admin/reset-password", async (req, res) => {
+    const { token, password } = req.body as { token?: string; password?: string };
+    const ip = clientAddress(req);
+    if (rejectIfLimited(res, [[limits.resetCompletePerAddress, ip]])) return;
+    limits.resetCompletePerAddress.hit(ip);
+    try {
+      await adminAccounts.completeAdminPasswordLink(String(token ?? ""), String(password ?? ""));
+      res.json({ ok: true });
+    } catch (err: any) {
+      adminAccountError(res, err, "We couldn't save your password. Please try again.");
+    }
+  });
+
+  app.post("/api/admin/confirm-email", async (req, res) => {
+    const ip = clientAddress(req);
+    if (rejectIfLimited(res, [[limits.resetCompletePerAddress, ip]])) return;
+    limits.resetCompletePerAddress.hit(ip);
+    try {
+      await adminAccounts.confirmAdminEmailChange(String((req.body as any)?.token ?? ""));
+      res.json({ ok: true });
+    } catch (err: any) {
+      adminAccountError(res, err, "We couldn't confirm your email. Please try again.");
+    }
+  });
+
+  app.post("/api/admin/logout", requireAdminAuth, async (req, res) => {
+    const areq = req as AdminRequest;
+    if (areq.adminToken) destroyAdminSession(areq.adminToken);
+    await adminAccounts.logAdminActivity(areq.admin, "Signed out");
     res.json({ ok: true });
+  });
+
+  // --- My account ---
+  const needPersonal = (req: Request, res: any) => {
+    const admin = (req as AdminRequest).admin;
+    if (!admin) {
+      res.status(403).json({ message: "The shared admin login has no personal account. Sign in with your own email to use this." });
+      return null;
+    }
+    return admin;
+  };
+
+  app.get("/api/admin/me", requireAdminAuth, async (req, res) => {
+    const admin = (req as AdminRequest).admin;
+    if (!admin) return res.json({ legacy: true, role: "owner", name: "Shared admin login" });
+    try {
+      res.json(await adminAccounts.getAdminProfile(admin.id));
+    } catch (err: any) {
+      adminAccountError(res, err, "Couldn't load your account.");
+    }
+  });
+
+  app.post("/api/admin/me/password", requireAdminAuth, async (req, res) => {
+    const admin = needPersonal(req, res);
+    if (!admin) return;
+    const { currentPassword, newPassword } = req.body as { currentPassword?: string; newPassword?: string };
+    try {
+      const token = await adminAccounts.changeAdminPassword(admin.id, String(currentPassword ?? ""), String(newPassword ?? ""));
+      res.json({ ok: true, token });
+    } catch (err: any) {
+      adminAccountError(res, err, "We couldn't change your password. Please try again.");
+    }
+  });
+
+  app.post("/api/admin/me/email", requireAdminAuth, async (req, res) => {
+    const admin = needPersonal(req, res);
+    if (!admin) return;
+    const { currentPassword, newEmail } = req.body as { currentPassword?: string; newEmail?: string };
+    try {
+      await adminAccounts.requestAdminEmailChange(admin.id, String(currentPassword ?? ""), String(newEmail ?? ""));
+      res.json({ ok: true });
+    } catch (err: any) {
+      adminAccountError(res, err, "We couldn't start the email change. Please try again.");
+    }
+  });
+
+  app.post("/api/admin/me/recovery-codes", requireAdminAuth, async (req, res) => {
+    const admin = needPersonal(req, res);
+    if (!admin) return;
+    try {
+      res.json({ recoveryCodes: await adminAccounts.regenerateRecoveryCodes(admin.id, String((req.body as any)?.currentPassword ?? "")) });
+    } catch (err: any) {
+      adminAccountError(res, err, "We couldn't create new recovery codes. Please try again.");
+    }
+  });
+
+  // --- Team and activity (owner) ---
+  app.get("/api/admin/team", requireAdminAuth, requireAdminOwner, async (_req, res) => {
+    try {
+      res.json({ team: await adminAccounts.listAdminTeam() });
+    } catch (err: any) {
+      adminAccountError(res, err, "Couldn't load the team.");
+    }
+  });
+  app.post("/api/admin/team", requireAdminAuth, requireAdminOwner, async (req, res) => {
+    const { name, email, role } = req.body as { name?: string; email?: string; role?: string };
+    try {
+      res.json(await adminAccounts.addAdminMember((req as AdminRequest).admin ?? null, String(name ?? ""), String(email ?? ""), String(role ?? "admin")));
+    } catch (err: any) {
+      adminAccountError(res, err, "Couldn't add that person.");
+    }
+  });
+  app.post("/api/admin/team/:id/:action", requireAdminAuth, requireAdminOwner, async (req, res) => {
+    const actor = (req as AdminRequest).admin ?? null;
+    const id = String(req.params.id);
+    try {
+      switch (req.params.action) {
+        case "send-link": return res.json(await adminAccounts.resendAdminSetup(actor, id));
+        case "reset-two-factor": await adminAccounts.resetAdminTwoFactor(actor, id); return res.json({ ok: true });
+        case "remove": await adminAccounts.setAdminRemoved(actor, id, true); return res.json({ ok: true });
+        case "restore": await adminAccounts.setAdminRemoved(actor, id, false); return res.json({ ok: true });
+        default: return res.status(404).json({ message: "Unknown action" });
+      }
+    } catch (err: any) {
+      adminAccountError(res, err, "That didn't work. Please try again.");
+    }
+  });
+  app.get("/api/admin/activity", requireAdminAuth, requireAdminOwner, async (_req, res) => {
+    try {
+      res.json({ activity: await adminAccounts.listAdminActivity(200) });
+    } catch (err: any) {
+      adminAccountError(res, err, "Couldn't load activity.");
+    }
+  });
+
+  // Record who did what for every administrator action on a church survey
+  // (closing, journey updates, email resends, and opening reports).
+  app.use("/api/admin/waves/:id", (req, res, next) => {
+    // Capture the sub-path now: Express restores the full URL after this mount.
+    const sub = req.path.replace(/^\/+/, "").replace(/\/+$/, "");
+    const waveId = String(req.params.id);
+    res.on("finish", () => {
+      const admin = (req as AdminRequest).admin;
+      if (admin === undefined || res.statusCode >= 400) return;
+      const isView = req.method === "GET";
+      if (isView && !/\.pdf$|^report$|^debriefing$/.test(sub)) return;
+      let action: string;
+      if (req.method === "POST" && sub === "close") action = "Closed survey";
+      else if (req.method === "PATCH" && sub === "journey") action = `Updated survey journey (${Object.keys((req.body ?? {}) as object).join(", ") || "no fields"})`;
+      else if (req.method === "POST" && sub === "emails/resend") action = `Re-sent email (${String((req.body as any)?.type ?? "")})`;
+      else if (isView) action = `Opened ${sub}`;
+      else action = `${req.method} ${sub}`;
+      void (async () => {
+        let detail = `wave ${waveId}`;
+        try {
+          const wave = await storage.getWaveById(waveId);
+          const church = wave ? await storage.getChurchById(wave.churchId) : undefined;
+          if (church) detail = `${church.name} — ${wave!.label}`;
+        } catch {}
+        await adminAccounts.logAdminActivity(admin, action, detail);
+      })();
+    });
+    next();
   });
 
   app.get("/api/admin/overview", requireAdminAuth, async (_req, res) => {

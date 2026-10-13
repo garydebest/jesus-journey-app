@@ -70,6 +70,13 @@ app.use((req, res, next) => {
 
 (async () => {
   await ensureBootstrapped();
+  const { ensureAdminTables } = await import("./adminAccounts");
+  await ensureAdminTables();
+  try {
+    (await import("./totp")).assertAdminSecretKeyConfigured();
+  } catch (err: any) {
+    console.error("[admin-accounts] " + (err?.message ?? err) + " — administrator two-factor setup and sign-in will fail until it is set.");
+  }
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {

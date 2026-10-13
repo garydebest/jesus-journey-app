@@ -3,7 +3,10 @@ import { requestWithRetry, responseError } from "./apiTransport";
 
 interface AdminAuthState {
   token: string | null;
+  /** Legacy shared login (username + password). Personal accounts use the step-by-step flow on the sign-in page. */
   login: (username: string, password: string) => Promise<void>;
+  /** Stores a session token returned by a completed sign-in or password change. */
+  setSession: (token: string) => void;
   logout: () => void;
 }
 
@@ -42,13 +45,27 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
   }, [token]);
 
-  return <AdminAuthContext.Provider value={{ token, login, logout }}>{children}</AdminAuthContext.Provider>;
+  const setSession = useCallback((t: string) => setToken(t), []);
+
+  return <AdminAuthContext.Provider value={{ token, login, setSession, logout }}>{children}</AdminAuthContext.Provider>;
 }
 
 export function useAdminAuth(): AdminAuthState {
   const ctx = useContext(AdminAuthContext);
   if (!ctx) throw new Error("useAdminAuth must be used within AdminAuthProvider");
   return ctx;
+}
+
+/** Unauthenticated JSON POST for the sign-in, setup and reset steps. Throws with the server's message. */
+export async function adminPublicPost<T = any>(url: string, body: unknown): Promise<T> {
+  const res = await fetch(`${API_BASE}${url}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((json as any)?.message || res.statusText || "Something went wrong. Please try again.");
+  return json as T;
 }
 
 // Authenticated fetch helper for admin-scoped API calls.

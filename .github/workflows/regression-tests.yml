@@ -62,6 +62,9 @@ jobs:
         run: |
           npx --no-install tsx script/rate-limit-qa.ts
           npx --no-install tsx script/rate-limit-api-qa.ts
+      - name: Individual administrator accounts and two-factor sign-in
+        if: matrix.suite == 'password'
+        run: npx --no-install tsx script/admin-accounts-qa.ts
       - name: Report retention, rendering, captured email and mocked booking regressions
         if: matrix.suite != 'password'
         run: npx --no-install tsx script/close-safety-qa.ts

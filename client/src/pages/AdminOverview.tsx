@@ -300,9 +300,14 @@ export function AdminOverview() {
               <div className="text-xs text-muted-foreground">All churches, contacts, and surveys</div>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={handleSignOut} data-testid="button-admin-signout">
-            Sign out
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setLocation("/admin/account")} data-testid="button-admin-account">
+              My account
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleSignOut} data-testid="button-admin-signout">
+              Sign out
+            </Button>
+          </div>
         </div>
       </header>
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
