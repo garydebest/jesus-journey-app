@@ -26,6 +26,8 @@ interface AdminChurch {
   surveyCoordinatorName?: string | null;
   surveyCoordinatorEmail?: string | null;
   growthPlanInterestAt?: string | null;
+  lastSignInAt?: string | null;
+  unusedWarningSentAt?: string | null;
 }
 
 interface AdminWaveEntry {
@@ -95,6 +97,7 @@ interface AdminChurchGroup {
   church: AdminChurch;
   waves: AdminWaveEntry[];
   legacySnapshots: AdminLegacySnapshot[];
+  scheduledDeletion?: string | null;
 }
 
 export function AdminOverview() {
@@ -328,7 +331,7 @@ export function AdminOverview() {
         ) : visibleGroups.length === 0 ? (
           <p className="text-sm text-muted-foreground">No accounts in this category.</p>
         ) : (
-          visibleGroups.map(({ church, waves, legacySnapshots }) => (
+          visibleGroups.map(({ church, waves, legacySnapshots, scheduledDeletion }) => (
             <Card key={church.id} data-testid={`card-admin-church-${church.id}`}>
               <CardContent className="pt-6 space-y-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -342,6 +345,14 @@ export function AdminOverview() {
                       {church.isDemo ? "Shared demo account" : waves.some(e => e.wave.paymentStatus === "paid") ? "Survey customer" : legacySnapshots.length ? "Historical report account" : "Registered, no purchase"}
                       {church.region ? ` · ${church.region}` : ""}
                     </div>
+                    {scheduledDeletion && (
+                      <div className="text-xs text-muted-foreground" data-testid={`text-scheduled-deletion-${church.id}`}>
+                        Registered {new Date(church.createdAt).toLocaleDateString(undefined, { dateStyle: "medium" })}
+                        {church.lastSignInAt ? ` · last signed in ${new Date(church.lastSignInAt).toLocaleDateString(undefined, { dateStyle: "medium" })}` : " · not signed in since registering"}
+                        {` · deleted automatically ${new Date(scheduledDeletion + "T12:00:00Z").toLocaleDateString(undefined, { dateStyle: "medium", timeZone: "UTC" })} unless they sign in or buy a survey`}
+                        {church.unusedWarningSentAt ? " (notice sent)" : ""}
+                      </div>
+                    )}
                   </div>
                   <Badge variant="secondary">{church.isDemo ? `${waves.length} demo survey` : `${waves.filter(e => e.wave.paymentStatus === "paid").length} purchased${waves.some(e => e.wave.paymentStatus !== "paid") ? ` · ${waves.filter(e => e.wave.paymentStatus !== "paid").length} unpaid` : ""}`}</Badge>
                 </div>

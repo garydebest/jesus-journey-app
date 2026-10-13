@@ -33,6 +33,7 @@ import {
   type AuthedRequest,
 } from "./auth";
 import * as adminAccounts from "./adminAccounts";
+import { recordChurchSignIn, runUnusedAccountSweep, scheduledDeletionDate, sendSignupEmails } from "./unusedAccounts";
 import { z } from "zod";
 import { requestPasswordReset, completePasswordReset, changePassword, PasswordResetError } from "./passwordReset";
 import { PRICING_TIERS, priceCentsForTier, publicPricingList, tierForAdults } from "./pricing";
@@ -95,6 +96,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     const church = await storage.createChurch(parsed.data, passwordHash);
     const token = createSession(church.id);
     res.status(201).json({ token, church: sanitizeChurch(church) });
+    void sendSignupEmails(church);
   });
 
   app.post("/api/churches/login", async (req, res) => {
@@ -116,6 +118,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     if (!ok) return fail();
     limits.loginPerAccount.clear(acct);
     const token = createSession(church.id);
+    await recordChurchSignIn(church.id);
     res.json({ token, church: sanitizeChurch(church) });
   });
 
@@ -180,6 +183,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   app.get("/api/churches/me", requireChurchAuth, async (req: AuthedRequest, res) => {
     const church = await storage.getChurchById(req.churchId!);
     if (!church) return res.status(404).json({ message: "Church not found" });
+    await recordChurchSignIn(church.id);
     res.json({ church: sanitizeChurch(church) });
   });
 
@@ -1064,10 +1068,15 @@ export async function registerRoutes(httpServer: Server, app: Express) {
               sourceFileNote: s.sourceFileNote,
               createdAt: s.createdAt,
             }));
+          const purchased = waves.some((e) => ["paid", "refunded"].includes(String(e.wave.paymentStatus)) || !!e.wave.paidAt);
           return {
             church: sanitizeChurch(church),
             waves,
             legacySnapshots,
+            // Shown on "Registered, no purchase" accounts; informational only.
+            scheduledDeletion: !purchased && legacySnapshots.length === 0 && !isDemoChurch(church.id) && !church.primaryContactEmail.startsWith("legacy+")
+              ? scheduledDeletionDate(church)
+              : null,
           };
         }),
     );
@@ -1332,7 +1341,9 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       const result = await runReminderSweep();
       let journey: Awaited<ReturnType<typeof runJourneySweep>> | { error: string };
       try { journey = await runJourneySweep(); } catch (err: any) { journey = { error: String(err?.message ?? err) }; }
-      res.json({ ...result, journey });
+      let unusedAccounts: Awaited<ReturnType<typeof runUnusedAccountSweep>> | { error: string };
+      try { unusedAccounts = await runUnusedAccountSweep(); } catch (err: any) { unusedAccounts = { error: String(err?.message ?? err) }; }
+      res.json({ ...result, journey, unusedAccounts });
     } catch (err: any) {
       console.error("Reminder sweep error:", err?.message ?? err);
       res.status(500).json({ message: "Reminder sweep failed" });
