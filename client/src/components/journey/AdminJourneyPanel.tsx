@@ -133,7 +133,7 @@ export function AdminJourneyPanel({ token, churchName, wave, isDemo, onChanged }
           </ul>
         )}
         <div className="flex gap-2 items-center">
-          <select aria-label="Email to send or resend" className="h-9 flex-1 rounded-md border bg-background px-2 text-sm" value={resendType} onChange={(e) => setResendType(e.target.value)} disabled={isDemo || busy}>
+          <select aria-label="Email to send or resend" className="h-9 flex-1 rounded-md border bg-background px-2 text-base md:text-sm" value={resendType} onChange={(e) => setResendType(e.target.value)} disabled={isDemo || busy}>
             <option value="">Send or resend an email…</option>
             {resendable.map((r) => <option key={r.type} value={r.type}>{r.label}</option>)}
           </select>

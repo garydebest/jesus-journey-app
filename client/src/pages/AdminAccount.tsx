@@ -316,7 +316,7 @@ function TeamCard({ token, team, selfId, onChanged }: { token: string; team: Mem
           <div className="space-y-1.5"><Label htmlFor="add-email">Email</Label><Input id="add-email" type="email" autoCapitalize="none" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
           <div className="space-y-1.5">
             <Label htmlFor="add-role">Role</Label>
-            <select id="add-role" className="h-9 rounded-md border border-input bg-background px-2 text-sm" value={role} onChange={(e) => setRole(e.target.value as "admin" | "owner")}>
+            <select id="add-role" className="h-9 rounded-md border border-input bg-background px-2 text-base md:text-sm" value={role} onChange={(e) => setRole(e.target.value as "admin" | "owner")}>
               <option value="admin">Administrator</option>
               <option value="owner">Owner (can manage the team)</option>
             </select>
