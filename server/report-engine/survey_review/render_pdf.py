@@ -41,7 +41,7 @@ BAND_Q = ParagraphStyle("bandq", parent=BODY, fontSize=10.5, leading=14.5)
 def P(t, st=BODY): return Paragraph(t, st)
 def E(t): return escape(t)
 
-def bullets(lines, st=CELL, empty="Nothing in this Goal stands out from our other results."):
+def bullets(lines, st=CELL, empty="None at this time."):
     if not lines: return [P(E(empty), st)]
     out = []
     for t in lines:
@@ -93,7 +93,7 @@ def church_pdf(path, name, sel, B, L):
     s = []
     s.append(P("Survey Review", H1))
     s.append(P(E(name), SUBT))
-    s.append(P(E(f"{sel['n']} people took part. Strengths and opportunities compare our results with each other, so every church has both. Results for a stage or group appear only when it has at least 10 people." + (" Page references point to our full church report." if B.PAGES else "")), SMALL))
+    s.append(P(E(f"{sel['n']} people took part. {L.STANDARD} Results for a stage or group appear only when it has at least 10 people." + (" Page references point to our full church report." if B.PAGES else "")), SMALL))
     s.append(P("What did we discover about ourselves?", H2))
     data = [[P("What we see", HEAD), P("Questions to consider", HEAD)]]
     for a in sel["about"]:
@@ -109,7 +109,7 @@ def church_pdf(path, name, sel, B, L):
     for gn, (g, sub) in enumerate(L.GOALS.items() if not withheld else [], 1):
         st, op = B.goal_cells(sel, g)
         hs = ParagraphStyle("hs", parent=HEAD, textColor=TEAL_DARK); ho = ParagraphStyle("ho", parent=HEAD, textColor=CORAL_DARK)
-        t = table([[P("Strengths to Celebrate", hs), P("Opportunities to Investigate", ho)], [bullets(st), bullets(op)]], [W * .5, W * .5],
+        t = table([[P("Strengths to Celebrate", hs), P("Opportunities to Investigate", ho)], [bullets(st, empty=B.EMPTY_S), bullets(op, empty=B.EMPTY_O)]], [W * .5, W * .5],
                   head_bg=[TINT_S, TINT_O], pad=11, extra=[("BACKGROUND", (0, 1), (-1, -1), colors.white), ("LINEAFTER", (0, 0), (0, -1), 0.6, LINE)])
         blk = ([P("What did we learn about our journey together in becoming more like Jesus?", H2)] if first else [Spacer(1, 16)]) + [band(gn, g, sub), t]
         s.append(KeepTogether(blk)); first = False
@@ -134,14 +134,14 @@ def church_pdf(path, name, sel, B, L):
     wn_box = box
     missing = [B.STAGE_NAMES[x] for x in (3, 4, 5) if sel["stage_counts"][x] < B.MIN_N]
     note = f" Our {' and '.join(missing)} group{'s are' if len(missing) > 1 else ' is'} too small to show separately." if missing else ""
-    s.append(KeepTogether([P("Where do we go from here?", H2), wn_box, Spacer(1, 14), P(E("" if withheld else f"How to read this: strengths and opportunities are based on the {sel['n_full']} people in the Believing, Trusting and Jesus Centered stages, who answered all 63 statements. Beliefs are compared with beliefs and practices with practices, because beliefs always run ahead of practice.{note}"), SMALL), Spacer(1, 6), P(E(SURVEY_COPYRIGHT), SMALL)]))
+    s.append(KeepTogether([P("Where do we go from here?", H2), wn_box, Spacer(1, 14), P(E("" if withheld else f"How to read this: strengths and opportunities are based on the {sel['n_full']} people in the Believing, Trusting and Jesus Centered stages, who answered all 63 statements. Lines are chosen and ordered by comparing beliefs with beliefs and practices with practices, because beliefs always run ahead of practice.{note}"), SMALL), Spacer(1, 6), P(E(SURVEY_COPYRIGHT), SMALL)]))
     d = doc(path, f"{name}: Survey Review"); d.build(s, onFirstPage=footer(f"{name}  \u2022  Survey Review"), onLaterPages=footer(f"{name}  \u2022  Survey Review"))
 
 def facilitator_pdf(path, name, rows, sel, B, L):
     full = [r for r in rows if r["stage"] >= 3 and r.get("full_form", True)]
     s = [P("Facilitator's Report", H1), P(E(name), SUBT),
          P(E("This report mirrors the church's Survey Review line by line. For each line it shows what it is based on, the key numbers and the page in the full church report where the church can see the same data." if B.PAGES else "This report mirrors the church's Survey Review line by line. For each line it shows what it is based on and the key numbers. This church received the combined short-form and full-survey report, so there are no page references."), BODY), Spacer(1, 4),
-         P(E("Reading the numbers: the full church report shows the percentage answering Always or Most of the time true, by stage, and so does this report. Lines were chosen by comparing each statement's average score (1–5) with the church's average for statements of the same kind."), SMALL), Spacer(1, 6)]
+         P(E("Reading the numbers: the full church report shows the percentage answering Always or Most of the time true, by stage, and so does this report. A statement qualifies as a strength when at least 75% of believers answer Always or Mostly true, and as an opportunity when fewer than 60% do. Among qualifying statements, lines are chosen and ordered by comparing each with the church's average for statements of the same kind."), SMALL), Spacer(1, 6)]
     sc = sel["stage_counts"]
     s.append(table([[P(h, HEAD_S) for h in ["Who took part", "Distant", "Exploring", "Believing", "Trusting", "Jesus Centered", "Total"]],
                     [P("People", CELL_S)] + [P(str(sc[x]), CELL_S) for x in range(1, 6)] + [P(str(sel["n"]), CELL_S)]], [W * .22] + [W * .13] * 6))
@@ -167,11 +167,12 @@ def facilitator_pdf(path, name, rows, sel, B, L):
                 data.append([P(side, CELL_S), P(E(t), CELL_S), P(E(based), CELL_S), P(E(nums), CELL_S), P(str(L.PATHWAY_PAGE[B.src_pathway(src)]) if B.PAGES else "–", CELL_S)])
         blk.append(table(data, [W * .14, W * .23, W * .19, W * .36, W * .08], HEAD_S, pad=7))
         if G["not_shown"]: blk.append(P(E("Also qualified but not shown (limit of 4 per cell): " + "; ".join(t for _, t, _ in G["not_shown"])), SMALL))
-        s.append(KeepTogether(blk))
+        # Keep the Goal heading with its table's first rows; long tables may continue on the next page.
+        s.append(KeepTogether(blk[:-2] if G["not_shown"] else blk[:-1])); s.extend(blk[-2:] if G["not_shown"] else blk[-1:])
     s.append(KeepTogether([P("Summary thoughts and next steps", H2),
              P(E("Summary thoughts repeat the strongest four lines from each side above, so no new data is needed. “Where do we go from here?” is the same for every church."), BODY)]))
     s.append(KeepTogether([P("Notes for the facilitator", H2), ListFlowable([ListItem(P(E(t)), leftIndent=12) for t in [
-        "A line appears only when the difference is clear (at least 0.2 points from the same-kind average, and unlikely to be chance).",
+        *L.FAC_NOTES,
         "Stage lines need at least 10 people in each stage compared. They compare each pathway's rise with this church's typical rise across all 16 pathways.",
         "Group differences in the first table are stage-matched and use a strict whole-screen chance check. With groups of 10 to 15, about 1 report in 20 may still show one chance result, so treat these as questions, not conclusions.",
         "Distant and Exploring respondents answer the 38-statement short form, so the Goal tables use the Believing, Trusting and Jesus Centered stages. The full report also shows an Exploring column."]],

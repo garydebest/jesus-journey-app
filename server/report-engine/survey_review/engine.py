@@ -20,6 +20,11 @@ MIN_N = 10          # Gary, Oct 9: minimum group size 10 for stage and group res
 ITEM_DIFF = 0.2     # an item must sit at least 0.2 above/below the average of its own kind to count
 STAGE_DIFF = 0.3    # stage departures use the existing 0.3 materiality
 CAP = 4             # bullets per cell
+# Gary, Oct 17 (approved with Dennis): a fixed standard decides what can be called a Strength or an
+# Opportunity; the same-kind comparison only chooses and orders the qualifying lines.
+FIX_S = 75          # Strength: at least 75% of full-survey believers answer Always / Mostly true (4-5)
+FIX_O = 60          # Opportunity: fewer than 60% do
+PAIR = ("K4", "K5") # the "already" and "not yet" of God's Kingdom, read together
 STAGE_NAMES = {3: "Believing", 4: "Trusting", 5: "Jesus Centered"}
 BEL = lambda c: c[0] in "BK"
 CODES = list(ITEM_TEXT)
@@ -77,6 +82,14 @@ def pscore(r, pw, kind=None):
 
 def lc(s): return s[0].lower() + s[1:]
 
+def tagged(text, tag):
+    """Add a stage tag such as " (especially our Trusting group)" without breaking a closing question."""
+    if text.endswith("?"):
+        if not tag: return text
+        head, _, q = text.rpartition(". ")
+        return f"{head.rstrip('.')}{tag}. {q}" if head else text
+    return text.rstrip(".") + (tag + "." if tag else ".")
+
 # ------------------------------------------------------------------ selection
 def select(rows):
     full = [r for r in rows if r["stage"] >= 3 and r.get("full_form", True)]
@@ -93,8 +106,11 @@ def select(rows):
         res = paired(d, conf=.99)
         items[c] = dict(mean=round(mean([r[c] for r in full]), 2), rel=res)
     out["items"] = {c: dict(mean=v["mean"], rel=round(v["rel"]["diff"], 2), lo=round(v["rel"]["lo"], 2), hi=round(v["rel"]["hi"], 2)) for c, v in items.items()}
-    strong = {c for c, v in items.items() if v["rel"]["diff"] >= ITEM_DIFF and v["rel"]["lo"] > 0}
-    weak = {c for c, v in items.items() if v["rel"]["diff"] <= -ITEM_DIFF and v["rel"]["hi"] < 0}
+    pct = {c: round(100 * sum(r[c] >= 4 for r in full) / len(full)) for c in items}
+    out["pct"] = pct
+    strong = {c for c in items if pct[c] >= FIX_S}
+    weak = {c for c in items if pct[c] < FIX_O}
+    pw_pct = lambda codes: round(100 * mean([mean([r[c] >= 4 for c in codes]) for r in full])) if full else 0
 
     # belief-practice gaps relative to this church's own average gap
     gap_pw = [p for p in PATHWAYS if full and any(BEL(c) for c in p["items"]) and any(not BEL(c) for c in p["items"])]
@@ -144,7 +160,7 @@ def select(rows):
         pws = [p for p in PATHWAYS if p["goal"] == g]
         S, O = [], []   # (weight, text, source)
         for p in pws:
-            k = p["num"]; codes = p["items"]
+            k = p["num"]; codes = [c for c in p["items"] if c not in PAIR]
             fl = stage_flags.get(k)
             tag = L.STAGE["tag"].format(stage=fl["stage"]) if fl and fl["kind"] != "rises_more" and fl["stage"] else ""
             # opportunities
@@ -153,25 +169,32 @@ def select(rows):
             b_weak = [c for c in codes if BEL(c) and c in weak]; p_weak = [c for c in codes if not BEL(c) and c in weak]
             if k in L.BELIEF_GAP and p_weak and not b_weak:
                 # the belief holds up but the matching practice is weak: "We believe..., but..."
-                O.append((-min(items[c]["rel"]["diff"] for c in p_weak) + .05, L.BELIEF_GAP[k].rstrip(".") + (tag + "." if tag else "."), f"gap:{k}:" + ",".join(p_weak)))
+                O.append((-min(items[c]["rel"]["diff"] for c in p_weak) + .05, tagged(L.BELIEF_GAP[k], tag), f"gap:{k}:" + ",".join(p_weak)))
                 used_tag = bool(tag); w_items = []
+                gap_bel = [c for c in codes if BEL(c)]   # the "We believe..., but" line already credits these beliefs
             else:
-                w_items = [c for c in codes if c in weak]
+                w_items = [c for c in codes if c in weak]; gap_bel = []
             if len(w_items) >= 2:
-                O.append((-min(items[c]["rel"]["diff"] for c in w_items), L.PATHWAYS[k][1].rstrip(".") + (tag + "." if tag else "."), f"pathway:{k}:" + ",".join(w_items))); used_tag = bool(tag)
+                O.append((-min(items[c]["rel"]["diff"] for c in w_items), tagged(L.PATHWAYS[k][1], tag), f"pathway:{k}:" + ",".join(w_items))); used_tag = bool(tag)
             elif w_items:
-                c = w_items[0]; O.append((-items[c]["rel"]["diff"], L.ITEMS[c][1].rstrip(".") + (tag + "." if tag else "."), f"item:{c}")); used_tag = bool(tag)
-            if fl and fl["kind"] != "rises_more" and not used_tag:
+                c = w_items[0]; O.append((-items[c]["rel"]["diff"], tagged(L.ITEMS[c][1], tag), f"item:{c}")); used_tag = bool(tag)
+            if fl and fl["kind"] != "rises_more" and not used_tag and pw_pct(p["items"]) < FIX_O:
                 O.append((.5, L.STAGE[fl["kind"]].format(pathway=p["name"], stage=fl["stage"], last=out["stages_used"][-1]), f"stage:{k}"))
             # strengths
-            s_items = [c for c in codes if c in strong]
+            s_items = [c for c in codes if c in strong and c not in gap_bel]
             if len(s_items) >= 2 and not any(c in weak for c in codes):
                 S.append((max(items[c]["rel"]["diff"] for c in s_items), L.PATHWAYS[k][0], f"pathway:{k}:" + ",".join(s_items)))
             else:
                 for c in s_items: S.append((items[c]["rel"]["diff"], L.ITEMS[c][0], f"item:{c}"))
-            if k in close: S.append((-gaps[k]["vs_avg"], L.BELIEF_GAP_CLOSE.format(pathway_lc=lc(p["name"])), f"gap:{k}"))
-            if fl and fl["kind"] == "rises_more":
+            if k in close and any(c in strong for c in codes if not BEL(c)): S.append((-gaps[k]["vs_avg"], L.BELIEF_GAP_CLOSE.format(pathway_lc=lc(p["name"])), f"gap:{k}"))
+            if fl and fl["kind"] == "rises_more" and pw_pct(p["items"]) >= FIX_S:
                 S.append((.6, L.STAGE["rises_more"].format(pathway=p["name"], stage=fl["stage"]), f"stage:{k}"))
+        if full and any(set(PAIR) <= set(p["items"]) for p in pws):
+            a, b = (pct[c] for c in PAIR); ra, rb = (items[c]["rel"]["diff"] for c in PAIR)
+            if a >= FIX_S and b >= FIX_S: S.append(((ra + rb) / 2, L.PAIR["both"], "pair:" + ",".join(PAIR)))
+            elif a >= FIX_S and b < FIX_O: O.append((-rb, L.PAIR["already_only"], "pair:" + ",".join(PAIR)))
+            elif b >= FIX_S and a < FIX_O: O.append((-ra, L.PAIR["not_yet_only"], "pair:" + ",".join(PAIR)))
+            elif a < FIX_O and b < FIX_O: O.append((-min(ra, rb), L.PAIR["neither"], "pair:" + ",".join(PAIR)))
         S.sort(key=lambda x: -x[0]); O.sort(key=lambda x: -x[0])
         # Goal-level standing: practice items in this Goal vs all practice items, per person
         prac = [c for p in pws for c in p["items"] if not BEL(c)]
@@ -179,10 +202,11 @@ def select(rows):
         res = paired([mean([r[c] for c in prac]) - mean([r[c] for c in allp]) for r in full], conf=.99)
         goals[g] = dict(strengths=S[:CAP], opportunities=O[:CAP], overflow_s=S[CAP:], overflow_o=O[CAP:], standing=res)
     lo_g = min(goals, key=lambda g: goals[g]["standing"]["diff"]); hi_g = max(goals, key=lambda g: goals[g]["standing"]["diff"])
-    out["greatest_opportunity"] = lo_g if goals[lo_g]["standing"]["hi"] < 0 else None
-    out["greatest_strength"] = hi_g if goals[hi_g]["standing"]["lo"] > 0 else None
+    out["greatest_opportunity"] = lo_g if goals[lo_g]["standing"]["hi"] < 0 and goals[lo_g]["opportunities"] else None
+    out["greatest_strength"] = hi_g if goals[hi_g]["standing"]["lo"] > 0 and goals[hi_g]["strengths"] else None
     out["goals"] = {g: dict(strengths=[(round(w, 2), t, s) for w, t, s in v["strengths"]], opportunities=[(round(w, 2), t, s) for w, t, s in v["opportunities"]],
                             not_shown=[(round(w, 2), t, s) for w, t, s in v["overflow_s"] + v["overflow_o"]],
+                            more_strengths=[s for _, _, s in v["overflow_s"]],
                             standing=round(v["standing"]["diff"], 2)) for g, v in goals.items()}
 
     # ---------------- About ourselves
@@ -271,6 +295,7 @@ def select(rows):
 def src_pathway(src):
     kind, rest = src.split(":", 1)
     if kind == "item": return next(p["num"] for p in PATHWAYS if rest in p["items"])
+    if kind == "pair": return next(p["num"] for p in PATHWAYS if rest.split(",")[0] in p["items"])
     return int(rest.split(":")[0])
 
 # Page references only make sense when the church received the 38-page full report.
@@ -284,7 +309,17 @@ def with_page(text, page):
     if t.endswith(")"): return t[:-1] + f"; see page {page})."
     return t + L.SEE_PAGE.format(page=page) + "."
 
-def cell(lines): return "<br>".join(f"• {t}" for t in lines) if lines else "Nothing in this Goal stands out from our other results."
+EMPTY_S = "Nothing in this Goal is yet a clear strength."
+EMPTY_O = "No clear opportunity stands out in this Goal right now."
+
+def more_line(sel, g, pages=True):
+    """Every qualifying strength is accounted for: point to the ones that did not fit in the box."""
+    srcs = sel["goals"][g].get("more_strengths") or []
+    if not srcs: return None
+    pg = sorted({L.PATHWAY_PAGE[src_pathway(s)] for s in srcs})
+    if not (pages and PAGES): return L.MORE_STRENGTHS_NOPAGE
+    where = f"page {pg[0]}" if len(pg) == 1 else f"pages {pg[0]}–{pg[-1]}" if pg[-1] - pg[0] == len(pg) - 1 else "pages " + ", ".join(map(str, pg[:-1])) + f" and {pg[-1]}"
+    return L.MORE_STRENGTHS.format(where=where)
 
 def summary_lists(sel):
     allS = sorted(((w_, t, s_) for g in sel["goals"].values() for w_, t, s_ in g["strengths"]), key=lambda x: -x[0])[:4]
@@ -310,12 +345,14 @@ def goal_cells(sel, g, pages=True):
     o = [with_page(t, L.PATHWAY_PAGE[src_pathway(src)] if pages else None) for _, t, src in G["opportunities"]]
     if sel["greatest_strength"] == g: s = [with_page(L.GOAL["greatest_strength"], L.GOAL_PAGE[g] if pages else None)] + s
     if sel["greatest_opportunity"] == g: o = [with_page(L.GOAL["greatest_opportunity"], L.GOAL_PAGE[g] if pages else None)] + o
+    m = more_line(sel, g, pages)
+    if m: s = s + [m]
     return s, o
 
 def render(name, rows, sel):
     w = []; add = w.append
     add(f"# {name}: Survey Review\n")
-    add(f"{sel['n']} people took part. Strengths and opportunities compare our results with each other, so every church has both. Results for a stage or group appear only when it has at least 10 people. Page references point to our full church report.\n")
+    add(f"{sel['n']} people took part. {L.STANDARD} Results for a stage or group appear only when it has at least 10 people. Page references point to our full church report.\n")
     add("## What did we discover about ourselves?\n")
     add("| What we see | Questions to consider |")
     add("|---|---|")
@@ -326,9 +363,9 @@ def render(name, rows, sel):
         s, o = goal_cells(sel, g)
         add(f"### {g}: {sub}\n")
         add("**Strengths to Celebrate**\n")
-        add("\n".join(f"- {t}" for t in s) if s else "- Nothing in this Goal stands out from our other results.")
+        add("\n".join(f"- {t}" for t in s) if s else f"- {EMPTY_S}")
         add("\n**Opportunities to Investigate**\n")
-        add("\n".join(f"- {t}" for t in o) if o else "- Nothing in this Goal stands out from our other results.")
+        add("\n".join(f"- {t}" for t in o) if o else f"- {EMPTY_O}")
         add("")
     allS, allO, qs = summary_lists(sel)
     add("## Summary thoughts\n")
@@ -338,7 +375,7 @@ def render(name, rows, sel):
     add("---\n")
     missing = [STAGE_NAMES[s] for s in (3, 4, 5) if sel["stage_counts"][s] < MIN_N]
     note = f" Our {' and '.join(missing)} group{'s are' if len(missing) > 1 else ' is'} too small to show separately." if missing else ""
-    add(f"How to read this: strengths and opportunities are based on the {sel['n_full']} people in the Believing, Trusting and Jesus Centered stages, who answered all 63 statements. Beliefs are compared with beliefs and practices with practices, because beliefs always run ahead of practice.{note}\n")
+    add(f"How to read this: strengths and opportunities are based on the {sel['n_full']} people in the Believing, Trusting and Jesus Centered stages, who answered all 63 statements. Lines are chosen and ordered by comparing beliefs with beliefs and practices with practices, because beliefs always run ahead of practice.{note}\n")
     return "\n".join(w)
 
 # ------------------------------------------------------------------ facilitator report
@@ -358,18 +395,22 @@ def evidence(src, sel, full):
     kind_avg = lambda c: "belief" if BEL(c) else "practice"
     if kind == "item":
         c = rest; v = it[c]
-        return f"{c} “{ITEM_TEXT[c]}”", f"Score {v['mean']:.2f}, {v['rel']:+.2f} vs our {kind_avg(c)} average. Always/Mostly true: {stage_am(full, [c], sel)}"
+        return f"{c} “{ITEM_TEXT[c]}”", f"{sel['pct'][c]}% Always/Mostly true ({v['rel']:+.2f} vs our {kind_avg(c)} average). By stage: {stage_am(full, [c], sel)}"
+    if kind == "pair":
+        a, b = rest.split(",")
+        return (f"Already and not yet: {a} (God's promised future now), {b} (not everything healed now)",
+                f"Always/Mostly true: {a} {sel['pct'][a]}%, {b} {sel['pct'][b]}%. By stage, {a}: {stage_am(full, [a], sel)}. {b}: {stage_am(full, [b], sel)}")
     if kind == "pathway":
         k, codes = rest.split(":"); codes = codes.split(",")
         based = f"{PW_BY_NUM[int(k)]['name']}: " + ", ".join(codes)
-        nums = "; ".join(f"{c} {it[c]['mean']:.2f} ({it[c]['rel']:+.2f} vs our {kind_avg(c)} average)" for c in codes)
-        return based, f"{nums}. Always/Mostly true: {stage_am(full, codes, sel)}"
+        nums = ", ".join(f"{c} {sel['pct'][c]}%" for c in codes)
+        return based, f"Always/Mostly true: {nums}. By stage: {stage_am(full, codes, sel)}"
     if kind == "gap":
         parts = rest.split(":"); k = int(parts[0]); pw = PW_BY_NUM[k]
         bel = [c for c in pw["items"] if BEL(c)]; prac = parts[1].split(",") if len(parts) > 1 else [c for c in pw["items"] if not BEL(c)]
-        pn = "; ".join(f"{c} {it[c]['mean']:.2f} ({it[c]['rel']:+.2f} vs our practice average)" for c in prac)
+        bn = ", ".join(f"{c} {sel['pct'][c]}%" for c in bel); pn = ", ".join(f"{c} {sel['pct'][c]}%" for c in prac)
         return (f"{pw['name']}: belief {', '.join(bel)} vs practice {', '.join(prac)}",
-                f"The belief holds up; the practice is clearly low: {pn}. Always/Mostly true, belief: {stage_am(full, bel, sel)}. Practice: {stage_am(full, prac, sel)}")
+                f"Always/Mostly true, belief: {bn}; practice: {pn}. By stage, belief: {stage_am(full, bel, sel)}. Practice: {stage_am(full, prac, sel)}")
     if kind == "stage":
         k = int(rest); f = sel["stage_flags"][k]
         pw = PW_BY_NUM[k]
@@ -411,7 +452,7 @@ def render_facilitator(name, rows, sel):
     w = []; add = w.append
     add(f"# {name}: Facilitator's Report\n")
     add("This report mirrors the church's Survey Review line by line. For each line it shows what it is based on, the key numbers and the page in the full church report where the church can see the same data.\n")
-    add("**Reading the numbers.** The full church report shows the percentage answering Always or Most of the time true, by stage, and so does this report. Lines were chosen by comparing each statement's average score (1–5) with the church's average for statements of the same kind, beliefs with beliefs and practices with practices.\n")
+    add("**Reading the numbers.** The full church report shows the percentage answering Always or Most of the time true, by stage, and so does this report. A statement qualifies as a strength when at least 75% of believers answer Always or Mostly true, and as an opportunity when fewer than 60% do. Among qualifying statements, lines are chosen and ordered by comparing each with the church's average for statements of the same kind.\n")
     sc = sel["stage_counts"]
     add("| Who took part | " + " | ".join(["Distant", "Exploring", "Believing", "Trusting", "Jesus Centered", "Total"]) + " |")
     add("|---|" + "---|" * 6)
@@ -445,7 +486,7 @@ def render_facilitator(name, rows, sel):
     add("## Summary thoughts and next steps\n")
     add("Summary thoughts repeat the strongest four lines from each side above, so no new data is needed. “Where do we go from here?” is the same for every church.\n")
     add("## Notes for the facilitator\n")
-    add("- A line appears only when the difference is clear (at least 0.2 points from the same-kind average, and unlikely to be chance).")
+    for t in L.FAC_NOTES: add(f"- {t}")
     add("- Stage lines need at least 10 people in each stage compared. They compare each pathway's rise with this church's typical rise across all 16 pathways.")
     add("- Group differences in the first table are stage-matched and use a strict whole-screen chance check. With groups of 10 to 15, about 1 report in 20 may still show one chance result, so treat these as questions, not conclusions.")
     add("- Distant and Exploring respondents answer the 38-statement short form, so the Goal tables use the Believing, Trusting and Jesus Centered stages. The full report also shows an Exploring column.\n")

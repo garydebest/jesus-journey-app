@@ -169,7 +169,7 @@ ITEMS = {
 # pathway number: (strength headline, opportunity headline, question to explore)
 PATHWAYS = {
     1: ("We believe God's Story.",
-        "We would do well to learn more about God's Story, including living between what God has done and what is still to come.",
+        "We would do well to learn more about God's Story, from creation to new creation.",
         "Where do we teach and talk about the whole of God's Story, from creation to new creation?"),
     2: ("We are secure in God's love.",
         "We are not yet fully secure in God's love.",
@@ -195,7 +195,7 @@ PATHWAYS = {
     9: ("Our love for God shows in how we love others.",
         "Our love for God is not strongly expressed outside ourselves.",
         "Where would people outside the church see God's love in us?"),
-    10: ("Our faith shapes how we live and relate to others.",
+    10: ("We put our faith into practice in how we live and relate to others.",
          "Our faith is not yet shaping how we live and relate to others.",
          "Where are people helped to connect Sunday faith with Monday life?"),
     11: ("We walk the journey together.",
@@ -319,6 +319,24 @@ ABOUT_PAGE = {"stage_all": "10", "stage_early": "10", "stage_centered_few": "10"
               "young_adults": "7", "young_adults_few": "7", "older": "7", "singles": "7", "separated": "7",
               "children": "8", "minorities": "8"}   # group_pathway_* lines have no page in the full report
 SEE_PAGE = " (see page {page})"
+
+# Gary, Oct 17: the fixed standard, stated once at the top of the Survey Review.
+STANDARD = ("A strength is something at least 3 in 4 of us say is mostly or always true; "
+            "an opportunity is something fewer than 6 in 10 of us say is.")
+MORE_STRENGTHS = "Other statements most of us agree with are on {where} of our full report."
+MORE_STRENGTHS_NOPAGE = "Other statements most of us agree with appear in our full report."
+# K4 (the "already") and K5 (the "not yet") are read as one pair; a mature follower agrees with both.
+PAIR = {
+    "both": "We hold together the 'already' and the 'not yet' of God's Kingdom. We experience God's promised future now, and accept that not everything is healed yet.",
+    "already_only": "We expect to experience God's promised future now, but find it harder to accept that not everything is healed in this life.",
+    "not_yet_only": "We accept that not everything is healed now, but seldom expect to experience God's promised future in everyday life.",
+    "neither": "We would do well to explore how God's Kingdom is both here now and still to come.",
+}
+FAC_NOTES = [
+    "A statement qualifies as a strength when at least 75% of the Believing, Trusting and Jesus Centered people who answered all 63 statements say it is Always or Mostly true, and as an opportunity when fewer than 60% do. Statements in between are not listed.",
+    "Among qualifying statements, lines are chosen and ordered by comparing each with the church's average for the same kind (beliefs with beliefs, practices with practices), up to 4 per box. Qualifying strengths that do not fit are pointed to with one closing line.",
+    "The two healing statements (K4 and K5) are read together as the already and not yet of God's Kingdom. A mature follower agrees with both, so one line describes how the two compare.",
+]
 
 # ------------------------------------------------------------------ fixed closing section (Gary, Oct 9)
 WHERE_NEXT = [

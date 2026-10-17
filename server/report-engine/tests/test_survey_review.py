@@ -105,3 +105,48 @@ class SurveyReviewTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FixedStandardTest(unittest.TestCase):
+    """Approved Oct 2026: Strength needs >=75% Always/Mostly true, Opportunity <60%; K4/K5 read as one pair."""
+
+    def sel(self, k4, k5, seed=7):
+        rng = random.Random(seed)
+        rows = church(120, seed, short_share=0, undisclosed_share=0)
+        rows = E.from_report_rows(rows) if hasattr(E, "from_report_rows") and "K1" not in rows[0] else rows
+        full = [r for r in rows if r["stage"] >= 3]
+        for r in full:
+            r["K4"] = 5 if rng.random() < k4 else 2
+            r["K5"] = 5 if rng.random() < k5 else 2
+        return E.select(rows)
+
+    def lines(self, sel, side):
+        return [(t, s) for g in sel["goals"].values() for _, t, s in g[side]]
+
+    def test_labels_respect_fixed_standard(self):
+        sel = self.sel(.5, .5)
+        for t, src in self.lines(sel, "strengths"):
+            kind, _, rest = src.partition(":")
+            if kind == "item": self.assertGreaterEqual(sel["pct"][rest], E.FIX_S, t)
+            if kind == "pathway":
+                for c in rest.split(":")[-1].split(","): self.assertGreaterEqual(sel["pct"][c], E.FIX_S, t)
+        for t, src in self.lines(sel, "opportunities"):
+            kind, _, rest = src.partition(":")
+            if kind == "item": self.assertLess(sel["pct"][rest], E.FIX_O, t)
+
+    def test_pair_rule(self):
+        L = E.L
+        cases = {(.95, .95): ("strengths", L.PAIR["both"]), (.95, .1): ("opportunities", L.PAIR["already_only"]),
+                 (.1, .95): ("opportunities", L.PAIR["not_yet_only"]), (.1, .1): ("opportunities", L.PAIR["neither"]),
+                 (.68, .68): (None, None)}
+        for (a, b), (side, text) in cases.items():
+            sel = self.sel(a, b)
+            pair = [(sd, t) for sd in ("strengths", "opportunities") for t, s in self.lines(sel, sd) if s.startswith("pair:")]
+            if side is None: self.assertEqual(pair, [], (a, b))
+            else: self.assertEqual(pair, [(side, text)], (a, b))
+            for t, s in self.lines(sel, "strengths") + self.lines(sel, "opportunities"):
+                if not s.startswith("pair:"): self.assertNotIn("K4", s); self.assertNotIn("K5", s)
+
+    def test_question_lines_keep_punctuation(self):
+        self.assertEqual(E.tagged("We do little. Do we?", " (especially our Trusting group)"), "We do little (especially our Trusting group). Do we?")
+        self.assertEqual(E.tagged("We do little. Do we?", ""), "We do little. Do we?")
