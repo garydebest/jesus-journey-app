@@ -106,13 +106,21 @@ export function AdminLogin() {
     setStep({ kind: "credentials" });
   };
 
+  // Tells Apple Passwords (and other password managers) which saved login this
+  // code belongs to, so the code box is never treated as a new username.
+  const hiddenUsername = (
+    <input type="text" name="username" autoComplete="username" value={email} readOnly tabIndex={-1} aria-hidden="true" className="sr-only" />
+  );
+
   const codeInput = (label: string, recovery = false) => (
     <div className="space-y-1.5">
-      <Label htmlFor="admin-code">{label}</Label>
+      <Label htmlFor={recovery ? "admin-recovery-code" : "admin-otp"}>{label}</Label>
       <Input
-        id="admin-code"
+        id={recovery ? "admin-recovery-code" : "admin-otp"}
+        name={recovery ? "recovery-code" : "one-time-code"}
+        type="text"
         inputMode={recovery ? "text" : "numeric"}
-        autoComplete="one-time-code"
+        autoComplete={recovery ? "off" : "one-time-code"}
         autoCapitalize="none"
         spellCheck={false}
         maxLength={recovery ? 20 : 7}
@@ -182,6 +190,7 @@ export function AdminLogin() {
     description = step.useRecovery ? "Enter one of your one-time recovery codes." : "Enter the 6-digit code from your authenticator app.";
     body = (
       <form onSubmit={submitCode} className="space-y-4" data-testid="form-admin-code">
+        {hiddenUsername}
         {codeInput(step.useRecovery ? "Recovery code" : "Authentication code", !!step.useRecovery)}
         {!step.useRecovery && (
           <p className="text-xs text-muted-foreground">On iPhone or iPad, tap the box and choose the code suggested from Passwords, or open your authenticator app. Codes change every 30 seconds.</p>
@@ -203,6 +212,7 @@ export function AdminLogin() {
     description = "One-time setup: add your account to an authenticator app, then enter the code it shows.";
     body = (
       <form onSubmit={submitEnroll} className="space-y-4" data-testid="form-admin-enroll">
+        {hiddenUsername}
         <ol className="text-sm space-y-3 list-decimal pl-5">
           <li>
             <span className="font-medium">On this iPhone or iPad:</span> tap{" "}
@@ -276,7 +286,7 @@ export function AdminLogin() {
             <CardTitle className="text-lg">{title}</CardTitle>
             <CardDescription>{description}</CardDescription>
           </CardHeader>
-          <CardContent>{body}</CardContent>
+          <CardContent key={step.kind + (step.kind === "code" && step.useRecovery ? "-recovery" : "")}>{body}</CardContent>
         </Card>
       </div>
     </div>
