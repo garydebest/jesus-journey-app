@@ -1,6 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { BookingButton } from "@/lib/booking";
+import { BookingButton, DemoBookingNote } from "@/lib/booking";
 
 export type JourneyState =
   | "plan"
@@ -89,6 +89,7 @@ export function NextStepPanel({ state, current, latestReport, isDemo, onNavigate
         <p className="text-sm font-medium" role="status">Your results debrief is booked for {displayDate(latestReport.debriefBookedAt)}. Ask participants to read the reports beforehand.</p>
       )}
       <div className="flex flex-wrap items-start gap-2 pt-1">
+        {state === "plan" && isDemo && <DemoBookingNote />}
         {state === "plan" && go("Start planning", "your-surveys", "present-survey-title", "button-next-start-planning")}
         {state === "purchased" && <>
           {!current?.orientationBookedAt && <BookingButton kind="orientation" disabled={isDemo} />}
@@ -98,8 +99,8 @@ export function NextStepPanel({ state, current, latestReport, isDemo, onNavigate
         {state === "collecting" && go("Monitor participation", "your-surveys", "survey-progress", "button-next-monitor")}
         {state === "target_reached" && go("Review closing checklist", "collect", "closing-checklist", "button-next-closing-checklist")}
         {state === "results_ready" && <>
-          {!latestReport?.debriefBookedAt && <BookingButton kind="debrief" disabled={isDemo} waveId={latestReport?.id} />}
-          {go("Prepare for your debrief", "interpret", "debrief-preparation", "button-next-debrief-prep", "outline")}
+          {!isDemo && !latestReport?.debriefBookedAt && <BookingButton kind="debrief" waveId={latestReport?.id} />}
+          {go("Prepare for your debrief", "interpret", "debrief-preparation", "button-next-debrief-prep", isDemo ? "default" : "outline")}
         </>}
         {state === "debrief_complete" && go("View next-step resources", "act", undefined, "button-next-resources")}
       </div>

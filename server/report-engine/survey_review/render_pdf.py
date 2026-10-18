@@ -89,6 +89,29 @@ def doc(path, title):
 
 W = letter[0] - 1.5 * inch
 
+def summary_table(sel, B):
+    """Summary thoughts: the same three columns in the Survey Review and the Facilitator's Report."""
+    allS, allO, qs = B.summary_lists(sel)
+    return table([[P("Our greatest strengths", HEAD), P("Our greatest opportunities", HEAD), P("Questions for our conversation", HEAD)],
+                  [bullets([t for _, t, _ in allS], CELL), bullets([t for _, t, _ in allO], CELL), bullets(qs, CELL)]], [W / 3] * 3,
+                 head_bg=[TEAL, CORAL, OLIVE], pad=10, extra=[("BACKGROUND", (0, 1), (-1, -1), colors.white), ("LINEAFTER", (0, 0), (1, -1), 0.6, LINE)])
+
+def where_next_box(L):
+    """"Where do we go from here?": the same numbered steps in both reports."""
+    NUM = ParagraphStyle("num", parent=BODY, leftIndent=18, firstLineIndent=-18, spaceAfter=7)
+    SUB = ParagraphStyle("sub", parent=BODY, leftIndent=34, firstLineIndent=-12, spaceAfter=4)
+    wn = []
+    for i, x in enumerate(L.WHERE_NEXT, 1):
+        num = f'<font name="Inter-SemiBold" color="#20808D">{i}.</font>&nbsp;&nbsp;&nbsp;'
+        if isinstance(x, tuple):
+            wn.append(P(num + E(x[0]), NUM))
+            for b in x[1]: wn.append(P('<font color="#20808D">\u2013</font>&nbsp;&nbsp;' + E(b), SUB))
+        else: wn.append(P(num + E(x), NUM))
+    box = Table([[wn]], colWidths=[W])
+    box.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), SURFACE), ("LINEBEFORE", (0, 0), (0, -1), 4, TEAL),
+                             ("LEFTPADDING", (0, 0), (-1, -1), 16), ("RIGHTPADDING", (0, 0), (-1, -1), 14), ("TOPPADDING", (0, 0), (-1, -1), 12), ("BOTTOMPADDING", (0, 0), (-1, -1), 8)]))
+    return box
+
 def church_pdf(path, name, sel, B, L):
     s = []
     s.append(P("Survey Review", H1))
@@ -113,25 +136,10 @@ def church_pdf(path, name, sel, B, L):
                   head_bg=[TINT_S, TINT_O], pad=11, extra=[("BACKGROUND", (0, 1), (-1, -1), colors.white), ("LINEAFTER", (0, 0), (0, -1), 0.6, LINE)])
         blk = ([P("What did we learn about our journey together in becoming more like Jesus?", H2)] if first else [Spacer(1, 16)]) + [band(gn, g, sub), t]
         s.append(KeepTogether(blk)); first = False
-    allS, allO, qs = B.summary_lists(sel)
-    sm = None if withheld else table([[P("Our greatest strengths", HEAD), P("Our greatest opportunities", HEAD), P("Questions for our conversation", HEAD)],
-                [bullets([t for _, t, _ in allS], CELL), bullets([t for _, t, _ in allO], CELL), bullets(qs, CELL)]], [W / 3] * 3,
-               head_bg=[TEAL, CORAL, OLIVE], pad=10, extra=[("BACKGROUND", (0, 1), (-1, -1), colors.white), ("LINEAFTER", (0, 0), (1, -1), 0.6, LINE)])
+    sm = None if withheld else summary_table(sel, B)
     if sm is not None:
         s.append(KeepTogether([P("Summary thoughts", H2), sm]))
-    NUM = ParagraphStyle("num", parent=BODY, leftIndent=18, firstLineIndent=-18, spaceAfter=7)
-    SUB = ParagraphStyle("sub", parent=BODY, leftIndent=34, firstLineIndent=-12, spaceAfter=4)
-    wn = []
-    for i, x in enumerate(L.WHERE_NEXT, 1):
-        num = f'<font name="Inter-SemiBold" color="#20808D">{i}.</font>&nbsp;&nbsp;&nbsp;'
-        if isinstance(x, tuple):
-            wn.append(P(num + E(x[0]), NUM))
-            for b in x[1]: wn.append(P('<font color="#20808D">\u2013</font>&nbsp;&nbsp;' + E(b), SUB))
-        else: wn.append(P(num + E(x), NUM))
-    box = Table([[wn]], colWidths=[W])
-    box.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), SURFACE), ("LINEBEFORE", (0, 0), (0, -1), 4, TEAL),
-                             ("LEFTPADDING", (0, 0), (-1, -1), 16), ("RIGHTPADDING", (0, 0), (-1, -1), 14), ("TOPPADDING", (0, 0), (-1, -1), 12), ("BOTTOMPADDING", (0, 0), (-1, -1), 8)]))
-    wn_box = box
+    wn_box = where_next_box(L)
     missing = [B.STAGE_NAMES[x] for x in (3, 4, 5) if sel["stage_counts"][x] < B.MIN_N]
     note = f" Our {' and '.join(missing)} group{'s are' if len(missing) > 1 else ' is'} too small to show separately." if missing else ""
     s.append(KeepTogether([P("Where do we go from here?", H2), wn_box, Spacer(1, 14), P(E("" if withheld else f"How to read this: strengths and opportunities are based on the {sel['n_full']} people in the Believing, Trusting and Jesus Centered stages, who answered all 63 statements. Lines are chosen and ordered by comparing beliefs with beliefs and practices with practices, because beliefs always run ahead of practice.{note}"), SMALL), Spacer(1, 6), P(E(SURVEY_COPYRIGHT), SMALL)]))
@@ -169,8 +177,16 @@ def facilitator_pdf(path, name, rows, sel, B, L):
         if G["not_shown"]: blk.append(P(E("Also qualified but not shown (limit of 4 per cell): " + "; ".join(t for _, t, _ in G["not_shown"])), SMALL))
         # Keep the Goal heading with its table's first rows; long tables may continue on the next page.
         s.append(KeepTogether(blk[:-2] if G["not_shown"] else blk[:-1])); s.extend(blk[-2:] if G["not_shown"] else blk[-1:])
-    s.append(KeepTogether([P("Summary thoughts and next steps", H2),
-             P(E("Summary thoughts repeat the strongest four lines from each side above, so no new data is needed. “Where do we go from here?” is the same for every church."), BODY)]))
+    # Same Summary thoughts and "Where do we go from here?" as the church's Survey Review.
+    if sel.get("goal_tables_withheld"):
+        s.append(KeepTogether([P("Summary thoughts", H2), P(E("Not shown: fewer than 10 people in the Believing, Trusting and Jesus Centered stages answered all 63 statements, so the church's Survey Review also leaves this out."), BODY)]))
+    else:
+        s.append(KeepTogether([P("Summary thoughts", H2),
+                               P(E("As the church sees it in its Survey Review: the four strongest lines from each side above, and questions drawn from those opportunities. The numbers behind each line are in the Goal tables above."), SMALL), Spacer(1, 4),
+                               summary_table(sel, B)]))
+    s.append(KeepTogether([P("Where do we go from here?", H2),
+                           P(E("As the church sees it in its Survey Review. These steps are the same for every church."), SMALL), Spacer(1, 4),
+                           where_next_box(L)]))
     s.append(KeepTogether([P("Notes for the facilitator", H2), ListFlowable([ListItem(P(E(t)), leftIndent=12) for t in [
         *L.FAC_NOTES,
         "Stage lines need at least 10 people in each stage compared. They compare each pathway's rise with this church's typical rise across all 16 pathways.",

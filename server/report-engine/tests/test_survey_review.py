@@ -68,6 +68,10 @@ class SurveyReviewTest(unittest.TestCase):
             self.assertIn("Survey Review", church_text)
             self.assertIn("Where do we go from here?", church_text)
             self.assertIn("Facilitator's Report", fac_text)
+            self.assertIn("Where do we go from here?", fac_text)
+            self.assertIn("Summary thoughts", fac_text)
+            self.assertEqual("Our greatest strengths" in church_text, "Our greatest strengths" in fac_text)
+            self.assertNotIn("no new data is needed", fac_text)
             self.assertEqual(res["summary"]["n"], n)
 
     def test_short_form_rows_excluded_from_goal_tables(self):
