@@ -120,7 +120,9 @@ export function AdminLogin() {
         maxLength={recovery ? 20 : 7}
         placeholder={recovery ? "xxxxx-xxxxx" : "123456"}
         value={code}
-        onChange={(e) => setCode(e.target.value)}
+        // Authenticator codes are digits only, so an autofilled email or name can never land here.
+        onChange={(e) => setCode(recovery ? e.target.value : e.target.value.replace(/\D/g, "").slice(0, 6))}
+        pattern={recovery ? undefined : "[0-9]{6}"}
         required
         autoFocus
         className="text-lg tracking-widest"
