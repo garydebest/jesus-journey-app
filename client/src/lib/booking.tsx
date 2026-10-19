@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 export interface BookingConfig {
   orientationUrl: string | null;
   debriefUrl: string | null;
+  discoveryUrl?: string | null;
   growthPlanUrl: string | null;
   supportEmail: string;
   fallbackMessage: string;
@@ -64,5 +65,20 @@ export function BookingButton({ kind, variant = "default", size = "default", cla
         <span className="sr-only"> (opens Calendly in a new tab)</span>
       </a>
     </Button>
+  );
+}
+
+/** Shown in the Grace demo instead of a booking button: explains where real bookings happen. */
+export function DemoBookingNote() {
+  const config = useBookingConfig();
+  const discovery = config?.discoveryUrl ?? null;
+  return (
+    <div className="text-sm text-muted-foreground rounded-md bg-muted/50 px-3 py-2 space-y-2 max-w-3xl" role="note" data-testid="demo-booking-note">
+      <p><span className="font-medium text-foreground">Booking is not available in the demo.</span> When your church purchases a survey, you book your required Survey Orientation from this box on your own dashboard, and later your results debrief.</p>
+      <p>Want to talk it through first?{" "}
+        {discovery ? <a href={discovery} target="_blank" rel="noopener noreferrer" className="font-medium text-primary underline underline-offset-4" data-testid="link-demo-discovery">Book a free 30-minute Discovery call<span className="sr-only"> (opens Calendly in a new tab)</span></a>
+          : <a href="https://jesusjourney.life/#consult" target="_blank" rel="noopener noreferrer" className="font-medium text-primary underline underline-offset-4" data-testid="link-demo-discovery">Book a free Discovery call at jesusjourney.life</a>}
+      </p>
+    </div>
   );
 }

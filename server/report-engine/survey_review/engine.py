@@ -483,8 +483,12 @@ def render_facilitator(name, rows, sel):
         if G["not_shown"]:
             add("\nAlso qualified but not shown (limit of 4 per cell): " + "; ".join(t for _, t, _ in G["not_shown"]))
         add("")
-    add("## Summary thoughts and next steps\n")
-    add("Summary thoughts repeat the strongest four lines from each side above, so no new data is needed. “Where do we go from here?” is the same for every church.\n")
+    allS, allO, qs = summary_lists(sel)
+    add("## Summary thoughts\n")
+    add("As the church sees it in its Survey Review: the four strongest lines from each side above, and questions drawn from those opportunities.\n")
+    for head, lst in (("Our greatest strengths", [t for _, t, _ in allS]), ("Our greatest opportunities", [t for _, t, _ in allO]), ("Questions for our conversation", qs)):
+        add(f"**{head}**\n"); add("\n".join(f"- {t}" for t in lst)); add("")
+    where_next(add)
     add("## Notes for the facilitator\n")
     for t in L.FAC_NOTES: add(f"- {t}")
     add("- Stage lines need at least 10 people in each stage compared. They compare each pathway's rise with this church's typical rise across all 16 pathways.")

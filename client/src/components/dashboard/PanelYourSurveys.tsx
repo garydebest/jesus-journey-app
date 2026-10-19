@@ -114,7 +114,9 @@ export function PanelYourSurveys(props: Props) {
     demoBreakdown.suppressed![topic.key] = !safe.length;
   }
   const groups = isDemo ? demoBreakdown : breakdown;
-  const journeyState = deriveJourneyState({ current, active, reached, latestReport: latestReport ?? null });
+  // In the demo, "Before purchase" is the planning step even though sample reports exist;
+  // "Survey closed" is the step that shows the results.
+  const journeyState = isDemo && demoMode === "unpaid" ? "plan" : deriveJourneyState({ current, active, reached, latestReport: latestReport ?? null });
   const errors = [props.error, props.closeError, props.downloadError, localError].filter(Boolean);
 
   function reportButtons(wave: WaveWithMeta) {
@@ -164,7 +166,7 @@ export function PanelYourSurveys(props: Props) {
         <Badge variant={active ? "default" : "secondary"}>{isDemo ? "Grace demo" : props.loadError ? "Temporarily unavailable" : loading ? "Loading" : current ? active ? "Live" : current.orientationCompletedAt ? "Paid · ready to activate" : "Paid · orientation required" : "Planning only · purchase required"}</Badge></div>
       {isDemo && <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
         <p className="text-sm"><strong>Grace Fellowship demonstration.</strong> Try the different stages below. Dates, progress and closing are simulated for your visit; no real payments, responses or emails are created.</p>
-        <div className="flex flex-wrap gap-2">{[["unpaid", "Before purchase"], ["planning", "Paid · plan dates"], ["live", `Live · ${DEMO_LIVE_COUNT} responses`], ["target", "50% reached"]].map(([value, label]) =>
+        <div className="flex flex-wrap gap-2">{[["unpaid", "Before purchase"], ["planning", "Paid · plan dates"], ["live", `Live · ${DEMO_LIVE_COUNT} responses`], ["target", "50% reached"], ["closed", "Survey closed"]].map(([value, label]) =>
           <Button key={value} size="sm" variant={demoMode === value ? "default" : "outline"} onClick={() => setDemoMode(value)} aria-pressed={demoMode === value}>{label}</Button>)}</div>
         {demoMode === "closed" && <p role="status" className="text-sm font-medium">Demo survey closed. Your saved sample reports are unchanged.</p>}
       </div>}
