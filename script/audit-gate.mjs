@@ -8,7 +8,6 @@ const REVIEWED = {
   // Styling build chain (tailwindcss -> chokidar/micromatch/fast-glob -> braces).
   // Build-time only; not in the compiled server graph (see docs/security/transitive-review-plan-2026-10-10.md).
   // Styling migration deferred by Gary on 2026-10-10. Re-review by 2027-01-10.
-  "GHSA-vfj7-8cjw-p6xm": "braces stack exhaustion (build-time styling chain)",
   // tailwindcss / @tailwindcss/typography -> postcss-selector-parser. Moderate; same build-time chain.
   "GHSA-rj75-hqrm-r3gf": "postcss-selector-parser CPU exhaustion (build-time styling chain)",
 };
