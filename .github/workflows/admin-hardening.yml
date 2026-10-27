@@ -33,7 +33,7 @@ jobs:
           ref: security/readiness-2026-10-10
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
       - name: Prepare exact guarded authentication change
         run: |
           node --input-type=module <<'NODE'
