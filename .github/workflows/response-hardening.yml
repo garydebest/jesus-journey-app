@@ -78,7 +78,7 @@ jobs:
           git rev-parse HEAD > response-tested-commit.txt
       - name: Report outcome to PR 24
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           RESULT: '${{ job.status }}'
         with:
