@@ -19,7 +19,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
       - name: Verify inspection evidence still matches application source
         run: git diff --exit-code f4b1bd2c53e540143c806b874f7695d5f8b7bea7 HEAD -- server shared client script package.json package-lock.json vite.config.ts postcss.config.js tailwind.config.ts
       - uses: actions/download-artifact@v4
