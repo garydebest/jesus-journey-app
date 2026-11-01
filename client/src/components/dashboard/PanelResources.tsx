@@ -78,7 +78,7 @@ export function PanelResources() {
                 </a>
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">MP4, 1080p, about 3½ minutes (21 MB). Download it ahead of time so it plays without an internet connection.</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">MP4, HD, about 3½ minutes (21 MB). Download it ahead of time so it plays without an internet connection.</p>
             <p className="text-xs text-muted-foreground leading-relaxed" data-testid="text-nutshell-captions">
               Need captions? Turn them on in the player, or{" "}
               <a href={NUTSHELL_CAPTIONED_URL} download="Jesus-Journey-in-a-Nutshell-captioned.mp4" className="text-primary underline underline-offset-2" data-testid="link-download-nutshell-captioned">
