@@ -13,6 +13,12 @@ function stripeBaseUrl(): string {
   return process.env.CUSTOM_CRED_API_STRIPE_COM_URL || "https://api.stripe.com";
 }
 
+// Pin the Stripe API version so a dashboard-side account upgrade can't change
+// request/response shapes under us. Matches the account default verified on
+// 2026-11-01. Review Stripe's changelog before bumping (major releases such as
+// Endive contain breaking changes).
+export const STRIPE_API_VERSION = "2026-05-27.dahlia";
+
 function stripeAuthToken(): string | undefined {
   return process.env.CUSTOM_CRED_API_STRIPE_COM_TOKEN || process.env.STRIPE_SECRET_KEY;
 }
@@ -53,6 +59,7 @@ async function stripeRequest(path: string, params: Record<string, any>): Promise
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
+      "Stripe-Version": STRIPE_API_VERSION,
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body,
@@ -159,7 +166,7 @@ export async function retrieveCheckoutSession(sessionId: string) {
   const token = stripeAuthToken();
   if (!token) throw new Error("Stripe is not configured (missing secret key credential).");
   const res = await fetch(`${stripeBaseUrl()}/v1/checkout/sessions/${encodeURIComponent(sessionId)}`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${token}`, "Stripe-Version": STRIPE_API_VERSION },
   });
   const json = await res.json();
   if (!res.ok) throw new Error(json?.error?.message || `Stripe API error (${res.status})`);
