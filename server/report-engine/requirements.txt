@@ -1,16 +1,5 @@
 Pillow>=13.0,<14.0
-<<<<<<< HEAD
 reportlab>=5.1.0,<6.0
-matplotlib>=3.9,<4.0
-<<<<<<< HEAD
-numpy>=2.5.4,<3.0
-=======
-reportlab>=4.0,<6.0
 matplotlib>=3.11.2,<4.0
-numpy>=2.0,<3.0
->>>>>>> d0782dbd638e94127812a49cd03481651c212102
-pypdf>=6.0,<7.0
-=======
-numpy>=2.0,<3.0
+numpy>=2.5.4,<3.0
 pypdf>=6.21.4,<7.0
->>>>>>> e5091aad33a2f1872f6eee623c0c2ffc0a927eaf
