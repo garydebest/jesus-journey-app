@@ -49,7 +49,7 @@ jobs:
           path: optional-dependency-report.json
           if-no-files-found: warn
       - name: Report verified fallbacks to PR 24
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs=require('fs');const report=fs.readFileSync('optional-dependency-report.json','utf8');

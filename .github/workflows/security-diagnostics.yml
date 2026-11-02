@@ -63,7 +63,7 @@ jobs:
           fi
       - name: Publish bounded diagnostic output to draft PR 24
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           RESULT: '${{ steps.diagnostic.outcome }}'
         with:
