@@ -112,7 +112,8 @@
   "overrides": {
     "drizzle-kit": {
       "@esbuild-kit/esm-loader": "npm:tsx@^4.20.4"
-    }
+    },
+    "postcss-selector-parser": "^6.1.5"
   },
   "engines": {
     "node": ">=24.22.1 <25"
