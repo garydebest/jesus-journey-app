@@ -686,13 +686,23 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     comments: { filename: "Comments-Report.pdf", missing: "Comments report is not available for this wave" },
     // Derived from the saved Comments Report, so it exists whenever that does.
     wordcloud: { filename: "Comments-Wordcloud.pdf", missing: "Comments wordcloud is not available for this wave" },
+    // Grace demo only: real churches receive their Survey Review by email when
+    // the debrief is booked, so it is never served on a church dashboard.
+    review: { filename: SURVEY_REVIEW_FILENAME, missing: "The Debrief Survey Review is not available for this wave" },
   } as const;
+  async function churchPdfPath(wave: { id: string; churchId: string }, kind: PdfKind): Promise<string | null | undefined> {
+    if (kind === "review") {
+      if (!isDemoChurch(wave.churchId)) return null;
+      return (await storage.getDebriefingReportByWave(wave.id))?.surveyReviewPdfPath;
+    }
+    const snapshot = await storage.getSnapshotByWave(wave.id);
+    return kind === "report" ? snapshot?.reportPdfPath : snapshot?.commentsReportPdfPath;
+  }
   type PdfKind = keyof typeof PDF_KINDS;
   async function loadChurchPdf(waveId: string, churchId: string | undefined, kind: PdfKind): Promise<Buffer | { status: number; message: string }> {
     const wave = await storage.getWaveById(waveId);
     if (!wave || wave.churchId !== churchId) return { status: 404, message: "Wave not found" };
-    const snapshot = await storage.getSnapshotByWave(wave.id);
-    const path = kind === "report" ? snapshot?.reportPdfPath : snapshot?.commentsReportPdfPath;
+    const path = await churchPdfPath(wave, kind);
     if (!path) return { status: 404, message: PDF_KINDS[kind].missing };
     if (kind === "wordcloud") {
       try {
@@ -738,8 +748,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     const waveId = String(req.params.id);
     const wave = await storage.getWaveById(waveId);
     if (!wave || wave.churchId !== req.churchId) return res.status(404).json({ message: "Wave not found" });
-    const snapshot = await storage.getSnapshotByWave(wave.id);
-    if (!(kind === "report" ? snapshot?.reportPdfPath : snapshot?.commentsReportPdfPath)) {
+    if (!(await churchPdfPath(wave, kind))) {
       return res.status(404).json({ message: PDF_KINDS[kind].missing });
     }
     const now = Date.now();
