@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, integer, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, timestamp, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { calendarDate } from "./surveyAccess";
@@ -106,7 +106,7 @@ export const surveyWaves = pgTable("survey_waves", {
   debriefBookedAt: text("debrief_booked_at"), // YYYY-MM-DD appointment date, manual in Phase 1
   debriefCompletedAt: timestamp("debrief_completed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
-});
+}, (t) => [index("survey_waves_church_id_idx").on(t.churchId)]);
 
 export const insertWaveSchema = createInsertSchema(surveyWaves, {
   label: z.string().trim().min(1).max(200),
@@ -143,7 +143,7 @@ export const respondents = pgTable("respondents", {
   waveId: text("wave_id").references(() => surveyWaves.id),
   entryMode: text("entry_mode", { enum: ENTRY_MODES }).notNull(),
   submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().default(sql`now()`),
-});
+}, (t) => [index("respondents_wave_id_idx").on(t.waveId)]);
 
 export type Respondent = typeof respondents.$inferSelect;
 
@@ -183,7 +183,7 @@ export const responses = pgTable("responses", {
   raceEthnicity: text("race_ethnicity"), // new: JSON stable-ID array; legacy: single display label
   commentText: text("comment_text"), // church mode only, never shown per-respondent
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
-});
+}, (t) => [index("responses_wave_id_idx").on(t.waveId)]);
 
 export type InsertResponse = typeof responses.$inferInsert;
 export type ResponseRow = typeof responses.$inferSelect;
@@ -202,7 +202,7 @@ export const aggregateSnapshots = pgTable("aggregate_snapshots", {
   reportPdfPath: text("report_pdf_path"), // Supabase Storage object key in the "church-reports" bucket (e.g. "<waveId>.pdf"), if generated
   commentsReportPdfPath: text("comments_report_pdf_path"), // Supabase Storage object key for the separate Comments Report PDF (e.g. "<waveId>-comments.pdf"), null if the wave had no written comments
   generatedAt: timestamp("generated_at", { withTimezone: true }).notNull().default(sql`now()`),
-});
+}, (t) => [index("aggregate_snapshots_church_id_idx").on(t.churchId)]);
 
 export type AggregateSnapshot = typeof aggregateSnapshots.$inferSelect;
 export type InsertAggregateSnapshot = typeof aggregateSnapshots.$inferInsert;
@@ -249,7 +249,7 @@ export const debriefingReports = pgTable("debriefing_reports", {
   facilitatorPdfPath: text("facilitator_pdf_path"),
   surveyReviewJson: text("survey_review_json"),
   generatedAt: timestamp("generated_at", { withTimezone: true }).notNull().default(sql`now()`),
-});
+}, (t) => [index("debriefing_reports_church_id_idx").on(t.churchId)]);
 
 export type DebriefingReportRow = typeof debriefingReports.$inferSelect;
 export type InsertDebriefingReportRow = typeof debriefingReports.$inferInsert;
@@ -323,7 +323,7 @@ export const legacySnapshots = pgTable("legacy_snapshots", {
   summaryJson: text("summary_json").notNull(), // LegacySnapshotSummary, JSON-encoded
   sourceFileNote: text("source_file_note"), // which uploaded PDF(s) this was transcribed from, for audit trail
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
-});
+}, (t) => [index("legacy_snapshots_church_id_idx").on(t.churchId)]);
 
 export type LegacySnapshotRow = typeof legacySnapshots.$inferSelect;
 export type InsertLegacySnapshotRow = typeof legacySnapshots.$inferInsert;
@@ -348,5 +348,5 @@ export const churchEmailEvents = pgTable("church_email_events", {
   idempotencyKey: text("idempotency_key").notNull().unique(),
   triggeredBy: text("triggered_by").notNull().default("system"), // system | admin
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
-});
+}, (t) => [index("church_email_events_church_id_idx").on(t.churchId)]);
 export type ChurchEmailEvent = typeof churchEmailEvents.$inferSelect;
