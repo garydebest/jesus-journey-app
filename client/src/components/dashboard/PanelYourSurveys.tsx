@@ -27,6 +27,8 @@ interface Props {
   closingId: string | null; downloadingId: string | null;
   onStartNew: (plan?: SurveyPlan) => void; onGoToPrepare: () => void; onClose: (id: string) => void;
   onDownloadReport: (wave: WaveWithMeta) => void; onDownloadCommentsReport?: (wave: WaveWithMeta) => void; onDownloadCommentsWordcloud?: (wave: WaveWithMeta) => void;
+  /** Grace demo only: opens the sample Survey Review sent to churches after booking the debrief. */
+  onDownloadSurveyReview?: (wave: WaveWithMeta) => void;
   onViewReport: (wave: WaveWithMeta) => void; onAbandonPending?: (id: string) => void; onDatesChanged?: () => void;
   onNavigate?: (tab: string, anchorId?: string) => void;
 }
@@ -123,6 +125,7 @@ export function PanelYourSurveys(props: Props) {
     return <div className="flex flex-wrap gap-2">
       <Button size="sm" onClick={() => props.onViewReport(wave)} disabled={!wave.snapshot}>View report summary</Button>
       <Button size="sm" variant="outline" onClick={() => props.onDownloadReport(wave)} disabled={!(wave.snapshot?.reportPdfPath || wave.snapshot?.hasReportPdf) || props.downloadingId === wave.id}>Church Report (PDF)</Button>
+      {isDemo && props.onDownloadSurveyReview && <Button size="sm" variant="outline" onClick={() => props.onDownloadSurveyReview?.(wave)} disabled={!wave.snapshot || props.downloadingId === wave.id} data-testid={`button-survey-review-${wave.id}`}>Debrief Survey Review</Button>}
       <Button size="sm" variant="outline" onClick={() => props.onDownloadCommentsReport?.(wave)} disabled={!(wave.snapshot?.commentsReportPdfPath || wave.snapshot?.hasCommentsReportPdf) || props.downloadingId === wave.id}>Comments Report (PDF)</Button>
       <Button size="sm" variant="outline" onClick={() => props.onDownloadCommentsWordcloud?.(wave)} disabled={!(wave.snapshot?.commentsReportPdfPath || wave.snapshot?.hasCommentsReportPdf) || props.downloadingId === wave.id} data-testid={`button-comments-wordcloud-${wave.id}`}>Comments Wordcloud (PDF)</Button>
       {props.downloadingId === wave.id && <span role="status" className="text-sm">Opening report…</span>}

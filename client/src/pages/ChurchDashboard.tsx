@@ -231,16 +231,20 @@ export function ChurchDashboard() {
     await openWavePdf(wave, "wordcloud", "This survey doesn't have a comments wordcloud because it has no Comments Report.");
   }
 
+  async function handleDownloadSurveyReview(wave: WaveWithMeta) {
+    await openWavePdf(wave, "review", "The sample Debrief Survey Review is not available right now.");
+  }
+
   // Opens the PDF in its own tab so the dashboard (and the demo) stays open
   // behind it. The tab is opened synchronously on the click so Safari doesn't
   // treat it as a pop-up, then pointed at a short-lived view link.
-  async function openWavePdf(wave: WaveWithMeta, kind: "report" | "comments" | "wordcloud", notFoundMessage: string) {
+  async function openWavePdf(wave: WaveWithMeta, kind: "report" | "comments" | "wordcloud" | "review", notFoundMessage: string) {
     setDownloadError(null);
     setDownloadingId(wave.id);
     const tab = window.open("", "_blank");
     if (tab) {
       try {
-        tab.document.title = kind === "report" ? "Church Report" : kind === "wordcloud" ? "Comments Wordcloud" : "Comments Report";
+        tab.document.title = kind === "report" ? "Church Report" : kind === "wordcloud" ? "Comments Wordcloud" : kind === "review" ? "Debrief Survey Review" : "Comments Report";
         tab.document.body.innerHTML = '<p style="font-family:system-ui,sans-serif;padding:2rem;color:#444">Opening your report…</p>';
       } catch { /* ignore */ }
     }
@@ -442,6 +446,7 @@ export function ChurchDashboard() {
               onDownloadReport={handleDownloadFullReport}
               onDownloadCommentsReport={handleDownloadCommentsReport}
               onDownloadCommentsWordcloud={handleDownloadCommentsWordcloud}
+              onDownloadSurveyReview={handleDownloadSurveyReview}
               onViewReport={handleViewReport}
               onAbandonPending={handleAbandonPending}
               onDatesChanged={loadWaves}
