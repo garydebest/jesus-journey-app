@@ -19,6 +19,7 @@ import { ETHNICITY_PRESETS, type EthnicityPreset } from "@shared/demographicPoli
 type Screen =
   | "loading"
   | "not-found"
+  | "full"
   | "intro"
   | "pre-maturity"
   | `item-${number}`
@@ -78,8 +79,8 @@ function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) 
           setMeta({ waveLabel: json.waveLabel, churchName: json.churchName });
           setScreen("intro");
         }
-      } catch (err) {
-        if (!cancelled) setScreen("not-found");
+      } catch (err: any) {
+        if (!cancelled) setScreen(String(err?.message ?? "").includes("RESPONSE_LIMIT_REACHED") ? "full" : "not-found");
       }
     }
     if (code) checkCode();
@@ -90,7 +91,7 @@ function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) 
 
   function progressFor(s: Screen): number {
     const total = TOTAL_STEPS + 1; // + comment step
-    if (s === "intro" || s === "loading" || s === "not-found") return 0;
+    if (s === "intro" || s === "loading" || s === "not-found" || s === "full") return 0;
     if (s === "pre-maturity") return (1 / total) * 100;
     if (s.startsWith("item-")) {
       const idx = Number(s.split("-")[1]);
@@ -142,6 +143,10 @@ function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) 
       });
       setScreen("done");
     } catch (err: any) {
+      if (String(err?.message ?? "").includes("RESPONSE_LIMIT_REACHED")) {
+        setScreen("full");
+        return;
+      }
       setSubmitError("We couldn't submit your response. Please try again.");
       setScreen("comment");
     }
@@ -162,6 +167,24 @@ function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) 
             it may have already closed.
           </p>
           <Button variant="outline" onClick={() => setLocation("/")} data-testid="button-back-home">
+            Back to home
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (screen === "full") {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 bg-background">
+        <div className="max-w-md text-center space-y-4">
+          <JJLogo className="h-12 w-20 mx-auto" />
+          <h1 className="text-lg font-semibold" data-testid="text-survey-full">This survey is full</h1>
+          <p className="text-sm text-muted-foreground">
+            This survey has reached the maximum number of responses for your church's plan, so it can't accept more
+            responses. Thank you for your willingness to take part. Please let your church's survey coordinator know.
+          </p>
+          <Button variant="outline" onClick={() => setLocation("/")} data-testid="button-full-home">
             Back to home
           </Button>
         </div>

@@ -36,7 +36,7 @@ import * as adminAccounts from "./adminAccounts";
 import { recordChurchSignIn, runUnusedAccountSweep, scheduledDeletionDate, sendSignupEmails } from "./unusedAccounts";
 import { z } from "zod";
 import { requestPasswordReset, completePasswordReset, changePassword, PasswordResetError } from "./passwordReset";
-import { PRICING_TIERS, priceCentsForTier, publicPricingList, tierForAdults } from "./pricing";
+import { PRICING_TIERS, RESPONSE_LIMIT_MESSAGE, priceCentsForTier, publicPricingList, responseLimitForTier, tierForAdults } from "./pricing";
 import { createCheckoutSession, retrieveCheckoutSession, verifyStripeWebhookSignature, isStripeConfigured, sessionHasAutomaticTax, sessionMatchesWavePrice } from "./stripe";
 import { REGION_CURRENCY, regionForRequest } from "./currency";
 import { runReminderSweep } from "./reminders";
@@ -58,7 +58,7 @@ function sanitizeChurch(church: { passwordHash?: string; [k: string]: any }): Re
 }
 
 function sanitizeWave(wave: any) {
-  return wave ? { ...wave, joinCode: wave.paymentStatus === "paid" ? wave.joinCode : null } : wave;
+  return wave ? { ...wave, joinCode: wave.paymentStatus === "paid" ? wave.joinCode : null, responseLimit: responseLimitForTier(wave.sizeTier) } : wave;
 }
 
 export async function registerRoutes(httpServer: Server, app: Express) {
@@ -604,6 +604,12 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     }
     if (!acceptsResponses(wave)) {
       return res.status(403).json({ message: "This survey has not been opened by the church yet" });
+    }
+    // Tell people up front if the purchased tier is already full, rather than
+    // only after they have completed the survey. Saving re-checks under a lock.
+    const limit = responseLimitForTier(wave.sizeTier);
+    if (limit !== null && await storage.countResponsesByWave(wave.id) >= limit) {
+      return res.status(409).json({ message: RESPONSE_LIMIT_MESSAGE, code: "RESPONSE_LIMIT_REACHED" });
     }
     const church = await storage.getChurchById(wave.churchId);
     res.json({

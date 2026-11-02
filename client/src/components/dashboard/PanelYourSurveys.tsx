@@ -16,6 +16,8 @@ export interface WaveWithMeta {
   id: string; label: string; joinCode: string | null; status: string; paymentStatus?: string;
   minSampleSize: number; opensAt: string | null; closesAt: string | null; closedAt?: string | null;
   responseCount?: number;
+  /** Most respondents the purchased tier accepts; null/undefined = no limit. */
+  responseLimit?: number | null;
   orientationBookedAt?: string | null; orientationCompletedAt?: string | null; activatedAt?: string | null;
   debriefBookedAt?: string | null; debriefCompletedAt?: string | null;
   snapshot?: { respondentCount: number; summaryJson?: string; reportPdfPath?: string | null; commentsReportPdfPath?: string | null; hasReportPdf?: boolean; hasCommentsReportPdf?: boolean } | null;
@@ -192,11 +194,14 @@ export function PanelYourSurveys(props: Props) {
             }}>{copied ? "Copied" : "Copy code"}</Button>
           </div>
           <div id="survey-progress" className="grid grid-cols-3 gap-3 scroll-mt-24">
-            <div><p className="text-2xl font-semibold tabular-nums">{count}</p><p className="text-xs text-muted-foreground">Responses</p></div>
+            <div><p className="text-2xl font-semibold tabular-nums">{count}</p><p className="text-xs text-muted-foreground">{current.responseLimit ? `Responses (limit ${current.responseLimit.toLocaleString()})` : "Responses"}</p></div>
             <div><p className="text-2xl font-semibold tabular-nums">{target}</p><p className="text-xs text-muted-foreground">50% target of {total}</p></div>
             <div><p className="text-2xl font-semibold tabular-nums">{Math.round(count / Math.max(1, total) * 100)}%</p><p className="text-xs text-muted-foreground">Of all attendees aged 16+</p></div>
           </div>
           <Progress value={Math.min(100, count / Math.max(1, target) * 100)} aria-label="Progress toward the 50% response target" />
+          {current.responseLimit && count >= current.responseLimit && <p role="status" className="text-sm font-medium text-destructive" data-testid="text-response-limit-reached">
+            This survey has reached its limit of {current.responseLimit.toLocaleString()} respondents for your Standard Plan tier. New participants will be told the survey is full.
+          </p>}
           <p className="text-sm text-muted-foreground">{reached ? "The 50% minimum is reached. You can close when ready, or keep collecting." : `${Math.max(0, target - count)} more responses needed to reach the 50% minimum.`} {isDemo ? "All figures here are simulated." : "Counts refresh every 30 seconds."}</p>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => setShowGroups(!showGroups)} aria-expanded={showGroups} data-testid="button-demographics">Respondent breakdown</Button>

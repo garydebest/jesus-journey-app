@@ -17,6 +17,18 @@ export const PRICING_TIERS: Record<
   over_1500:  { label: "Over 1500 members (16+)",   min: 1501, max: null, prices: { canada: 1599, usa: 1599, uk: 799, europe: 959, international: 1599 } },
 };
 
+/**
+ * Most respondents a purchased survey accepts: the top of its Standard Plan
+ * range. Over 1500 has no upper limit, and waves on retired or missing tier
+ * keys are not limited (null).
+ */
+export function responseLimitForTier(tier: string | null | undefined): number | null {
+  if (!tier || !(tier in PRICING_TIERS)) return null;
+  return PRICING_TIERS[tier as SizeTier].max;
+}
+
+export const RESPONSE_LIMIT_MESSAGE = "This survey has reached the maximum number of responses for your church's plan, so it can't accept more responses. Please let your church's survey coordinator know.";
+
 /** The Standard Plan range for a church's total adults (16+). */
 export function tierForAdults(adults: number): SizeTier {
   const n = Math.max(1, Math.floor(adults));
