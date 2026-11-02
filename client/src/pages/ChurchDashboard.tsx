@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { JJBrandLockup } from "@/lib/logo";
 import { useChurchAuth } from "@/lib/churchAuth";
@@ -71,6 +72,9 @@ export function ChurchDashboard() {
   const [closesAt, setClosesAt] = useState("");
   const [creating, setCreating] = useState(false);
   const [closingId, setClosingId] = useState<string | null>(null);
+  // Respondent limit of the tier being purchased, shown for confirmation
+  // before checkout. null = popup closed.
+  const [limitConfirm, setLimitConfirm] = useState<number | null>(null);
   const [closeError, setCloseError] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -152,6 +156,20 @@ export function ChurchDashboard() {
       setError("Please enter your total number of adults, 16 or more, before continuing.");
       return;
     }
+    const n = Number(minSample);
+    const tier = pricingTiers.find((x) => n >= x.min && (x.max === null || n <= x.max));
+    // Every capped tier asks the church to confirm its respondent limit first.
+    // The top tier has no maximum, so it goes straight to checkout.
+    if (tier && tier.max !== null) {
+      setError(null);
+      setLimitConfirm(tier.max);
+      return;
+    }
+    await startCheckout();
+  }
+
+  async function startCheckout() {
+    setLimitConfirm(null);
     setCreating(true);
     setError(null);
     try {
@@ -342,6 +360,22 @@ export function ChurchDashboard() {
                 </form>
               </DialogContent>
             </Dialog>
+            <AlertDialog open={limitConfirm !== null} onOpenChange={(open) => { if (!open) setLimitConfirm(null); }}>
+              <AlertDialogContent data-testid="dialog-tier-limit">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Confirm your respondent limit</AlertDialogTitle>
+                  <AlertDialogDescription data-testid="text-tier-limit-message">
+                    If this tier is purchased, you will be limited to {limitConfirm?.toLocaleString()} total respondents
+                    for your survey report. If that number is significantly less than your weekly attendance plus 50%,
+                    your survey results will be compromised in their accuracy.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel data-testid="button-tier-go-back">Go Back</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => { void startCheckout(); }} data-testid="button-tier-confirm">Confirm</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <Button variant="ghost" size="sm" disabled={church.isDemo} onClick={() => setLocation("/settings")} data-testid="button-settings">
               Settings
             </Button>
