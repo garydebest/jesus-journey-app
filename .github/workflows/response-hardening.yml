@@ -33,10 +33,10 @@ jobs:
         with:
           ref: security/readiness-2026-10-10
           lfs: true
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Prepare exact guarded entrypoint patch
@@ -78,7 +78,7 @@ jobs:
           git rev-parse HEAD > response-tested-commit.txt
       - name: Report outcome to PR 24
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           RESULT: '${{ job.status }}'
         with:
