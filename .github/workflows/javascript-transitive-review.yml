@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -22,7 +22,7 @@ jobs:
           node-version: '24'
       - name: Verify inspection evidence still matches application source
         run: git diff --exit-code f4b1bd2c53e540143c806b874f7695d5f8b7bea7 HEAD -- server shared client script package.json package-lock.json vite.config.ts postcss.config.js tailwind.config.ts
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: javascript-dependency-evidence
           run-id: 38071347340
@@ -48,7 +48,7 @@ jobs:
           const report={commit:process.env.GITHUB_SHA,evidenceCommit:evidence.commit,externalRoots:rootNames,visitedPackages:[...seen].sort(),flaggedDependencyPaths:matches,unresolvedDependencies:missing,limitations:'Conservative installed manifest graph, not execution tracing. Includes optional and peer edges when installed. Missing dependencies require review; absence of matches is not automatic sign-off. Dynamic undeclared imports, child processes, frontend/build-time risks and live deployment remain outside this check.'};
           fs.writeFileSync('transitive-review.json',JSON.stringify(report,null,2));
           NODE
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: javascript-transitive-review
           path: transitive-review.json
