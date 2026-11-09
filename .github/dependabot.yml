@@ -10,6 +10,11 @@ updates:
     groups:
       npm-updates:
         patterns: ["*"]
+    # Major versions (e.g. Tailwind 4, Vite 8) need code changes; review them
+    # by hand in the quarterly review. Security updates are not affected.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: pip
     directory: /server/report-engine
     schedule:
