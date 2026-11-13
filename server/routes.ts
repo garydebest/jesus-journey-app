@@ -8,7 +8,7 @@ import { storage, OrientationRequiredError, ORIENTATION_REQUIRED_MESSAGE } from 
 import { bookingConfig } from "./journeyConfig";
 import { onWavePaid, onOrientationCompleted, onSurveyActivated, onReportsReady, onDebriefBooked, onDebriefCompleted, onGrowthPlanInterest, runJourneySweep, adminResend, RESENDABLE } from "./journey";
 import { EMAIL_TYPE_LABELS, type ClientEmailType } from "./journeyTemplates";
-import { insertChurchSchema, insertWaveSchema, updateChurchContactSchema, ITEM_CODES, requiredResponsesForClose } from "@shared/schema";
+import { adminManualSurveySchema, insertChurchSchema, insertWaveSchema, updateChurchContactSchema, ITEM_CODES, requiredResponsesForClose } from "@shared/schema";
 import { TIMELINE_PHASES, computeTimelineDates, defaultClosesAt } from "@shared/timeline";
 import { buildTimelineIcs } from "./ics";
 import { closeSurvey, saveChurchResponse, SurveyCloseError } from "./closeSurvey";
@@ -35,10 +35,11 @@ import {
 import * as adminAccounts from "./adminAccounts";
 import { recordChurchSignIn, runUnusedAccountSweep, scheduledDeletionDate, sendSignupEmails } from "./unusedAccounts";
 import { z } from "zod";
-import { requestPasswordReset, completePasswordReset, changePassword, PasswordResetError } from "./passwordReset";
+import { requestPasswordReset, completePasswordReset, changePassword, createAccountSetupLink, PasswordResetError } from "./passwordReset";
 import { PRICING_TIERS, RESPONSE_LIMIT_MESSAGE, priceCentsForTier, publicPricingList, responseLimitForTier, tierForAdults } from "./pricing";
 import { createCheckoutSession, retrieveCheckoutSession, verifyStripeWebhookSignature, isStripeConfigured, sessionHasAutomaticTax, sessionMatchesWavePrice } from "./stripe";
 import { REGION_CURRENCY, regionForRequest } from "./currency";
+import { createCustomCheckout, formatPrice, isAdminCustomStripeWave, newPaymentLinkToken, openCustomCheckout, paymentLinkUrl, sendManualSurveyEmail } from "./manualSurvey";
 import { runReminderSweep } from "./reminders";
 import { acceptsResponses, calendarDate, emptySurveyPlan, isDemoChurch, surveyPlanSchema } from "@shared/surveyAccess";
 import { isParticipantDemoCode, PARTICIPANT_DEMO_META } from "@shared/participantDemo";
@@ -58,7 +59,16 @@ function sanitizeChurch(church: { passwordHash?: string; [k: string]: any }): Re
 }
 
 function sanitizeWave(wave: any) {
-  return wave ? { ...wave, joinCode: wave.paymentStatus === "paid" ? wave.joinCode : null, responseLimit: responseLimitForTier(wave.sizeTier) } : wave;
+  if (!wave) return wave;
+  // The payment-link token and internal pricing note are admin-only.
+  const { paymentLinkToken: _token, adminNote: _note, ...rest } = wave;
+  return { ...rest, joinCode: wave.paymentStatus === "paid" ? wave.joinCode : null, responseLimit: responseLimitForTier(wave.sizeTier) };
+}
+
+/** Admin view of a wave: adds the internal note and the stable payment link. */
+function adminWave(wave: any) {
+  if (!wave) return wave;
+  return { ...sanitizeWave(wave), adminNote: wave.adminNote ?? null, paymentLinkUrl: wave.paymentStatus === "unpaid" ? paymentLinkUrl(wave) : null };
 }
 
 export async function registerRoutes(httpServer: Server, app: Express) {
@@ -314,7 +324,21 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     if (!wave || wave.churchId !== req.churchId) {
       return res.status(404).json({ message: "Wave not found" });
     }
-    if (wave.paymentStatus === "paid" || !wave.stripeCheckoutSessionId) {
+    if (wave.paymentStatus === "paid") {
+      return res.json({ wave: sanitizeWave(wave) });
+    }
+    // Admin-entered survey at a custom price: always offer a live checkout
+    // at the stored price, starting a fresh one if the last has expired.
+    if (isAdminCustomStripeWave(wave)) {
+      try {
+        const outcome = await openCustomCheckout(wave, onWavePaid);
+        if (outcome.kind === "paid") return res.json({ wave: sanitizeWave(outcome.wave) });
+        return res.json({ wave: sanitizeWave(wave), checkoutUrl: outcome.kind === "open" ? outcome.url : null });
+      } catch {
+        return res.json({ wave: sanitizeWave(wave) });
+      }
+    }
+    if (!wave.stripeCheckoutSessionId) {
       return res.json({ wave: sanitizeWave(wave) });
     }
     try {
@@ -1004,6 +1028,8 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       let action: string;
       if (req.method === "POST" && sub === "close") action = "Closed survey";
       else if (req.method === "PATCH" && sub === "journey") action = `Updated survey journey (${Object.keys((req.body ?? {}) as object).join(", ") || "no fields"})`;
+      else if (req.method === "POST" && sub === "payment-link") action = "Copied survey payment link";
+      else if (req.method === "POST" && sub === "mark-paid") action = `Marked survey paid outside Stripe (${String((req.body as any)?.method ?? "")})`;
       else if (req.method === "POST" && sub === "emails/resend") action = `Re-sent email (${String((req.body as any)?.type ?? "")})`;
       else if (isView) action = `Opened ${sub}`;
       else action = `${req.method} ${sub}`;
@@ -1055,7 +1081,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
                 const snapshot = await storage.getSnapshotByWave(w.id);
                 const debriefing = await storage.getDebriefingReportByWave(w.id);
                 return {
-                  wave: sanitizeWave(w),
+                  wave: adminWave(w),
                   responseCount: w.status === "closed" ? snapshot?.respondentCount ?? 0 : await storage.countResponsesByWave(w.id),
                   hasReport: !!snapshot,
                   hasReportPdf: !!snapshot?.reportPdfPath,
@@ -1097,6 +1123,142 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     );
     result.sort((a, b) => (a.church.createdAt < b.church.createdAt ? 1 : -1));
     res.json({ churches: result });
+  });
+
+  // -------------------------------------------------------------------
+  // Admin-entered church survey with a custom price (see server/manualSurvey.ts)
+  // -------------------------------------------------------------------
+  app.post("/api/admin/manual-surveys", requireAdminAuth, async (req, res) => {
+    const admin = (req as AdminRequest).admin;
+    const parsed = adminManualSurveySchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Check the form and try again." });
+    const d = parsed.data;
+    if (d.paymentMethod === "stripe" && !isStripeConfigured()) {
+      return res.status(503).json({ message: "Stripe is not configured, so a card payment link can't be created. Choose Paid outside Stripe or Complimentary." });
+    }
+
+    let church;
+    let createdChurch = false;
+    if (d.churchId) {
+      church = await storage.getChurchById(d.churchId);
+      if (!church) return res.status(404).json({ message: "That church account was not found." });
+      if (isDemoChurch(church.id)) return res.status(403).json({ message: "The shared demo is read-only." });
+      if (church.passwordHash === "legacy-no-login") return res.status(409).json({ message: "This is a historical record without a login. Enter the church as a new account with its contact's email instead." });
+    } else {
+      const nc = d.newChurch!;
+      if (await storage.getChurchByEmail(nc.primaryContactEmail)) {
+        return res.status(409).json({ message: "An account with this email already exists. Choose it under Existing church instead." });
+      }
+      // Random, never-shared password: the church chooses its own through the setup link.
+      const passwordHash = await bcrypt.hash(randomBytes(32).toString("base64url"), 10);
+      church = await storage.createChurch({ name: nc.name, primaryContactName: nc.primaryContactName, primaryContactEmail: nc.primaryContactEmail, primaryContactPhone: nc.primaryContactPhone || undefined, region: nc.region || undefined }, passwordHash);
+      createdChurch = true;
+    }
+
+    const existingWaves = await storage.getWavesByChurch(church.id);
+    if (existingWaves.some((w) => w.paymentStatus === "paid" && w.status !== "closed")) {
+      return res.status(409).json({ message: `${church.name} already has a purchased survey that is not closed. Complete or close it before adding another.` });
+    }
+
+    const tier = tierForAdults(d.minSampleSize);
+    const priceCents = Math.round(d.price * 100);
+    let wave = await storage.createWave(church.id, { label: d.label, minSampleSize: d.minSampleSize, sizeTier: tier }, priceCents, d.currency, {
+      pricingSource: "admin_custom",
+      paymentMethod: d.paymentMethod,
+      adminNote: d.adminNote || null,
+      paymentLinkToken: d.paymentMethod === "stripe" ? newPaymentLinkToken() : null,
+    });
+
+    let checkoutUrl: string | null = null;
+    if (d.paymentMethod === "stripe") {
+      try {
+        checkoutUrl = (await createCustomCheckout(wave, church)).url;
+      } catch (err: any) {
+        await storage.deleteUnpaidWave(wave.id);
+        console.error("Admin custom checkout creation failed:", err?.message ?? err);
+        return res.status(502).json({ message: `Stripe could not create the checkout (${String(err?.message ?? "unknown error")}). No survey was added${createdChurch ? "; the church account was created and can be chosen under Existing church" : ""}.` });
+      }
+    } else {
+      wave = (await storage.markWavePaidOutsideStripe(wave.id, d.paymentMethod)) ?? wave;
+    }
+
+    let emailStatus: string = "not sent";
+    if (d.emailChurch) {
+      const setupUrl = createdChurch ? await createAccountSetupLink(church.id) : null;
+      // Stripe: one email with the payment link (purchase confirmation follows payment).
+      // Paid outside Stripe: the standard purchase confirmation, plus a password-setup email for a new account.
+      if (d.paymentMethod === "stripe" || setupUrl) {
+        const result = await sendManualSurveyEmail(church, wave, { setupUrl });
+        emailStatus = result.status;
+      }
+      if (d.paymentMethod !== "stripe") {
+        void onWavePaid(wave.id);
+        emailStatus = emailStatus === "not sent" ? "sent" : emailStatus;
+      }
+    }
+
+    await adminAccounts.logAdminActivity(admin, `Added church survey manually (${formatPrice(priceCents, d.currency)}, ${d.paymentMethod}${createdChurch ? ", new account" : ""})`, `${church.name} — ${wave.label}`);
+    res.status(201).json({
+      church: sanitizeChurch(church),
+      wave: adminWave(wave),
+      createdChurch,
+      checkoutUrl,
+      paymentLinkUrl: paymentLinkUrl(wave),
+      emailStatus,
+    });
+  });
+
+  // Stable payment link for an unpaid admin-entered survey (opens a live Stripe Checkout).
+  app.post("/api/admin/waves/:id/payment-link", requireAdminAuth, async (req, res) => {
+    const wave = await storage.getWaveById(String(req.params.id));
+    if (!wave) return res.status(404).json({ message: "Wave not found" });
+    if (!isAdminCustomStripeWave(wave) || wave.paymentStatus !== "unpaid" || !wave.paymentLinkToken) {
+      return res.status(409).json({ message: "Only an unpaid survey entered by an administrator for card payment has a payment link." });
+    }
+    res.json({ paymentLinkUrl: paymentLinkUrl(wave) });
+  });
+
+  // The church paid an admin-entered survey outside Stripe after all (or it became complimentary).
+  app.post("/api/admin/waves/:id/mark-paid", requireAdminAuth, async (req, res) => {
+    const method = (req.body as any)?.method;
+    if (method !== "offline" && method !== "complimentary") return res.status(400).json({ message: "Choose Paid outside Stripe or Complimentary." });
+    const wave = await storage.getWaveById(String(req.params.id));
+    if (!wave) return res.status(404).json({ message: "Wave not found" });
+    if (wave.pricingSource !== "admin_custom" || wave.paymentStatus !== "unpaid" || wave.status !== "pending_payment") {
+      return res.status(409).json({ message: "Only an unpaid survey entered by an administrator can be marked paid here." });
+    }
+    // A card payment may already be under way; never double-record it.
+    if (wave.stripeCheckoutSessionId) {
+      try {
+        const session = await retrieveCheckoutSession(wave.stripeCheckoutSessionId);
+        if (session.payment_status === "paid" || session.status === "complete") {
+          return res.status(409).json({ message: "Stripe shows a card payment for this survey. Refresh to see it." });
+        }
+      } catch { /* Stripe unreachable: allow the manual record */ }
+    }
+    const updated = await storage.markWavePaidOutsideStripe(wave.id, method);
+    if (updated?.paymentStatus === "paid") void onWavePaid(wave.id);
+    res.json({ wave: adminWave(updated) });
+  });
+
+  // Public: the stable "Pay for your survey" link emailed to a church.
+  app.get("/pay/:token", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Robots-Tag", "noindex");
+    const page = (title: string, body: string) => res.status(200).type("html").send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${title}</title></head><body style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;max-width:560px;margin:48px auto;padding:0 16px;color:#28251d;line-height:1.6"><p style="font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#356a65;font-size:13px">Jesus Journey</p><h1 style="font-size:22px">${title}</h1><p>${body}</p><p><a href="/#/dashboard" style="color:#356a65">Open your dashboard</a> · <a href="mailto:admin@jesusjourney.life" style="color:#356a65">admin@jesusjourney.life</a></p></body></html>`);
+    const wave = await storage.getWaveByPaymentLinkToken(String(req.params.token));
+    if (!wave) return page("This payment link is not valid", "Please check the link in your email, or contact us and we will send a new one.");
+    if (wave.paymentStatus === "paid") return page("This survey is already paid", "Thank you. Your payment has been received. Sign in to your dashboard for your next step, booking your Survey Orientation.");
+    try {
+      const outcome = await openCustomCheckout(wave, onWavePaid);
+      if (outcome.kind === "open") return res.redirect(303, outcome.url);
+      if (outcome.kind === "paid") return page("This survey is already paid", "Thank you. Your payment has been received. Sign in to your dashboard for your next step.");
+      if (outcome.kind === "processing") return page("Your payment is being processed", "Stripe is still confirming your payment. You will receive a receipt by email once it completes.");
+      return page("This payment link is no longer active", "Please contact us and we will help you complete your survey purchase.");
+    } catch (err: any) {
+      console.error("Payment link checkout failed:", err?.message ?? err);
+      return page("We couldn't open checkout just now", "No payment was taken. Please try again in a few minutes, or contact us if this keeps happening.");
+    }
   });
 
   app.post("/api/admin/waves/:id/close", requireAdminAuth, async (req, res) => {

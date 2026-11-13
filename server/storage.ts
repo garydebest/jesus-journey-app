@@ -163,6 +163,11 @@ export function ensureBootstrapped(): Promise<void> {
       await ensureColumn("survey_waves", "activated_at", "activated_at TIMESTAMPTZ");
       await ensureColumn("survey_waves", "debrief_booked_at", "debrief_booked_at TEXT");
       await ensureColumn("survey_waves", "debrief_completed_at", "debrief_completed_at TIMESTAMPTZ");
+      // Admin-entered surveys with a custom price (November 2026).
+      await ensureColumn("survey_waves", "pricing_source", "pricing_source TEXT");
+      await ensureColumn("survey_waves", "payment_method", "payment_method TEXT");
+      await ensureColumn("survey_waves", "admin_note", "admin_note TEXT");
+      await ensureColumn("survey_waves", "payment_link_token", "payment_link_token TEXT UNIQUE");
       await pool.query(`CREATE TABLE IF NOT EXISTS church_email_events (
         id TEXT PRIMARY KEY,
         church_id TEXT NOT NULL REFERENCES churches(id),
@@ -204,6 +209,13 @@ export interface WaveJourneyUpdate {
   debriefCompletedAt?: Date | null;
 }
 
+export interface WaveCreateExtras {
+  pricingSource?: "admin_custom" | null;
+  paymentMethod?: "stripe" | "offline" | "complimentary" | null;
+  adminNote?: string | null;
+  paymentLinkToken?: string | null;
+}
+
 export interface IStorage {
   // Churches
   getChurchById(id: string): Promise<Church | undefined>;
@@ -213,7 +225,9 @@ export interface IStorage {
   updateChurchContact(id: string, data: schema.UpdateChurchContact): Promise<Church | undefined>;
 
   // Waves
-  createWave(churchId: string, data: InsertWave, priceCents: number, currency: string): Promise<SurveyWave>;
+  createWave(churchId: string, data: InsertWave, priceCents: number, currency: string, extra?: WaveCreateExtras): Promise<SurveyWave>;
+  getWaveByPaymentLinkToken(token: string): Promise<SurveyWave | undefined>;
+  markWavePaidOutsideStripe(id: string, method: "offline" | "complimentary"): Promise<SurveyWave | undefined>;
   getWaveById(id: string): Promise<SurveyWave | undefined>;
   getWaveByJoinCode(code: string): Promise<SurveyWave | undefined>;
   getWavesByChurch(churchId: string): Promise<SurveyWave[]>;
@@ -321,7 +335,7 @@ export class DatabaseStorage implements IStorage {
     return rows[0];
   }
 
-  async createWave(churchId: string, data: InsertWave, priceCents: number, currency: string): Promise<SurveyWave> {
+  async createWave(churchId: string, data: InsertWave, priceCents: number, currency: string, extra: WaveCreateExtras = {}): Promise<SurveyWave> {
     let joinCode = "";
     for (let attempts = 0; attempts < 10; attempts++) {
       joinCode = genCode(5);
@@ -343,9 +357,29 @@ export class DatabaseStorage implements IStorage {
         paymentStatus: "unpaid",
         priceCents,
         currency,
+        pricingSource: extra.pricingSource ?? null,
+        paymentMethod: extra.paymentMethod ?? null,
+        adminNote: extra.adminNote ?? null,
+        paymentLinkToken: extra.paymentLinkToken ?? null,
       })
       .returning();
     return rows[0];
+  }
+
+  async getWaveByPaymentLinkToken(token: string): Promise<SurveyWave | undefined> {
+    if (!token) return undefined;
+    const rows = await db.select().from(surveyWaves).where(eq(surveyWaves.paymentLinkToken, token));
+    return rows[0];
+  }
+
+  /** Admin-entered survey paid outside Stripe (or complimentary). Same transition as a card payment. */
+  async markWavePaidOutsideStripe(id: string, method: "offline" | "complimentary"): Promise<SurveyWave | undefined> {
+    const rows = await db
+      .update(surveyWaves)
+      .set({ paymentStatus: "paid", status: "not_started", paymentMethod: method, paidAt: new Date().toISOString() })
+      .where(and(eq(surveyWaves.id, id), eq(surveyWaves.paymentStatus, "unpaid"), eq(surveyWaves.status, "pending_payment")))
+      .returning();
+    return rows[0] ?? this.getWaveById(id);
   }
 
   async setWaveCheckoutSession(id: string, sessionId: string): Promise<SurveyWave | undefined> {

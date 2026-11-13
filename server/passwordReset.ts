@@ -96,6 +96,23 @@ export async function requestPasswordReset(email: string): Promise<void> {
   if (result.status !== "sent") console.warn(`[password-reset] Email not sent (${result.status}) for church ${church.id}`);
 }
 
+/**
+ * One-use "choose your password" link for a church account an administrator
+ * created by hand. Same table and reset page as Forgot password, but valid for
+ * seven days because the church did not ask for it. Invalidates older links.
+ */
+export const ACCOUNT_SETUP_TTL_DAYS = 7;
+export async function createAccountSetupLink(churchId: string): Promise<string> {
+  await ensureTable();
+  await pool.query(`UPDATE church_password_resets SET used_at = now() WHERE church_id = $1 AND used_at IS NULL`, [churchId]);
+  const token = randomBytes(32).toString("base64url");
+  await pool.query(
+    `INSERT INTO church_password_resets (id, church_id, token_hash, expires_at) VALUES ($1, $2, $3, $4)`,
+    [randomUUID(), churchId, hashToken(token), new Date(Date.now() + ACCOUNT_SETUP_TTL_DAYS * 24 * 60 * 60 * 1000)],
+  );
+  return `${appBaseUrl()}/#/church/reset/${token}`;
+}
+
 export class PasswordResetError extends Error {}
 
 /** Consumes a reset token and sets a new password. Returns the church id. */

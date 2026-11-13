@@ -71,3 +71,6 @@ jobs:
       - name: Report retention, rendering, captured email and mocked booking regressions
         if: matrix.suite != 'password'
         run: npx --no-install tsx script/close-safety-qa.ts
+      - name: Admin-entered church survey with a custom price (stubbed Stripe)
+        if: matrix.suite == 'full'
+        run: npx --no-install tsx script/manual-survey-qa.ts

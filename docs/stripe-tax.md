@@ -13,6 +13,9 @@
 - Unpaid sessions created before tax (no `automatic_tax.enabled`) are not offered for resume.
 - If Stripe cannot calculate tax, checkout is refused (no untaxed fallback).
 
+## Admin-entered surveys with a custom price (November 2026)
+Admin → Church accounts → Add church survey. No Stripe dashboard setup is needed: the app creates the Checkout with inline `price_data` at the admin's pre-tax price, using the same tax code, exclusive GST/HST, billing address, post-payment invoice and webhook as self-serve purchases (metadata `pricingSource=admin_custom`). The church gets a stable link `https://myjesusjourney.life/pay/<token>`; each visit reuses the open Checkout or starts a fresh one after the 24-hour Checkout expiry. Payment options: card via Stripe, paid outside Stripe (e-transfer/cheque, recorded by hand, no Stripe fee or invoice) or complimentary. The respondent cap still follows the adult total's Standard Plan range. Code: `server/manualSurvey.ts`; QA: `script/manual-survey-qa.ts`.
+
 ## Verified (live sessions, no payment, then expired)
 CAD 499: BC/AB/QC/MB/SK/YT/NT/NU GST 5% → 523.95; ON HST 13% → 563.87; NS 14% → 568.86; NB/NL/PE 15% → 573.85. USA/UK/Eurozone: tax 0.00 (no registrations there).
 
