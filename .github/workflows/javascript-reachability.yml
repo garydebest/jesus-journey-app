@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: actions/setup-node@v7
@@ -43,7 +43,7 @@ jobs:
           const report={commit:process.env.GITHUB_SHA,audit:audit.metadata?.vulnerabilities,findings:Object.entries(audit.vulnerabilities||{}).map(([name,v])=>({name,severity:v.severity,nodes:v.nodes,fixAvailable:v.fixAvailable})),compiledServerMatches:inputs.filter(p=>names.some(n=>p.includes('node_modules/'+n+'/'))),externalImports,sourceMentions,installedVersions:Object.entries(lock.packages||{}).filter(([p])=>names.some(n=>p.endsWith('node_modules/'+n))).map(([path,v])=>({path,version:v.version})),limitations:'Static compiled-server evidence, not complete request-time tracing. External dependencies require transitive review. Source mentions are not proof of imports. No production deployment or data access; remaining audit findings are not suppressed.'};
           fs.writeFileSync('reachability-report.json',JSON.stringify(report,null,2));
           NODE
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: javascript-dependency-evidence
           path: |
