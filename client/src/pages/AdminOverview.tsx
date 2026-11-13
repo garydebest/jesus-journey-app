@@ -105,6 +105,16 @@ interface AdminChurchGroup {
   scheduledDeletion?: string | null;
 }
 
+
+// Read-only status labels in the survey rows. Deliberately flat (no border,
+// shadow or hover) so they don't look like the real buttons beside them.
+function StatusTag({ tone, testId, children }: { tone: "info" | "warn" | "muted"; testId?: string; children: React.ReactNode }) {
+  const toneClass = tone === "warn"
+    ? "bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-200"
+    : tone === "muted" ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary";
+  return <span data-testid={testId} className={`inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${toneClass}`}>{children}</span>;
+}
+
 export function AdminOverview() {
   const [, setLocation] = useLocation();
   const { token, logout } = useAdminAuth();
@@ -462,23 +472,23 @@ export function AdminOverview() {
                           {rowNotice?.waveId === entry.wave.id && <div role="status" className="text-xs break-all text-primary" data-testid={`text-row-notice-${entry.wave.id}`}>{rowNotice.text}</div>}
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant={entry.wave.status === "closed" ? "secondary" : "default"}>{entry.wave.status === "not_started" && entry.wave.paymentStatus === "paid" ? journeyBadge(entry.wave) : entry.wave.status.replaceAll("_", " ")}</Badge>
-                          {entry.wave.status === "closed" && journeyBadge(entry.wave) && <Badge variant="outline" data-testid={`badge-debrief-${entry.wave.id}`}>{journeyBadge(entry.wave)}</Badge>}
+                          <StatusTag tone={entry.wave.status === "closed" ? "muted" : "info"}>{entry.wave.status === "not_started" && entry.wave.paymentStatus === "paid" ? journeyBadge(entry.wave) : entry.wave.status.replaceAll("_", " ")}</StatusTag>
+                          {entry.wave.status === "closed" && journeyBadge(entry.wave) && <StatusTag tone="muted" testId={`badge-debrief-${entry.wave.id}`}>{journeyBadge(entry.wave)}</StatusTag>}
                           {entry.wave.paymentStatus === "paid" && (
                             <Button size="sm" variant="outline" onClick={() => { setDetailChurch(church); setDetailWaveEntry(entry); }} data-testid={`button-admin-journey-${entry.wave.id}`}>Journey</Button>
                           )}
                           {entry.wave.paymentStatus && (
-                            <Badge variant={entry.wave.paymentStatus === "paid" ? "outline" : "destructive"} data-testid={`badge-payment-${entry.wave.id}`}>
+                            <StatusTag tone={entry.wave.paymentStatus === "paid" ? "muted" : "warn"} testId={`badge-payment-${entry.wave.id}`}>
                               {entry.wave.paymentStatus}
                               {typeof entry.wave.priceCents === "number"
                                 ? ` · ${formatWavePrice(entry.wave.priceCents, entry.wave.currency)}`
                                 : ""}
-                            </Badge>
+                            </StatusTag>
                           )}
                           {entry.wave.pricingSource === "admin_custom" && (
-                            <Badge variant="outline" data-testid={`badge-custom-${entry.wave.id}`}>
+                            <StatusTag tone="muted" testId={`badge-custom-${entry.wave.id}`}>
                               {entry.wave.paymentMethod === "offline" ? "custom · paid outside Stripe" : entry.wave.paymentMethod === "complimentary" ? "complimentary" : "custom price"}
-                            </Badge>
+                            </StatusTag>
                           )}
                           {entry.wave.pricingSource === "admin_custom" && entry.wave.paymentStatus === "unpaid" && (
                             <>
