@@ -25,8 +25,17 @@ export async function requestWithRetry(
   }
 }
 
+// A 401 on a signed-in request means the sign-in has ended (expired, or signed
+// out elsewhere). The auth providers listen for these events, clear the token
+// and the page returns to its sign-in screen with a short note.
+export const ADMIN_SIGNED_OUT_EVENT = "jj:admin-signed-out";
+export const CHURCH_SIGNED_OUT_EVENT = "jj:church-signed-out";
+export function announceSignedOut(eventName: string) {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(eventName));
+}
+
 export async function responseError(response: Response): Promise<Error> {
-  if (response.status === 401) return new Error("Your session has expired. Please sign out and sign in again.");
+  if (response.status === 401) return new Error("Your sign-in has ended. Please sign in again.");
   const text = await response.text();
   let message: unknown;
   try {
