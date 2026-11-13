@@ -46,7 +46,9 @@ export async function createCustomCheckout(wave: SurveyWave, church: Church) {
     currency: wave.currency,
     productName: `Jesus Journey Standard Plan${tier ? ` — ${tier.label}` : ""}`,
     productDescription: `${wave.label} for ${church.name}`,
-    successUrl: `${base}/#/dashboard?checkout=success&wave=${wave.id}`,
+    // Back to the stable pay link: it confirms the payment with Stripe and
+    // shows "already paid" without needing the church to sign in first.
+    successUrl: paymentLinkUrl(wave) ?? `${base}/#/dashboard?checkout=success&wave=${wave.id}`,
     cancelUrl: `${base}/#/dashboard?checkout=cancelled&wave=${wave.id}`,
     customerEmail: church.primaryContactEmail,
     metadata: { waveId: wave.id, churchId: church.id, sizeTier: wave.sizeTier ?? "", pricingSource: "admin_custom" },

@@ -54,6 +54,15 @@ function AppRouter() {
   );
 }
 
+// Links such as #/dashboard?checkout=success (Stripe return) and
+// #/dashboard?tab=collect (emails) carry a query inside the hash. wouter's
+// hash hook keeps it in the path, so no route matched and the 404 page showed.
+// Route on the path only; pages still read the query from location.hash.
+function useHashPath(): ReturnType<typeof useHashLocation> {
+  const [location, navigate] = useHashLocation();
+  return [location.split("?")[0] || "/", navigate];
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -61,7 +70,7 @@ function App() {
         <Toaster />
         <ChurchAuthProvider>
           <AdminAuthProvider>
-            <Router hook={useHashLocation}>
+            <Router hook={useHashPath}>
               <AppRouter />
             </Router>
           </AdminAuthProvider>
