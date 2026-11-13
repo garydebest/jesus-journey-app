@@ -11,9 +11,9 @@ import { friendlyError } from "@/lib/friendlyError";
 
 export function ChurchAuth({ initialMode = "login" }: { initialMode?: "login" | "signup" }) {
   const [, setLocation] = useLocation();
-  const { token, signup, login } = useChurchAuth();
+  const { token, signup, login, sessionEnded } = useChurchAuth();
   const [mode, setMode] = useState<"login" | "signup" | "forgot">(initialMode);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(sessionEnded ? "You were signed out. Please sign in again to continue." : null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 

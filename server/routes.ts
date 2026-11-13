@@ -77,7 +77,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   // planning and progress examples are simulated in the browser.
   app.use(["/api/waves", "/api/churches/me", "/api/churches/plan"], (req: AuthedRequest, res, next) => {
     if (req.method === "GET" || req.method === "HEAD") return next();
-    requireChurchAuth(req, res, () => {
+    void requireChurchAuth(req, res, () => {
       if (isDemoChurch(req.churchId!)) return res.status(403).json({ message: "The Grace demo is read-only. Your practice changes are not saved to the shared account." });
       next();
     });
@@ -160,7 +160,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     limits.resetCompletePerAddress.hit(ip);
     try {
       const churchId = await completePasswordReset(String(token ?? ""), String(password ?? ""));
-      destroySessionsForChurch(churchId);
+      await destroySessionsForChurch(churchId).catch((err) => console.error("[auth] sign-out of other sessions failed:", err?.message ?? err));
       res.json({ ok: true });
     } catch (err: any) {
       if (err instanceof PasswordResetError) return res.status(400).json({ message: err.message });
@@ -174,7 +174,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     try {
       await changePassword(req.churchId!, String(currentPassword ?? ""), String(newPassword ?? ""));
       const header = req.headers.authorization;
-      destroySessionsForChurch(req.churchId!, header?.startsWith("Bearer ") ? header.slice(7) : undefined);
+      await destroySessionsForChurch(req.churchId!, header?.startsWith("Bearer ") ? header.slice(7) : undefined).catch((err) => console.error("[auth] sign-out of other sessions failed:", err?.message ?? err));
       res.json({ ok: true });
     } catch (err: any) {
       if (err instanceof PasswordResetError) return res.status(400).json({ message: err.message });
@@ -183,10 +183,10 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     }
   });
 
-  app.post("/api/churches/logout", (req: AuthedRequest, res) => {
+  app.post("/api/churches/logout", async (req: AuthedRequest, res) => {
     const header = req.headers.authorization;
     const token = header?.startsWith("Bearer ") ? header.slice(7) : undefined;
-    if (token) destroySession(token);
+    if (token) await destroySession(token).catch((err) => console.error("[auth] sign-out failed:", err?.message ?? err));
     res.json({ ok: true });
   });
 
@@ -916,7 +916,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
 
   app.post("/api/admin/logout", requireAdminAuth, async (req, res) => {
     const areq = req as AdminRequest;
-    if (areq.adminToken) destroyAdminSession(areq.adminToken);
+    if (areq.adminToken) await destroyAdminSession(areq.adminToken).catch((err) => console.error("[admin-auth] sign-out failed:", err?.message ?? err));
     await adminAccounts.logAdminActivity(areq.admin, "Signed out");
     res.json({ ok: true });
   });

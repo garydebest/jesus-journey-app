@@ -1,12 +1,19 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { Request, Response, NextFunction } from "express";
+import { pool } from "./storage";
 import { DASHBOARD_DEMO_TOKEN, allowsDashboardDemoRequest } from "@shared/dashboardDemo";
 import { DEMO_CHURCH_ID } from "@shared/surveyAccess";
 
-// Cookies/localStorage are blocked in the sandboxed preview iframe, so church
-// auth uses a bearer token instead of cookie-based sessions. Tokens are held
-// in-memory server-side; the client stores its token in React state/context
-// (never localStorage) and sends it as `Authorization: Bearer <token>`.
+// Church and administrator sign-ins use bearer tokens
+// (`Authorization: Bearer <token>`); the client keeps its token in React state.
+//
+// Sessions are saved in the auth_sessions table so they survive deploys and
+// restarts (before November 2026 they lived only in memory, so every deploy
+// signed everyone out and their next click failed with "session expired").
+// Only a SHA-256 hash of each token is stored. An in-memory copy avoids a
+// database read on most requests; the table is the source of truth after a
+// restart. Revocations update both and are awaited so a signed-out token can't
+// come back after a restart.
 
 interface SessionRecord {
   churchId: string;
@@ -16,30 +23,107 @@ interface SessionRecord {
 const sessions = new Map<string, SessionRecord>();
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14; // 14 days
 
+const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
+
+let tableReady: Promise<void> | null = null;
+export function ensureSessionTable(): Promise<void> {
+  if (!tableReady) {
+    tableReady = (async () => {
+      await pool.query(`CREATE TABLE IF NOT EXISTS auth_sessions (
+        token_hash TEXT PRIMARY KEY,
+        kind TEXT NOT NULL,
+        church_id TEXT,
+        admin_user_id TEXT,
+        version INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL
+      )`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS auth_sessions_church_idx ON auth_sessions (church_id)`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS auth_sessions_admin_idx ON auth_sessions (admin_user_id)`);
+      await purgeExpiredSessions();
+    })().catch((err) => {
+      tableReady = null;
+      throw err;
+    });
+  }
+  return tableReady;
+}
+
+export async function purgeExpiredSessions(): Promise<void> {
+  await pool.query(
+    `DELETE FROM auth_sessions WHERE (kind = 'church' AND created_at < now() - ($1 || ' milliseconds')::interval)
+       OR (kind = 'admin' AND created_at < now() - ($2 || ' milliseconds')::interval)`,
+    [String(SESSION_TTL_MS), String(ADMIN_SESSION_TTL_MS)],
+  );
+}
+
+let lastPurge = Date.now();
+function persistSession(token: string, row: { kind: "church" | "admin"; churchId?: string | null; adminUserId?: string | null; version?: number; createdAt: number }) {
+  // Fire-and-forget: the in-memory copy serves this process immediately.
+  ensureSessionTable()
+    .then(() => pool.query(
+      `INSERT INTO auth_sessions (token_hash, kind, church_id, admin_user_id, version, created_at) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (token_hash) DO NOTHING`,
+      [hashToken(token), row.kind, row.churchId ?? null, row.adminUserId ?? null, row.version ?? 0, new Date(row.createdAt)],
+    ))
+    .then(() => {
+      if (Date.now() - lastPurge > 60 * 60 * 1000) { lastPurge = Date.now(); return purgeExpiredSessions(); }
+    })
+    .catch((err) => console.error("[auth] could not save session:", err?.message ?? err));
+}
+
+// Shapes of the tokens createSession / createAdminSession issue. Anything else
+// is refused without a database read.
+const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+const CHURCH_TOKEN_RE = new RegExp(`^${UUID}${UUID}$`);
+const ADMIN_TOKEN_RE = new RegExp(`^adm_${UUID}${UUID}$`);
+
+async function loadSession(token: string, kind: "church" | "admin") {
+  if (!(kind === "church" ? CHURCH_TOKEN_RE : ADMIN_TOKEN_RE).test(token)) return undefined;
+  await ensureSessionTable();
+  const { rows } = await pool.query(
+    `SELECT church_id, admin_user_id, version, created_at FROM auth_sessions WHERE token_hash = $1 AND kind = $2`,
+    [hashToken(token), kind],
+  );
+  return rows[0] as { church_id: string | null; admin_user_id: string | null; version: number; created_at: Date } | undefined;
+}
+
 export function createSession(churchId: string): string {
   const token = randomUUID() + randomUUID();
-  sessions.set(token, { churchId, createdAt: Date.now() });
+  const createdAt = Date.now();
+  sessions.set(token, { churchId, createdAt });
+  persistSession(token, { kind: "church", churchId, createdAt });
   return token;
 }
 
-export function destroySession(token: string): void {
+export async function destroySession(token: string): Promise<void> {
   sessions.delete(token);
+  await ensureSessionTable();
+  await pool.query(`DELETE FROM auth_sessions WHERE token_hash = $1`, [hashToken(token)]);
 }
 
 /** Signs out every session for a church, optionally keeping one (the current) token. */
-export function destroySessionsForChurch(churchId: string, exceptToken?: string): void {
+export async function destroySessionsForChurch(churchId: string, exceptToken?: string): Promise<void> {
   for (const [token, record] of Array.from(sessions.entries())) {
     if (record.churchId === churchId && token !== exceptToken) sessions.delete(token);
   }
+  await ensureSessionTable();
+  await pool.query(
+    `DELETE FROM auth_sessions WHERE kind = 'church' AND church_id = $1 AND token_hash <> $2`,
+    [churchId, exceptToken ? hashToken(exceptToken) : ""],
+  );
 }
 
-export function getChurchIdForToken(token: string | undefined): string | undefined {
+export async function getChurchIdForToken(token: string | undefined): Promise<string | undefined> {
   if (!token) return undefined;
   if (token === DASHBOARD_DEMO_TOKEN) return DEMO_CHURCH_ID;
-  const record = sessions.get(token);
-  if (!record) return undefined;
+  let record = sessions.get(token);
+  if (!record) {
+    const row = await loadSession(token, "church");
+    if (!row?.church_id) return undefined;
+    record = { churchId: row.church_id, createdAt: new Date(row.created_at).getTime() };
+    sessions.set(token, record);
+  }
   if (Date.now() - record.createdAt > SESSION_TTL_MS) {
-    sessions.delete(token);
+    await destroySession(token).catch(() => sessions.delete(token));
     return undefined;
   }
   return record.churchId;
@@ -62,14 +146,20 @@ export function restrictPublicDashboardDemo(req: AuthedRequest, res: Response, n
   next();
 }
 
-export function requireChurchAuth(req: AuthedRequest, res: Response, next: NextFunction) {
+export async function requireChurchAuth(req: AuthedRequest, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
   const token = header?.startsWith("Bearer ") ? header.slice(7) : undefined;
   // Defense in depth if this middleware is ever reused outside registerRoutes.
   if (token === DASHBOARD_DEMO_TOKEN && !allowsDashboardDemoRequest(req.method, req.originalUrl.split("?")[0])) {
     return res.status(403).json({ message: "This request is not available in the public demo.", code: "DEMO_READ_ONLY" });
   }
-  const churchId = getChurchIdForToken(token);
+  let churchId: string | undefined;
+  try {
+    churchId = await getChurchIdForToken(token);
+  } catch (err: any) {
+    console.error("[auth] session lookup failed:", err?.message ?? err);
+    return res.status(503).json({ message: "Sign-in check is temporarily unavailable. Please try again." });
+  }
   if (!churchId) {
     return res.status(401).json({ message: "Not authenticated" });
   }
@@ -115,19 +205,28 @@ export function getAdminPassword(): string {
 /** With no user, creates a legacy shared-password session (also used by QA scripts). */
 export function createAdminSession(user?: { id: string; sessionVersion: number }): string {
   const token = "adm_" + randomUUID() + randomUUID();
-  adminSessions.set(token, { createdAt: Date.now(), userId: user?.id ?? null, version: user?.sessionVersion ?? 0 });
+  const record = { createdAt: Date.now(), userId: user?.id ?? null, version: user?.sessionVersion ?? 0 };
+  adminSessions.set(token, record);
+  persistSession(token, { kind: "admin", adminUserId: record.userId, version: record.version, createdAt: record.createdAt });
   return token;
 }
 
-export function destroyAdminSession(token: string): void {
+export async function destroyAdminSession(token: string): Promise<void> {
   adminSessions.delete(token);
+  await ensureSessionTable();
+  await pool.query(`DELETE FROM auth_sessions WHERE token_hash = $1`, [hashToken(token)]);
 }
 
 /** Signs out sessions for one administrator (optionally keeping the current token), or every legacy session when userId is null. */
-export function destroyAdminSessionsFor(userId: string | null, exceptToken?: string): void {
+export async function destroyAdminSessionsFor(userId: string | null, exceptToken?: string): Promise<void> {
   for (const [token, record] of Array.from(adminSessions.entries())) {
     if (record.userId === userId && token !== exceptToken) adminSessions.delete(token);
   }
+  await ensureSessionTable();
+  await pool.query(
+    `DELETE FROM auth_sessions WHERE kind = 'admin' AND admin_user_id IS NOT DISTINCT FROM $1 AND token_hash <> $2`,
+    [userId, exceptToken ? hashToken(exceptToken) : ""],
+  );
 }
 
 export function adminTokenFrom(req: Request): string | undefined {
@@ -149,11 +248,24 @@ export function setAdminLookup(fn: AdminLookup) {
 
 export async function requireAdminAuth(req: Request, res: Response, next: NextFunction) {
   const token = adminTokenFrom(req);
-  const record = token ? adminSessions.get(token) : undefined;
   const reject = () => res.status(401).json({ message: "Not authenticated" });
-  if (!token || !record) return reject();
+  if (!token) return reject();
+  let record = adminSessions.get(token);
+  if (!record) {
+    try {
+      const row = await loadSession(token, "admin");
+      if (row) {
+        record = { createdAt: new Date(row.created_at).getTime(), userId: row.admin_user_id, version: row.version };
+        adminSessions.set(token, record);
+      }
+    } catch (err: any) {
+      console.error("[admin-auth] session lookup failed:", err?.message ?? err);
+      return res.status(503).json({ message: "Sign-in check is temporarily unavailable. Please try again." });
+    }
+  }
+  if (!record) return reject();
   if (Date.now() - record.createdAt > ADMIN_SESSION_TTL_MS) {
-    adminSessions.delete(token);
+    await destroyAdminSession(token).catch(() => adminSessions.delete(token));
     return reject();
   }
   const areq = req as AdminRequest;
@@ -165,7 +277,7 @@ export async function requireAdminAuth(req: Request, res: Response, next: NextFu
   try {
     const user = lookupAdmin ? await lookupAdmin(record.userId) : undefined;
     if (!user || user.disabled || user.sessionVersion !== record.version) {
-      adminSessions.delete(token);
+      await destroyAdminSession(token).catch(() => adminSessions.delete(token));
       return reject();
     }
     areq.admin = { id: user.id, email: user.email, name: user.name, role: user.role };

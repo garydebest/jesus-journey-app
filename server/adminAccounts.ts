@@ -141,7 +141,7 @@ async function bumpSessions(userId: string): Promise<number> {
     `UPDATE admin_users SET session_version = session_version + 1 WHERE id = $1 RETURNING session_version`,
     [userId],
   );
-  destroyAdminSessionsFor(userId);
+  await destroyAdminSessionsFor(userId).catch((err) => console.error("[admin-auth] sign-out of other sessions failed:", err?.message ?? err));
   return rows[0].session_version;
 }
 
@@ -190,9 +190,9 @@ export async function legacyAdminLoginAllowed(): Promise<boolean> {
   legacyCache = { at: Date.now(), allowed: rows.length === 0 };
   return legacyCache.allowed;
 }
-function retireLegacyLogin() {
+async function retireLegacyLogin() {
   legacyCache = { at: Date.now(), allowed: false };
-  destroyAdminSessionsFor(null); // sign out every shared-password session
+  await destroyAdminSessionsFor(null).catch((err) => console.error("[admin-auth] legacy sign-out failed:", err?.message ?? err)); // sign out every shared-password session
 }
 
 // --- Email helpers ----------------------------------------------------------
@@ -372,7 +372,7 @@ export async function completeAdminEnrollment(challengeId: string, code: string)
     [encryptSecret(c.pendingSecret), step, recovery.stored, user.id],
   );
   challenges.delete(challengeId);
-  if (user.role === "owner") retireLegacyLogin();
+  if (user.role === "owner") await retireLegacyLogin();
   await logAdminActivity(identity(user), "Turned on two-factor sign-in");
   await sendAdminEmail(user.email, "Two-factor sign-in is on for your Jesus Journey account", [
     `Hello ${firstName(user.name)},`,

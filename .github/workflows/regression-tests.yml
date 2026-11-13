@@ -74,3 +74,6 @@ jobs:
       - name: Admin-entered church survey with a custom price (stubbed Stripe)
         if: matrix.suite == 'full'
         run: npx --no-install tsx script/manual-survey-qa.ts
+      - name: Sign-ins survive a server restart (deploy)
+        if: matrix.suite == 'full'
+        run: npx --no-install tsx script/persistent-sessions-qa.ts

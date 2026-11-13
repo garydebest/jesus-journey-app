@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
-import { requestWithRetry, responseError } from "./apiTransport";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { requestWithRetry, responseError, announceSignedOut, ADMIN_SIGNED_OUT_EVENT } from "./apiTransport";
 
 interface AdminAuthState {
   token: string | null;
@@ -8,6 +8,8 @@ interface AdminAuthState {
   /** Stores a session token returned by a completed sign-in or password change. */
   setSession: (token: string) => void;
   logout: () => void;
+  /** True after a sign-in ended on its own (expired or signed out elsewhere); cleared on the next sign-in. */
+  sessionEnded: boolean;
 }
 
 const AdminAuthContext = createContext<AdminAuthState | undefined>(undefined);
@@ -20,6 +22,13 @@ const API_BASE = "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
 // tradeoff for this preview environment.
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
+  const [sessionEnded, setSessionEnded] = useState(false);
+
+  useEffect(() => {
+    const onEnded = () => { setToken((t) => { if (t) setSessionEnded(true); return null; }); };
+    window.addEventListener(ADMIN_SIGNED_OUT_EVENT, onEnded);
+    return () => window.removeEventListener(ADMIN_SIGNED_OUT_EVENT, onEnded);
+  }, []);
 
   const login: AdminAuthState["login"] = useCallback(async (username, password) => {
     const res = await fetch(`${API_BASE}/api/admin/login`, {
@@ -32,6 +41,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
       throw new Error(text);
     }
     const json = await res.json();
+    setSessionEnded(false);
     setToken(json.token);
   }, []);
 
@@ -42,12 +52,13 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         headers: { Authorization: `Bearer ${token}` },
       }).catch(() => {});
     }
+    setSessionEnded(false);
     setToken(null);
   }, [token]);
 
-  const setSession = useCallback((t: string) => setToken(t), []);
+  const setSession = useCallback((t: string) => { setSessionEnded(false); setToken(t); }, []);
 
-  return <AdminAuthContext.Provider value={{ token, login, setSession, logout }}>{children}</AdminAuthContext.Provider>;
+  return <AdminAuthContext.Provider value={{ token, login, setSession, logout, sessionEnded }}>{children}</AdminAuthContext.Provider>;
 }
 
 export function useAdminAuth(): AdminAuthState {
@@ -79,6 +90,7 @@ export async function adminApiRequest(token: string | null, method: string, url:
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) {
+    if (res.status === 401 && token) announceSignedOut(ADMIN_SIGNED_OUT_EVENT);
     throw await responseError(res);
   }
   return res;
@@ -89,6 +101,7 @@ export async function adminApiRequestBlob(token: string | null, url: string): Pr
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) {
+    if (res.status === 401 && token) announceSignedOut(ADMIN_SIGNED_OUT_EVENT);
     throw await responseError(res);
   }
   return res.blob();

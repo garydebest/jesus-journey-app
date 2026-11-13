@@ -121,7 +121,7 @@ async function deleteUnusedChurch(church: Church, now: Date): Promise<boolean> {
     // Any other linked record makes this fail and roll back, which is the safe outcome.
     await client.query(`DELETE FROM churches WHERE id = $1`, [church.id]);
     await client.query("COMMIT");
-    destroySessionsForChurch(church.id);
+    await destroySessionsForChurch(church.id).catch((err) => console.error("[unused-accounts] session sign-out failed:", err?.message ?? err));
     return true;
   } catch (err: any) {
     await client.query("ROLLBACK").catch(() => {});

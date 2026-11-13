@@ -24,7 +24,7 @@ type Step =
 
 export function AdminLogin() {
   const [, setLocation] = useLocation();
-  const { token, login, setSession } = useAdminAuth();
+  const { token, login, setSession, sessionEnded } = useAdminAuth();
   const [step, setStep] = useState<Step>({ kind: "credentials" });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -138,6 +138,11 @@ export function AdminLogin() {
   if (step.kind === "credentials") {
     body = (
       <form onSubmit={submitCredentials} className="space-y-4" data-testid="form-admin-login">
+        {sessionEnded && !error && (
+          <Alert data-testid="alert-admin-session-ended">
+            <AlertDescription>You were signed out. Please sign in again to continue.</AlertDescription>
+          </Alert>
+        )}
         <div className="space-y-1.5">
           <Label htmlFor="admin-email">Email</Label>
           <Input id="admin-email" type="email" autoComplete="username" autoCapitalize="none" spellCheck={false} value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus data-testid="input-admin-email" />
