@@ -105,6 +105,14 @@ export const surveyWaves = pgTable("survey_waves", {
   activatedAt: timestamp("activated_at", { withTimezone: true }),
   debriefBookedAt: text("debrief_booked_at"), // YYYY-MM-DD appointment date, manual in Phase 1
   debriefCompletedAt: timestamp("debrief_completed_at", { withTimezone: true }),
+  // Admin-entered surveys (November 2026). Null on self-serve purchases.
+  // pricingSource "admin_custom" = an administrator set the price by hand.
+  // paymentMethod: "stripe" (church pays by card through the payment link),
+  // "offline" (paid outside Stripe, e.g. e-transfer or cheque) or "complimentary".
+  pricingSource: text("pricing_source"),
+  paymentMethod: text("payment_method"),
+  adminNote: text("admin_note"), // internal reason for the custom price; never shown to the church
+  paymentLinkToken: text("payment_link_token").unique(), // stable /pay/<token> link for admin-entered Stripe surveys
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
 }, (t) => [index("survey_waves_church_id_idx").on(t.churchId)]);
 
@@ -130,6 +138,35 @@ export function requiredResponsesForClose(declaredTotal: number): number {
 }
 
 export type InsertWave = z.infer<typeof insertWaveSchema>;
+
+// Administrator-entered church survey with a hand-set price.
+export const MANUAL_PAYMENT_METHODS = ["stripe", "offline", "complimentary"] as const;
+export type ManualPaymentMethod = (typeof MANUAL_PAYMENT_METHODS)[number];
+export const MANUAL_CURRENCIES = ["cad", "usd", "gbp", "eur"] as const;
+
+export const adminManualSurveySchema = z.object({
+  churchId: z.string().trim().min(1).optional(),
+  newChurch: z.object({
+    name: z.string().trim().min(1, "Enter the church name.").max(200),
+    primaryContactName: z.string().trim().min(1, "Enter the primary contact's name.").max(200),
+    primaryContactEmail: z.string().trim().email("Enter a valid contact email."),
+    primaryContactPhone: z.string().trim().max(50).optional(),
+    region: z.string().trim().max(100).optional(),
+  }).optional(),
+  label: z.string().trim().min(1, "Enter a survey name.").max(200),
+  minSampleSize: z.number().int().min(16, "Total number of adults must be at least 16.").max(1000000),
+  // Pre-tax amount in whole currency units, up to two decimals (e.g. 350 or 349.50).
+  price: z.number().min(0).max(100000).refine((v) => Math.abs(Math.round(v * 100) - v * 100) < 1e-6, "Use at most two decimal places."),
+  currency: z.enum(MANUAL_CURRENCIES),
+  paymentMethod: z.enum(MANUAL_PAYMENT_METHODS),
+  adminNote: z.string().trim().max(1000).optional(),
+  emailChurch: z.boolean().default(true),
+}).superRefine((d, ctx) => {
+  if (!!d.churchId === !!d.newChurch) ctx.addIssue({ code: "custom", message: "Choose an existing church or enter a new one.", path: ["churchId"] });
+  if (d.paymentMethod === "complimentary" && d.price !== 0) ctx.addIssue({ code: "custom", message: "A complimentary survey has a price of 0.", path: ["price"] });
+  if (d.paymentMethod !== "complimentary" && d.price < 1) ctx.addIssue({ code: "custom", message: "Enter a price of at least 1.00, or choose Complimentary.", path: ["price"] });
+});
+export type AdminManualSurvey = z.infer<typeof adminManualSurveySchema>;
 export type SurveyWave = typeof surveyWaves.$inferSelect;
 
 // ---------------------------------------------------------------------------

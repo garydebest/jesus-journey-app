@@ -88,7 +88,7 @@ export interface TemplateContext {
   deletionDate?: string;
 }
 
-interface Block { kind: "p" | "list" | "button" | "booking" | "strong-p"; text?: string; items?: string[]; label?: string; href?: string | null }
+export interface Block { kind: "p" | "list" | "button" | "booking" | "strong-p"; text?: string; items?: string[]; label?: string; href?: string | null }
 export interface RenderedEmail { subject: string; preheader: string; html: string; text: string }
 
 const BRAND = "#356a65"; // app primary teal, darkened for email contrast
@@ -97,7 +97,7 @@ function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-function layout(subject: string, preheader: string, greeting: string, blocks: Block[], signoff: string[]): RenderedEmail {
+export function layout(subject: string, preheader: string, greeting: string, blocks: Block[], signoff: string[]): RenderedEmail {
   const htmlBlocks = blocks.map((b) => {
     if (b.kind === "p") return `<p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;">${esc(b.text!)}</p>`;
     if (b.kind === "strong-p") return `<p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;"><strong>${esc(b.text!.split("|")[0])}</strong>${esc(b.text!.split("|")[1] ?? "")}</p>`;

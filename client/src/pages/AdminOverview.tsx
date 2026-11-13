@@ -11,6 +11,7 @@ import { DebriefingReportView } from "@/components/DebriefingReportView";
 import { useAdminAuth, adminApiRequest, adminApiRequestBlob } from "@/lib/adminAuth";
 import type { WaveAggregateSummary } from "@shared/aggregate";
 import type { DebriefingReport } from "@shared/debriefing/types";
+import { ManualSurveyDialog } from "@/components/admin/ManualSurveyDialog";
 import { AdminJourneyPanel, journeyBadge, type AdminJourneyWave } from "@/components/journey/AdminJourneyPanel";
 
 interface AdminChurch {
@@ -50,6 +51,10 @@ interface AdminWaveEntry {
     activatedAt?: string | null;
     debriefBookedAt?: string | null;
     debriefCompletedAt?: string | null;
+    pricingSource?: string | null;
+    paymentMethod?: string | null;
+    adminNote?: string | null;
+    paymentLinkUrl?: string | null;
   };
   responseCount: number;
   hasReport: boolean;
@@ -122,6 +127,11 @@ export function AdminOverview() {
   const [debriefingReport, setDebriefingReport] = useState<DebriefingReport | null>(null);
   const [legacyViewChurch, setLegacyViewChurch] = useState<AdminChurch | null>(null);
   const [legacyViewSnapshot, setLegacyViewSnapshot] = useState<AdminLegacySnapshot | null>(null);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [rowNotice, setRowNotice] = useState<{ waveId: string; text: string } | null>(null);
+  const [markPaidEntry, setMarkPaidEntry] = useState<AdminWaveEntry | null>(null);
+  const [markPaidMethod, setMarkPaidMethod] = useState<"offline" | "complimentary">("offline");
+  const [markingPaid, setMarkingPaid] = useState(false);
   const [detailChurch, setDetailChurch] = useState<AdminChurch | null>(null);
   const [detailWaveEntry, setDetailWaveEntry] = useState<AdminWaveEntry | null>(null);
 
@@ -283,6 +293,34 @@ export function AdminOverview() {
     }
   }
 
+  async function handleCopyPaymentLink(entry: AdminWaveEntry) {
+    try {
+      const json = await (await adminApiRequest(token, "POST", `/api/admin/waves/${entry.wave.id}/payment-link`)).json();
+      try { await navigator.clipboard.writeText(json.paymentLinkUrl); setRowNotice({ waveId: entry.wave.id, text: `Payment link copied: ${json.paymentLinkUrl}` }); }
+      catch { setRowNotice({ waveId: entry.wave.id, text: `Payment link: ${json.paymentLinkUrl}` }); }
+    } catch (err: any) {
+      setRowNotice({ waveId: entry.wave.id, text: String(err?.message ?? err) });
+    }
+  }
+
+  async function handleMarkPaid() {
+    if (!markPaidEntry) return;
+    setMarkingPaid(true);
+    try {
+      await adminApiRequest(token, "POST", `/api/admin/waves/${markPaidEntry.wave.id}/mark-paid`, { method: markPaidMethod });
+      setMarkPaidEntry(null);
+      await loadChurches();
+    } catch (err: any) {
+      setError(String(err?.message ?? err));
+      setMarkPaidEntry(null);
+    } finally {
+      setMarkingPaid(false);
+    }
+  }
+
+  const formatWavePrice = (cents: number, currency?: string | null) =>
+    `${(currency ?? "usd").toUpperCase()} ${cents % 100 === 0 ? (cents / 100).toFixed(0) : (cents / 100).toFixed(2)}`;
+
   function handleSignOut() {
     logout();
     setLocation("/admin/login");
@@ -315,7 +353,10 @@ export function AdminOverview() {
       </header>
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
         <div className="space-y-3">
-          <h1 className="text-xl font-semibold">Church accounts</h1>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-xl font-semibold">Church accounts</h1>
+            <Button size="sm" onClick={() => setManualOpen(true)} data-testid="button-add-manual-survey">Add church survey</Button>
+          </div>
           <p className="text-sm text-muted-foreground">These are account registrations, not sign-in records. Registering does not purchase a survey or activate a participant code.</p>
           <div className="flex flex-wrap gap-2">
             {[["customers", "Customers & historical records"], ["registered", "Registered, no purchase"], ["demo", "Demo"], ["all", "All accounts"]].map(([value, label]) => <Button key={value} size="sm" variant={accountFilter === value ? "default" : "outline"} aria-pressed={accountFilter === value} onClick={() => setAccountFilter(value)}>{label} ({groups.filter(g => value === "all" || accountCategory(g) === value).length})</Button>)}
@@ -417,6 +458,8 @@ export function AdminOverview() {
                           <div className="text-xs text-muted-foreground">
                             {entry.wave.joinCode ? `${entry.wave.status === "not_started" ? "Reserved code" : entry.wave.status === "closed" ? "Closed code" : "Survey code"} ${entry.wave.joinCode}` : "No activated code"} · {entry.responseCount} responses · needs {Math.ceil(entry.wave.minSampleSize * 0.5)} to close (50% of {entry.wave.minSampleSize} total adults)
                           </div>
+                          {entry.wave.adminNote && <div className="text-xs text-muted-foreground">Note: {entry.wave.adminNote}</div>}
+                          {rowNotice?.waveId === entry.wave.id && <div role="status" className="text-xs break-all text-primary" data-testid={`text-row-notice-${entry.wave.id}`}>{rowNotice.text}</div>}
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge variant={entry.wave.status === "closed" ? "secondary" : "default"}>{entry.wave.status === "not_started" && entry.wave.paymentStatus === "paid" ? journeyBadge(entry.wave) : entry.wave.status.replaceAll("_", " ")}</Badge>
@@ -428,9 +471,22 @@ export function AdminOverview() {
                             <Badge variant={entry.wave.paymentStatus === "paid" ? "outline" : "destructive"} data-testid={`badge-payment-${entry.wave.id}`}>
                               {entry.wave.paymentStatus}
                               {typeof entry.wave.priceCents === "number"
-                                ? ` · ${(entry.wave.currency ?? "usd").toUpperCase()} ${(entry.wave.priceCents / 100).toFixed(0)}`
+                                ? ` · ${formatWavePrice(entry.wave.priceCents, entry.wave.currency)}`
                                 : ""}
                             </Badge>
+                          )}
+                          {entry.wave.pricingSource === "admin_custom" && (
+                            <Badge variant="outline" data-testid={`badge-custom-${entry.wave.id}`}>
+                              {entry.wave.paymentMethod === "offline" ? "custom · paid outside Stripe" : entry.wave.paymentMethod === "complimentary" ? "complimentary" : "custom price"}
+                            </Badge>
+                          )}
+                          {entry.wave.pricingSource === "admin_custom" && entry.wave.paymentStatus === "unpaid" && (
+                            <>
+                              {entry.wave.paymentMethod === "stripe" && (
+                                <Button size="sm" variant="outline" onClick={() => handleCopyPaymentLink(entry)} data-testid={`button-copy-pay-link-${entry.wave.id}`}>Copy payment link</Button>
+                              )}
+                              <Button size="sm" variant="outline" onClick={() => { setMarkPaidMethod("offline"); setMarkPaidEntry(entry); }} data-testid={`button-mark-paid-${entry.wave.id}`}>Mark paid</Button>
+                            </>
                           )}
                           {entry.hasReport ? (
                             <>
@@ -539,6 +595,27 @@ export function AdminOverview() {
           ))
         )}
       </main>
+
+      {token && <ManualSurveyDialog open={manualOpen} onOpenChange={setManualOpen} token={token}
+        churches={groups.filter((g) => !g.church.isDemo && !g.church.primaryContactEmail.startsWith("legacy+")).map((g) => ({ id: g.church.id, name: g.church.name, email: g.church.primaryContactEmail }))}
+        onCreated={loadChurches} />}
+
+      <Dialog open={!!markPaidEntry} onOpenChange={(open) => !open && !markingPaid && setMarkPaidEntry(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Mark this survey paid?</DialogTitle></DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p>Use this when {markPaidEntry?.wave.label} was paid outside Stripe, or you've decided not to charge. The church moves to the orientation step and receives the standard purchase confirmation.</p>
+            <select aria-label="How it was paid" className="h-9 w-full rounded-md border bg-background px-2 text-base md:text-sm" value={markPaidMethod} onChange={(e) => setMarkPaidMethod(e.target.value as "offline" | "complimentary")}>
+              <option value="offline">Paid outside Stripe (e-transfer, cheque)</option>
+              <option value="complimentary">Complimentary (no charge)</option>
+            </select>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setMarkPaidEntry(null)} disabled={markingPaid}>Cancel</Button>
+              <Button onClick={handleMarkPaid} disabled={markingPaid} data-testid="button-confirm-mark-paid">{markingPaid ? "Saving…" : "Mark paid"}</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!forceCloseId} onOpenChange={(open) => !open && !forceClosing && setForceCloseId(null)}>
         <DialogContent>
