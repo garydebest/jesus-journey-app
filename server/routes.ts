@@ -46,6 +46,7 @@ import { isParticipantDemoCode, PARTICIPANT_DEMO_META } from "@shared/participan
 import { DASHBOARD_DEMO_WAVE_ID } from "@shared/dashboardDemo";
 import { submitResponseSchema } from "@shared/submission";
 import { getWordcloudPdf } from "./wordcloud";
+import * as followups from "./debriefFollowup";
 import { ethnicityPresetForCountry, encodeEthnicity } from "@shared/demographicPolicy";
 import { projectDemographicSummary } from "@shared/demographicProjection";
 
@@ -1393,7 +1394,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   app.get("/api/admin/waves/:id/emails", requireAdminAuth, async (req, res) => {
     const events = await storage.getEmailEventsByWave(String(req.params.id));
     res.json({
-      events: events.map((e) => ({ ...e, label: (EMAIL_TYPE_LABELS as Record<string, string>)[e.eventType] ?? e.eventType })),
+      events: events.map((e) => ({ ...e, label: e.eventType === followups.FOLLOWUP_EVENT_TYPE ? followups.FOLLOWUP_EVENT_LABEL : (EMAIL_TYPE_LABELS as Record<string, string>)[e.eventType] ?? e.eventType })),
       resendable: RESENDABLE.map((type) => ({ type, label: EMAIL_TYPE_LABELS[type] })),
     });
   });
@@ -1409,6 +1410,80 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     } catch (err: any) {
       res.status(409).json({ message: err?.message ?? "Could not resend" });
     }
+  });
+
+  // ---- Debrief follow-up drafts (Fathom transcript or pasted notes) --------
+  // Drafts only: a person reviews, edits and sends. Transcripts aren't stored.
+  async function followupContext(req: any, res: any) {
+    const wave = await storage.getWaveById(String(req.params.id));
+    if (!wave) { res.status(404).json({ message: "Wave not found" }); return null; }
+    const church = await storage.getChurchById(wave.churchId);
+    if (!church) { res.status(404).json({ message: "Church not found" }); return null; }
+    return { wave, church };
+  }
+  const followupError = (res: any, err: any) => res.status(err instanceof followups.FollowupError ? err.status : 500)
+    .json({ message: err instanceof followups.FollowupError ? err.message : "Something went wrong with the follow-up draft." });
+
+  app.get("/api/admin/waves/:id/followup", requireAdminAuth, async (req, res) => {
+    const ctx = await followupContext(req, res); if (!ctx) return;
+    try {
+      res.json({
+        followup: await followups.getFollowup(ctx.wave.id),
+        recipients: followups.followupRecipients(ctx.church).map((r) => r.email),
+        aiConfigured: followups.aiConfigured(), fathomConfigured: followups.fathomConfigured(),
+      });
+    } catch (err) { followupError(res, err); }
+  });
+
+  app.post("/api/admin/waves/:id/followup/draft", requireAdminAuth, async (req, res) => {
+    const ctx = await followupContext(req, res); if (!ctx) return;
+    if (isDemoChurch(ctx.church.id)) return res.status(403).json({ message: "The shared demo is read-only." });
+    if (ctx.wave.status !== "closed") return res.status(409).json({ message: "Follow-up drafts are for closed surveys after the debrief." });
+    const text = String((req.body as any)?.text ?? "");
+    const admin = (req as AdminRequest).admin ?? null;
+    try {
+      const followup = await followups.draftFromText(ctx.church, ctx.wave, text, { source: "pasted", fallbackSigner: admin?.name ?? null });
+      await adminAccounts.logAdminActivity(admin, "Drafted debrief follow-up", `${ctx.church.name} (from pasted transcript)`).catch(() => {});
+      res.json({ followup });
+    } catch (err) { followupError(res, err); }
+  });
+
+  app.put("/api/admin/waves/:id/followup", requireAdminAuth, async (req, res) => {
+    const ctx = await followupContext(req, res); if (!ctx) return;
+    if (isDemoChurch(ctx.church.id)) return res.status(403).json({ message: "The shared demo is read-only." });
+    try {
+      const followup = await followups.saveFollowupEdits(ctx.wave.id, String((req.body as any)?.subject ?? ""), String((req.body as any)?.body ?? ""));
+      res.json({ followup });
+    } catch (err) { followupError(res, err); }
+  });
+
+  app.post("/api/admin/waves/:id/followup/send", requireAdminAuth, async (req, res) => {
+    const ctx = await followupContext(req, res); if (!ctx) return;
+    if (isDemoChurch(ctx.church.id)) return res.status(403).json({ message: "The shared demo is read-only." });
+    const admin = (req as AdminRequest).admin ?? null;
+    try {
+      const result = await followups.sendFollowup(ctx.church, ctx.wave, admin?.name ?? "Shared admin login");
+      await adminAccounts.logAdminActivity(admin, "Sent debrief follow-up", `${ctx.church.name} → ${result.followup.sentTo}`).catch(() => {});
+      res.json(result);
+    } catch (err) { followupError(res, err); }
+  });
+
+  // Fathom "new meeting content ready" webhook (Standard Webhooks signature).
+  // Responds right away; matching and drafting continue in the background.
+  app.post("/api/fathom/webhook", async (req, res) => {
+    const secret = process.env.FATHOM_WEBHOOK_SECRET;
+    if (!secret) return res.status(503).json({ error: "Fathom webhook not configured" });
+    const rawBody = req.rawBody as Buffer | undefined;
+    if (!rawBody) return res.status(400).json({ error: "Missing body" });
+    const check = followups.verifyFathomSignature(rawBody, req.headers as any, secret);
+    if (!check.valid) {
+      console.error("Fathom webhook signature verification failed:", check.reason);
+      return res.status(400).json({ error: "Invalid signature" });
+    }
+    res.json({ ok: true });
+    followups.handleFathomMeeting(req.body ?? {})
+      .then((outcome) => console.log("Fathom webhook:", outcome))
+      .catch((err) => console.error("Fathom webhook handling error:", err?.message ?? err));
   });
 
   // Admin-only internal analysis report — never exposed to church accounts.

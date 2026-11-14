@@ -29,6 +29,19 @@ declare module "http" {
   }
 }
 
+// Larger bodies for call transcripts: the Fathom webhook and the admin
+// paste-in draft endpoint. Mounted first so the default 100 KB parser below
+// skips these requests (body-parser ignores already-parsed bodies).
+app.use(
+  ["/api/fathom/webhook", "/api/admin/waves/:id/followup/draft"],
+  express.json({
+    limit: "5mb",
+    verify: (req, _res, buf) => {
+      req.rawBody = buf;
+    },
+  }),
+);
+
 app.use(
   express.json({
     verify: (req, _res, buf) => {
