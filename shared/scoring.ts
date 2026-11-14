@@ -13,6 +13,10 @@ export interface PathwayScore {
 const HIGH = 3.79;
 const MED = 3.5;
 
+export function bandFor(score: number): "high" | "medium" | "low" {
+  return score > HIGH ? "high" : score < MED ? "low" : "medium";
+}
+
 function mean(values: number[]): number {
   return values.reduce((a, b) => a + b, 0) / values.length;
 }
@@ -26,7 +30,7 @@ export function computePathwayScores(responses: ItemResponses): PathwayScore[] {
   return PATHWAYS.map((p) => {
     const values = p.items.map((code) => responses[code]).filter((v) => typeof v === "number");
     const score = values.length > 0 ? Math.round(mean(values) * 100) / 100 : 0;
-    const band: PathwayScore["band"] = score > HIGH ? "high" : score < MED ? "low" : "medium";
+    const band: PathwayScore["band"] = bandFor(score);
     return { num: p.num, name: p.name, goal: p.goal, score, band };
   });
 }

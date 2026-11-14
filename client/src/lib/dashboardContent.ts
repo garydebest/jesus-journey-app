@@ -124,6 +124,8 @@ export interface ActStep {
   number: number;
   title: string;
   meta: string;
+  /** Optional bold lead-in shown before the body. */
+  lead?: string;
   body: string;
   fullDocIndex: number;
 }
@@ -132,14 +134,15 @@ export const ACT_STEPS: ActStep[] = [
   {
     number: 1,
     title: "Debriefing preparation",
-    meta: "Day 1 · Senior pastor + 1–2 key leaders · ~4 hours",
+    meta: "Step 1 · Senior pastor + 1–2 key leaders · up to 4 hours",
+    lead: "Before your debriefing call",
     body: "Work through the church report page by page right after the survey closes. Use the report as a checklist: sample size, demographic strengths and opportunities, the 5 stages of maturity, and the four Journey Goals — Trusting, Experiencing, Reflecting, Serving. Look first for strengths, then for growth opportunities.",
     fullDocIndex: 9,
   },
   {
     number: 2,
     title: "Debriefing leadership sessions",
-    meta: "Day 2 · Ministry staff / key leaders · ~4 hours",
+    meta: "Step 2 · Ministry staff / key leaders · up to 4 hours",
     body: "Walk the wider staff through the same results using yesterday's notes. Start together on Trusting Jesus, then split into three groups for Experiencing, Reflecting, and Serving Jesus. Introduce the Comments Report, then plan the next month, including core-community and town-hall meetings.",
     fullDocIndex: 10,
   },

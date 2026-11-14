@@ -34,7 +34,7 @@ export function PanelAct({ latestReport = null, isDemo = false, token = null }: 
             <div className="flex-1 space-y-2 border-b pb-6 last:border-b-0 last:pb-0">
               <h2 className="font-serif text-lg font-semibold">{step.title}</h2>
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{step.meta}</p>
-              <p className="text-sm text-muted-foreground leading-relaxed">{step.body}</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">{step.lead && <><strong className="font-semibold text-foreground">{step.lead}:</strong>{" "}</>}{step.body}</p>
               <FullDoc doc={FULL_DOCS[step.fullDocIndex]} />
             </div>
           </li>
