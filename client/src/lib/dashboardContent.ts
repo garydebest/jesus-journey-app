@@ -143,7 +143,7 @@ export const ACT_STEPS: ActStep[] = [
     number: 2,
     title: "Debriefing leadership sessions",
     meta: "Step 2 · Ministry staff / key leaders · up to 4 hours",
-    body: "Walk the wider staff through the same results using yesterday's notes. Start together on Trusting Jesus, then split into three groups for Experiencing, Reflecting, and Serving Jesus. Introduce the Comments Report, then plan the next month, including core-community and town-hall meetings.",
+    body: "As soon as possible after your Debriefing Call, walk the wider staff through the same results using your notes from preparation and the call. Start together on Trusting Jesus, then split into three groups for Experiencing, Reflecting, and Serving Jesus. Introduce the Comments Report, then plan the next month, including core-community and town-hall meetings.",
     fullDocIndex: 10,
   },
   {
