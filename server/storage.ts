@@ -151,6 +151,8 @@ export function ensureBootstrapped(): Promise<void> {
       await ensureColumn("churches", "lead_pastor_receives_results", "lead_pastor_receives_results BOOLEAN NOT NULL DEFAULT false");
       await ensureColumn("churches", "growth_plan_interest_at", "growth_plan_interest_at TIMESTAMPTZ");
       await ensureColumn("churches", "email_opt_in_growth_plan", "email_opt_in_growth_plan BOOLEAN NOT NULL DEFAULT false");
+      // Assigned facilitator (November 2026).
+      await ensureColumn("churches", "assigned_admin_id", "assigned_admin_id TEXT");
       // Survey Review and Facilitator's Report (October 2026).
       const { rows: hasDebriefTable } = await pool.query(`SELECT to_regclass('debriefing_reports') AS t`);
       if (hasDebriefTable[0]?.t) {
@@ -223,6 +225,7 @@ export interface IStorage {
   getAllChurches(): Promise<Church[]>;
   createChurch(data: InsertChurch, passwordHash: string): Promise<Church>;
   updateChurchContact(id: string, data: schema.UpdateChurchContact): Promise<Church | undefined>;
+  setChurchFacilitator(id: string, adminId: string | null): Promise<Church | undefined>;
 
   // Waves
   createWave(churchId: string, data: InsertWave, priceCents: number, currency: string, extra?: WaveCreateExtras): Promise<SurveyWave>;
@@ -332,6 +335,11 @@ export class DatabaseStorage implements IStorage {
     if (data.leadPastorReceivesResults !== undefined) updates.leadPastorReceivesResults = data.leadPastorReceivesResults;
     if (Object.keys(updates).length === 0) return this.getChurchById(id);
     const rows = await db.update(churches).set(updates).where(eq(churches.id, id)).returning();
+    return rows[0];
+  }
+
+  async setChurchFacilitator(id: string, adminId: string | null): Promise<Church | undefined> {
+    const rows = await db.update(churches).set({ assignedAdminId: adminId }).where(eq(churches.id, id)).returning();
     return rows[0];
   }
 

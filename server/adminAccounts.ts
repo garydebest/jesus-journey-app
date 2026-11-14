@@ -81,6 +81,8 @@ export function ensureAdminTables(): Promise<void> {
         detail TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
       )`);
+      // Where a facilitator's copies of internal notices go (may differ from the sign-in email).
+      await pool.query(`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS notice_email TEXT`);
       await pool.query(`CREATE INDEX IF NOT EXISTS admin_activity_created_idx ON admin_activity (created_at DESC)`);
       // Deny-by-default for the Supabase REST API, matching every other public table.
       for (const t of ["admin_users", "admin_tokens", "admin_activity"]) {
@@ -110,6 +112,7 @@ interface AdminRow {
   disabled_at: Date | null;
   last_sign_in_at: Date | null;
   password_changed_at: Date | null;
+  notice_email: string | null;
   created_at: Date;
 }
 
@@ -535,8 +538,37 @@ export async function listAdminTeam() {
     status: u.disabled_at ? "removed" : !u.password_hash ? "invited" : !u.totp_enabled_at ? "password set, two-factor pending" : "active",
     twoFactorEnabled: !!u.totp_enabled_at,
     lastSignInAt: u.last_sign_in_at,
+    noticeEmail: u.notice_email,
     createdAt: u.created_at,
   }));
+}
+
+// --- Facilitators -------------------------------------------------------------
+// Any administrator who has not been removed can be assigned to a church.
+
+export interface Facilitator { id: string; name: string; firstName: string; noticeEmail: string | null }
+
+export async function listFacilitators(): Promise<Facilitator[]> {
+  await ensureAdminTables();
+  const { rows } = await pool.query(`SELECT * FROM admin_users WHERE disabled_at IS NULL ORDER BY name`);
+  return (rows as AdminRow[]).map((u) => ({ id: u.id, name: u.name, firstName: firstName(u.name), noticeEmail: u.notice_email }));
+}
+
+/** The assigned facilitator, or null when unassigned or the person has been removed. */
+export async function getFacilitator(id: string | null | undefined): Promise<Facilitator | null> {
+  if (!id) return null;
+  const u = await getById(id);
+  if (!u || u.disabled_at) return null;
+  return { id: u.id, name: u.name, firstName: firstName(u.name), noticeEmail: u.notice_email };
+}
+
+export async function setAdminNoticeEmail(actor: AdminIdentity | null, id: string, emailRaw: string) {
+  const u = await getById(id);
+  if (!u) throw new AdminAccountError("Administrator not found.", 404);
+  const email = normEmail(emailRaw);
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new AdminAccountError("Please enter a valid email address.");
+  await pool.query(`UPDATE admin_users SET notice_email = $2 WHERE id = $1`, [id, email || null]);
+  await logAdminActivity(actor, "Changed notice email", `${u.name}: ${email || "none"}`);
 }
 
 export async function addAdminMember(actor: AdminIdentity | null, nameRaw: string, emailRaw: string, roleRaw: string) {

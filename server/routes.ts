@@ -1000,6 +1000,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         case "reset-two-factor": await adminAccounts.resetAdminTwoFactor(actor, id); return res.json({ ok: true });
         case "remove": await adminAccounts.setAdminRemoved(actor, id, true); return res.json({ ok: true });
         case "restore": await adminAccounts.setAdminRemoved(actor, id, false); return res.json({ ok: true });
+        case "notice-email": await adminAccounts.setAdminNoticeEmail(actor, id, String((req.body as any)?.email ?? "")); return res.json({ ok: true });
         default: return res.status(404).json({ message: "Unknown action" });
       }
     } catch (err: any) {
@@ -1064,6 +1065,27 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       }),
     );
     res.json({ waves: overview });
+  });
+
+  // Facilitator assignment: every administrator who hasn't been removed can be assigned.
+  app.get("/api/admin/facilitators", requireAdminAuth, async (_req, res) => {
+    try {
+      const list = await adminAccounts.listFacilitators();
+      res.json({ facilitators: list.map(({ id, name }) => ({ id, name })) });
+    } catch (err: any) {
+      adminAccountError(res, err, "Couldn't load facilitators.");
+    }
+  });
+  app.patch("/api/admin/churches/:id/facilitator", requireAdminAuth, async (req, res) => {
+    const church = await storage.getChurchById(String(req.params.id));
+    if (!church) return res.status(404).json({ message: "Church not found" });
+    const raw = (req.body as { adminId?: string | null })?.adminId;
+    const adminId = raw ? String(raw) : null;
+    const facilitator = adminId ? await adminAccounts.getFacilitator(adminId) : null;
+    if (adminId && !facilitator) return res.status(400).json({ message: "That facilitator isn't an active administrator." });
+    const updated = await storage.setChurchFacilitator(church.id, adminId);
+    await adminAccounts.logAdminActivity((req as AdminRequest).admin ?? null, "Assigned facilitator", `${church.name}: ${facilitator?.name ?? "unassigned"}`).catch(() => {});
+    res.json({ church: sanitizeChurch(updated ?? church) });
   });
 
   // Grouped by church — contact info + every survey wave that church has run.
