@@ -195,14 +195,36 @@ export interface ComputedPhase extends TimelinePhaseDef {
 export function computeTimelineDates(
   opensAt: string | null | undefined,
   closesAt: string | null | undefined,
+  debriefBookedAt?: string | null,
 ): ComputedPhase[] {
+  const shift = debriefShiftDays(closesAt, debriefBookedAt);
   return TIMELINE_PHASES.map((phase) => {
     const anchorDate = phase.anchor === "opens" ? opensAt : closesAt;
+    const extra = phase.order >= AFTER_DEBRIEF_FIRST_ORDER && phase.order <= AFTER_DEBRIEF_LAST_ORDER ? shift : 0;
     return {
       ...phase,
-      date: anchorDate ? addDays(anchorDate, phase.offsetDays) : null,
+      date: anchorDate ? addDays(anchorDate, phase.offsetDays + extra) : null,
     };
   });
+}
+
+// Facilitator Handbook: the leadership session happens as soon as possible
+// AFTER the church's Debriefing Call. Once the call is booked, the leadership
+// session defaults to the day after it, and the phases that follow it (core
+// community meeting through the strategic-plan retreat) move by the same
+// number of days so the plan keeps its order. The re-survey reminder stays
+// anchored to the survey's close. Earlier dates are never pulled forward, and
+// a church's own manual date adjustments still take precedence.
+const AFTER_DEBRIEF_FIRST_ORDER = 9; // debrief_leadership
+const AFTER_DEBRIEF_LAST_ORDER = 13; // strategic_plan
+const DAY_MS = 86_400_000;
+function debriefShiftDays(closesAt: string | null | undefined, debriefBookedAt: string | null | undefined): number {
+  if (!closesAt || !debriefBookedAt || !/^\d{4}-\d{2}-\d{2}$/.test(debriefBookedAt)) return 0;
+  const leadership = TIMELINE_PHASES.find((p) => p.key === "debrief_leadership")!;
+  const defaultDate = Date.parse(addDays(closesAt, leadership.offsetDays) + "T00:00:00Z");
+  const afterCall = Date.parse(addDays(debriefBookedAt, 1) + "T00:00:00Z");
+  if (Number.isNaN(defaultDate) || Number.isNaN(afterCall)) return 0;
+  return Math.max(0, Math.round((afterCall - defaultDate) / DAY_MS));
 }
 
 /** Default closesAt (2 weeks after opensAt) per the guide's suggested schedule. */

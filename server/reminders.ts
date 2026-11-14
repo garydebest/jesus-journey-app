@@ -103,7 +103,7 @@ export async function runReminderSweep(): Promise<ReminderRunResult> {
     try {
       const overrides = await storage.getTimelinePhaseOverrides(wave.id);
       const overrideByKey = new Map(overrides.map((o) => [o.phaseKey, o]));
-      const computed = computeTimelineDates(wave.opensAt, wave.closesAt).map((phase) => ({
+      const computed = computeTimelineDates(wave.opensAt, wave.closesAt, wave.debriefBookedAt).map((phase) => ({
         ...phase,
         date: overrideByKey.get(phase.key)?.overrideDate ?? phase.date,
       }));
