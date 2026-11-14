@@ -116,7 +116,7 @@ export function SurveyPlanner({ token, wave, isDemo = false, demoPlan, onChanged
     } catch (err) { setError(readableError(err)); }
   }
 
-  const phases = computeTimelineDates(calendarDate.safeParse(plan.opensAt).success ? plan.opensAt : null, calendarDate.safeParse(plan.closesAt).success ? plan.closesAt : null)
+  const phases = computeTimelineDates(calendarDate.safeParse(plan.opensAt).success ? plan.opensAt : null, calendarDate.safeParse(plan.closesAt).success ? plan.closesAt : null, wave?.debriefBookedAt)
     .map((phase) => ({ ...phase, date: plan.overrides[phase.key] ?? phase.date }));
 
   if (loading) return <p className="text-sm text-muted-foreground" role="status">Loading your action plan…</p>;

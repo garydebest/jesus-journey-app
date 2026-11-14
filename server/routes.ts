@@ -463,7 +463,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     }
     const overrides = await storage.getTimelinePhaseOverrides(wave.id);
     const overrideByKey = new Map(overrides.map((o) => [o.phaseKey, o]));
-    const computed = computeTimelineDates(wave.opensAt, wave.closesAt);
+    const computed = computeTimelineDates(wave.opensAt, wave.closesAt, wave.debriefBookedAt);
     const phases = computed.map((phase) => {
       const override = overrideByKey.get(phase.key);
       return {
@@ -577,7 +577,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     }
     const overrides = await storage.getTimelinePhaseOverrides(wave.id);
     const overrideByKey = new Map(overrides.map((o) => [o.phaseKey, o]));
-    const computed = computeTimelineDates(wave.opensAt, wave.closesAt).map((phase) => ({
+    const computed = computeTimelineDates(wave.opensAt, wave.closesAt, wave.debriefBookedAt).map((phase) => ({
       ...phase,
       date: overrideByKey.get(phase.key)?.overrideDate ?? phase.date,
     }));
