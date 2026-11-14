@@ -159,6 +159,7 @@ export const FULL_DOCS: FullDoc[] = [
 <li>Shows that the church is taking this seriously and will reflect together on what is learned and how together we might move toward a stronger relationship with Jesus</li>
 <li>Gives an opportunity at the end of the survey to offer any comments or suggestions for how we as a church can strengthen your walk with God</li>
 <li>Is completely private — no one in the church will know anyone’s answers or see the feedback reports they personally receive. The church only gets a summary report from everyone who takes the survey.</li>
+<li><strong>If at all possible, consider creating a twenty-minute window on one or even two Sunday meetings in order for everyone in attendance to fill out the survey there and then. It is by far the most effective way to ensure a strong sample for the survey result.</strong></li>
 </ul>
 <h4>Step 3: Initiate with Those Who Need a Paper Version</h4>
 <p>Consider those people in your community who may not be computer savvy or have a disability and will need to take the survey orally or on a paper version. This can be done with the Jesus Journey survey process. Doing this takes some additional work, since the paper surveys still must be entered into the online survey via a computer device. This means you will need volunteers who will take the paper surveys and enter them on a computer or other device for each of these surveys. This paper-survey process has a privacy assurance method so that people taking the survey with this method can still get a personal feedback report that only they can see.</p>
@@ -259,7 +260,7 @@ export const FULL_DOCS: FullDoc[] = [
 </ul>
 <p class="doc-source">Source: Act — Debriefing Preparation. © 2017 Jesus Journey Group. All Rights Reserved.</p>` },
   { title: `Debriefing Leadership Sessions`, html: `<h4>Extending the Debriefing Process — Ministry Staff</h4>
-<p>The next day, meet with ministry staff / leaders for a four-hour session that will be both informative and instructive. An example format for the meeting follows:</p>
+<p>As soon as possible after your Debriefing Call, walk your wider staff and leaders through your results from the Survey Review Report. An example format for the meeting follows:</p>
 <ul>
 <li>Use the format you used to debrief your results, along with the notes you took the previous day, as a template with which to guide the group through the interpretative process.</li>
 <li>Begin with the contents page to summarize what is in the report. Go over key elements of the Debriefing Results section of the dashboard (perhaps give them your summarized notes). Emphasize the discipline of looking first for strengths and then for opportunities for growth.</li>

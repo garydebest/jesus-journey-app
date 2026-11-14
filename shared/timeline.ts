@@ -80,7 +80,7 @@ export const TIMELINE_PHASES: TimelinePhaseDef[] = [
     offsetDays: 0,
     title: "Full launch",
     summary:
-      "Announce it live to the whole congregation, share the join code everywhere, and encourage small groups to take it together.",
+      "Announce it live to the whole congregation, share the join code everywhere, and encourage small groups to take it together. Best results will come from choosing at least once to do the survey \"in meeting\".",
     sourceDoc: "Starting Our Jesus Journey Survey",
   },
   {
@@ -167,10 +167,10 @@ export const TIMELINE_PHASES: TimelinePhaseDef[] = [
     key: "resurvey_reminder",
     order: 14,
     anchor: "closes",
-    offsetDays: 548, // ~18 months
+    offsetDays: 548, // ~18 months (start of the 18–24 month window)
     title: "Re-survey reminder",
     summary:
-      "About 18 months out, plan to repeat the survey so you can see real movement compared to this snapshot.",
+      "About 18–24 months out, plan to repeat the survey so you can see real movement compared to this snapshot.",
     sourceDoc: "Making a Plan",
   },
 ];

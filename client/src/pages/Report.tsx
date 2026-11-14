@@ -1,12 +1,15 @@
+import { useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SurveyCopyright, SURVEY_COPYRIGHT } from "@/components/SurveyCopyright";
 import { JJLogo } from "@/lib/logo";
 import { PATHWAYS, ITEM_BULLETS, GOALS } from "@shared/pathways";
-import { computePathwayScores, computeGoalScores, itemIsStrength, type ItemResponses } from "@shared/scoring";
+import { computePathwayScores, computeGoalScores, itemIsStrength, type ItemResponses, type PathwayScore } from "@shared/scoring";
 import { MATURITY_LABELS } from "@shared/questions";
 import { isShortForm, SHORT_FORM_NOTE } from "@shared/shortForm";
 import { ShortReportSections } from "@/components/ShortReportSections";
+import { SeeAllToggle } from "@/components/SeeAllToggle";
 import {
   BarChart,
   Bar,
@@ -41,6 +44,64 @@ function bandLabel(band: "high" | "medium" | "low") {
   return BAND_STYLES[band];
 }
 
+// Facilitator Handbook: the personal report leads with the three greatest
+// Strengths and three greatest Opportunities, then offers "See all results".
+// Same tie-breaking as the short form (score, then pathway number); the six
+// selected pathways never overlap.
+export function selectTopPathways(scores: PathwayScore[]) {
+  const strengths = [...scores].sort((a, b) => b.score - a.score || a.num - b.num).slice(0, 3);
+  const chosen = new Set(strengths.map((p) => p.num));
+  const opportunities = scores.filter((p) => !chosen.has(p.num)).sort((a, b) => a.score - b.score || a.num - b.num).slice(0, 3);
+  return { strengths, opportunities };
+}
+
+function PathwayCard({ num, scoreEntry, items, testIdPrefix = "card-pathway-" }: {
+  num: number;
+  scoreEntry: PathwayScore;
+  items: ItemResponses;
+  testIdPrefix?: string;
+}) {
+  const p = PATHWAYS.find((x) => x.num === num)!;
+  const band = bandLabel(scoreEntry.band);
+  const narrative = p.narrative[scoreEntry.band];
+  const idSuffix = testIdPrefix === "card-pathway-" ? "" : `-${testIdPrefix.replace("card-pathway-", "").replace(/-$/, "")}`;
+  return (
+    <article className="rounded-lg border border-border p-5 space-y-3" data-testid={`${testIdPrefix}${p.num}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs text-muted-foreground">Pathway {p.num} · {p.goal}</p>
+          <h3 className="text-sm font-semibold" data-testid={`text-pathway-name-${p.num}${idSuffix}`}>{p.name}</h3>
+          <p className="text-xs text-muted-foreground italic mt-0.5">{p.tagline}</p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="text-lg font-semibold tabular-nums" data-testid={`text-pathway-score-${p.num}${idSuffix}`}>
+            {scoreEntry.score.toFixed(2)}
+          </p>
+          <Badge className="border-0" style={{ background: band.bg, color: band.fg }} data-testid={`badge-pathway-band-${p.num}${idSuffix}`}>
+            {band.text}
+          </Badge>
+        </div>
+      </div>
+      <p className="text-sm leading-relaxed" data-testid={`text-pathway-narrative-${p.num}${idSuffix}`}>{narrative}:</p>
+      <ul className="space-y-2">
+        {p.items.map((code) => {
+          const val = items[code];
+          const strong = typeof val === "number" && itemIsStrength(val);
+          const swatch = strong ? BAND_STYLES.high.bg : BAND_STYLES.low.bg;
+          return (
+            <li key={code} className="flex items-start gap-2.5 text-sm text-foreground" data-testid={`text-item-bullet-${code}${idSuffix}`}>
+              <span className="mt-1 h-2.5 w-2.5 rounded-full shrink-0"
+                style={{ background: swatch, printColorAdjust: "exact", WebkitPrintColorAdjust: "exact" }} aria-hidden="true" />
+              <span><span className="sr-only">{strong ? "Strength to Celebrate: " : "Opportunity to Explore: "}</span>{ITEM_BULLETS[code]}</span>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="text-xs text-muted-foreground">{p.scripture}</p>
+    </article>
+  );
+}
+
 export function Report({
   items,
   preMaturity,
@@ -57,6 +118,19 @@ export function Report({
   const short = isShortForm(preMaturity);
   const pathwayScores = short ? [] : computePathwayScores(items);
   const goalScores = short ? {} : computeGoalScores(pathwayScores);
+  const top = selectTopPathways(pathwayScores);
+  const [showAll, setShowAll] = useState(false);
+  // A printed or saved PDF always contains every result, because this report
+  // is never stored anywhere else. Expand first so the chart can size itself.
+  const printReport = () => {
+    flushSync(() => setShowAll(true));
+    window.setTimeout(() => window.print(), 350);
+  };
+  useEffect(() => {
+    const expand = () => flushSync(() => setShowAll(true));
+    window.addEventListener("beforeprint", expand);
+    return () => window.removeEventListener("beforeprint", expand);
+  }, []);
 
   const chartData = pathwayScores.map((p) => ({
     name: `P${p.num}`,
@@ -76,7 +150,7 @@ export function Report({
             </h1>
             <p className="text-xs text-muted-foreground">Personal &amp; anonymous — for your eyes only</p>
           </div>
-          <Button onClick={() => window.print()} data-testid="button-print-report">
+          <Button onClick={printReport} data-testid="button-print-report">
             Print / Save as PDF
           </Button>
         </div>
@@ -95,7 +169,7 @@ export function Report({
             size="sm"
             variant="outline"
             className="shrink-0 border-amber-400 text-amber-900 hover:bg-amber-100"
-            onClick={() => window.print()}
+            onClick={printReport}
             data-testid="button-print-report-banner"
           >
             Print / Save as PDF now
@@ -172,9 +246,10 @@ export function Report({
           </p>
           {short ? <p className="text-sm text-muted-foreground leading-relaxed" data-testid="text-short-form-note">{SHORT_FORM_NOTE}</p> : <p className="text-sm text-muted-foreground leading-relaxed" data-testid="text-report-intro">
             For each Goal, we measure progress along four Pathways. Pathways are means through which
-            your Journey of Faith can be helped to move forward. Below you'll see a chart with your
-            average score for each Pathway, colored by Goal. Further down, each Pathway is broken
-            into individual statements. A green dot marks a Strength to Celebrate,
+            your Journey of Faith can be helped to move forward. Below you'll first see your three
+            greatest Strengths to Celebrate and your three greatest Opportunities to Explore. Select
+            "See all results" to view a chart of all 16 Pathways, colored by Goal, with each Pathway
+            broken into individual statements. A green dot marks a Strength to Celebrate,
             and an orange dot marks an Opportunity to Explore.
           </p>}
           <p className="text-sm text-muted-foreground leading-relaxed" data-testid="text-report-god-note">
@@ -185,7 +260,34 @@ export function Report({
           </p>
         </section>
 
-        {short ? <ShortReportSections items={items} /> : <>
+        {short ? <ShortReportSections items={items} showAll={showAll} onToggle={() => setShowAll((v) => !v)} /> : <>
+        <p className="text-sm leading-relaxed rounded-lg border border-border p-4" data-testid="pathway-legend">
+          In the following pathways, interpret{" "}
+          <span className="inline-block h-2.5 w-2.5 rounded-full" role="img" aria-label="green dot"
+            style={{ background: BAND_STYLES.high.bg, printColorAdjust: "exact", WebkitPrintColorAdjust: "exact" }} />
+          {" "}as a <strong>Strength to Celebrate</strong> and{" "}
+          <span className="inline-block h-2.5 w-2.5 rounded-full" role="img" aria-label="orange dot"
+            style={{ background: BAND_STYLES.low.bg, printColorAdjust: "exact", WebkitPrintColorAdjust: "exact" }} />
+          {" "}as an <strong>Opportunity to Explore</strong>.
+        </p>
+
+        {([
+          ["strengths", "Your 3 Strengths to Celebrate", top.strengths],
+          ["opportunities", "Your 3 Opportunities to Explore", top.opportunities],
+        ] as const).map(([key, heading, list]) => (
+          <section key={key} className="space-y-4" data-testid={`section-top-${key}`}>
+            <h2 className="text-lg font-semibold">{heading}</h2>
+            {list.map((sc) => (
+              <PathwayCard key={sc.num} num={sc.num} scoreEntry={sc} items={items} testIdPrefix={`card-pathway-top-${key}-`} />
+            ))}
+          </section>
+        ))}
+
+        <SeeAllToggle open={showAll} onToggle={() => setShowAll((v) => !v)} controls="section-all-results" />
+
+        {/* Full results: hidden on screen until requested, always included when printed */}
+        <div id="section-all-results" className={showAll ? "space-y-10" : "hidden print:block space-y-10"} data-testid="section-all-results">
+        <h2 className="text-lg font-semibold pt-2 border-t border-border">All your results</h2>
         {/* Chart */}
         <section data-testid="section-pathway-chart">
           <h2 className="text-base font-semibold mb-4">Your 16 Pathways</h2>
@@ -232,15 +334,6 @@ export function Report({
           ))}
         </section>
 
-        <p className="text-sm leading-relaxed rounded-lg border border-border p-4" data-testid="pathway-legend">
-          In the following pathways, interpret{" "}
-          <span className="inline-block h-2.5 w-2.5 rounded-full" role="img" aria-label="green dot"
-            style={{ background: BAND_STYLES.high.bg, printColorAdjust: "exact", WebkitPrintColorAdjust: "exact" }} />
-          {" "}as a <strong>Strength to Celebrate</strong> and{" "}
-          <span className="inline-block h-2.5 w-2.5 rounded-full" role="img" aria-label="orange dot"
-            style={{ background: BAND_STYLES.low.bg, printColorAdjust: "exact", WebkitPrintColorAdjust: "exact" }} />
-          {" "}as an <strong>Opportunity to Explore</strong>.
-        </p>
 
         {/* Pathway detail cards, grouped by goal */}
         {GOALS.map((goal) => (
@@ -248,68 +341,14 @@ export function Report({
             <h2 className="text-base font-semibold pt-2 border-t border-border">
               {goal.toUpperCase()}
             </h2>
-            {PATHWAYS.filter((p) => p.goal === goal).map((p) => {
-              const scoreEntry = pathwayScores.find((s) => s.num === p.num)!;
-              const band = bandLabel(scoreEntry.band);
-              const narrative = p.narrative[scoreEntry.band];
-              return (
-                <article
-                  key={p.num}
-                  className="rounded-lg border border-border p-5 space-y-3"
-                  data-testid={`card-pathway-${p.num}`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Pathway {p.num}</p>
-                      <h3 className="text-sm font-semibold" data-testid={`text-pathway-name-${p.num}`}>
-                        {p.name}
-                      </h3>
-                      <p className="text-xs text-muted-foreground italic mt-0.5">{p.tagline}</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-lg font-semibold tabular-nums" data-testid={`text-pathway-score-${p.num}`}>
-                        {scoreEntry.score.toFixed(2)}
-                      </p>
-                      <Badge
-                        className="border-0"
-                        style={{ background: band.bg, color: band.fg }}
-                        data-testid={`badge-pathway-band-${p.num}`}
-                      >
-                        {band.text}
-                      </Badge>
-                    </div>
-                  </div>
-                  <p className="text-sm leading-relaxed" data-testid={`text-pathway-narrative-${p.num}`}>
-                    {narrative}:
-                  </p>
-                  <ul className="space-y-2">
-                    {p.items.map((code) => {
-                      const val = items[code];
-                      const strong = typeof val === "number" && itemIsStrength(val);
-                      const swatch = strong ? BAND_STYLES.high.bg : BAND_STYLES.low.bg;
-                      return (
-                        <li
-                          key={code}
-                          className="flex items-start gap-2.5 text-sm text-foreground"
-                          data-testid={`text-item-bullet-${code}`}
-                        >
-                          <span
-                            className="mt-1 h-2.5 w-2.5 rounded-full shrink-0"
-                            style={{ background: swatch, printColorAdjust: "exact", WebkitPrintColorAdjust: "exact" }}
-                            aria-hidden="true"
-                          />
-                          <span><span className="sr-only">{strong ? "Strength to Celebrate: " : "Opportunity to Explore: "}</span>{ITEM_BULLETS[code]}</span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  <p className="text-xs text-muted-foreground">{p.scripture}</p>
-                </article>
-              );
-            })}
+            {PATHWAYS.filter((p) => p.goal === goal).map((p) => (
+              <PathwayCard key={p.num} num={p.num} scoreEntry={pathwayScores.find((x) => x.num === p.num)!} items={items} />
+            ))}
           </section>
         ))}
+        </div>
 
+        {showAll && <SeeAllToggle open={showAll} onToggle={() => setShowAll(false)} controls="section-all-results" />}
         </>}
 
         {/* Where Do I Go From Here */}
@@ -384,7 +423,7 @@ export function Report({
         </div>
 
         <div className="flex flex-col items-center gap-3 pt-6 print:hidden">
-          <Button onClick={() => window.print()} data-testid="button-print-report-bottom">
+          <Button onClick={printReport} data-testid="button-print-report-bottom">
             Print / Save as PDF
           </Button>
           <Button variant="outline" onClick={onRestart} data-testid="button-restart">
