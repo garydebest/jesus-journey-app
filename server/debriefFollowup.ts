@@ -346,7 +346,7 @@ export function composeBody(church: Church, parts: DraftParts, signer: string, m
   const lines = [
     `Dear ${greetingFor(church)},`,
     "",
-    `Thank you for the time you and your team gave to our debrief${when}. It was a privilege to look at your church's results with you and to hear what stood out to you.`,
+    `Thank you for the time you and your team gave to our debrief${when}. Your people were honest with you, and you received what they shared with real care.`,
     "",
     "Strengths you want to celebrate:",
     bullets(parts.strengths, "[add two or three strengths, in their words]"),
