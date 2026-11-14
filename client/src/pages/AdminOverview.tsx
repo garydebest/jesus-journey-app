@@ -126,11 +126,11 @@ export function AdminOverview() {
   const accountCategory = (g: AdminChurchGroup) => g.church.isDemo ? "demo" : g.waves.some(e => e.wave.paymentStatus === "paid") || g.legacySnapshots.length > 0 ? "customers" : "registered";
   const [facilitators, setFacilitators] = useState<{ id: string; name: string }[]>([]);
   const [myAdminId, setMyAdminId] = useState<string | null>(null);
-  const [mineOnly, setMineOnly] = useState(false);
   const [savingFacilitatorId, setSavingFacilitatorId] = useState<string | null>(null);
-  const visibleGroups = groups
-    .filter(g => accountFilter === "all" || accountCategory(g) === accountFilter)
-    .filter(g => !mineOnly || (!!myAdminId && g.church.assignedAdminId === myAdminId));
+  // "mine" is its own view: every church assigned to me, whatever its category.
+  const visibleGroups = accountFilter === "mine"
+    ? groups.filter(g => !!myAdminId && g.church.assignedAdminId === myAdminId)
+    : groups.filter(g => accountFilter === "all" || accountCategory(g) === accountFilter);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [reportChurch, setReportChurch] = useState<AdminChurch | null>(null);
@@ -398,7 +398,7 @@ export function AdminOverview() {
           <div className="flex flex-wrap gap-2">
             {[["customers", "Customers & historical records"], ["registered", "Registered, no purchase"], ["demo", "Demo"], ["all", "All accounts"]].map(([value, label]) => <Button key={value} size="sm" variant={accountFilter === value ? "default" : "outline"} aria-pressed={accountFilter === value} onClick={() => setAccountFilter(value)}>{label} ({groups.filter(g => value === "all" || accountCategory(g) === value).length})</Button>)}
             {myAdminId && (
-              <Button size="sm" variant={mineOnly ? "default" : "outline"} aria-pressed={mineOnly} onClick={() => setMineOnly(v => !v)} data-testid="button-filter-my-churches">
+              <Button size="sm" variant={accountFilter === "mine" ? "default" : "outline"} aria-pressed={accountFilter === "mine"} onClick={() => setAccountFilter("mine")} data-testid="button-filter-my-churches">
                 My churches ({groups.filter(g => g.church.assignedAdminId === myAdminId).length})
               </Button>
             )}
@@ -412,7 +412,7 @@ export function AdminOverview() {
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading churches...</p>
         ) : visibleGroups.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No accounts in this category.</p>
+          <p className="text-sm text-muted-foreground">{accountFilter === "mine" ? "No churches are assigned to you yet. Choose your name in a church's Facilitator dropdown." : "No accounts in this category."}</p>
         ) : (
           visibleGroups.map(({ church, waves, legacySnapshots, scheduledDeletion }) => (
             <Card key={church.id} data-testid={`card-admin-church-${church.id}`}>
