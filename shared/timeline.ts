@@ -110,7 +110,7 @@ export const TIMELINE_PHASES: TimelinePhaseDef[] = [
     offsetDays: 1,
     title: "Debriefing preparation",
     summary:
-      "Senior pastor plus 1-2 key leaders spend about 4 hours working through the Church Report page by page.",
+      "Before your Debriefing Call, the senior pastor plus 1–2 key leaders spend up to 4 hours working through the Church Report page by page.",
     sourceDoc: "Debriefing Preparation",
   },
   {
@@ -120,7 +120,7 @@ export const TIMELINE_PHASES: TimelinePhaseDef[] = [
     offsetDays: 2,
     title: "Debriefing leadership session",
     summary:
-      "A 4-hour session with ministry staff/key leaders — split into three groups for Experiencing, Reflecting, and Serving Jesus, then introduce the Comments Report.",
+      "As soon as possible after your Debriefing Call, hold a session of up to 4 hours with ministry staff/key leaders — split into three groups for Experiencing, Reflecting, and Serving Jesus, then introduce the Comments Report.",
     sourceDoc: "Debriefing Leadership Sessions",
   },
   {
