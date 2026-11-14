@@ -29,6 +29,7 @@ interface Member {
   status: string;
   twoFactorEnabled: boolean;
   lastSignInAt: string | null;
+  noticeEmail?: string | null;
 }
 interface Activity { at: string; who: string; action: string; detail: string | null }
 
@@ -258,6 +259,22 @@ function TeamCard({ token, team, selfId, onChanged }: { token: string; team: Mem
     }
   }
 
+  async function setNoticeEmail(m: Member) {
+    const value = window.prompt(`Email address for ${m.name}'s copies of internal notices for the churches they facilitate. Leave blank for no copies.`, m.noticeEmail ?? "");
+    if (value === null) return;
+    setNote(null);
+    setBusy(m.id + "notice");
+    try {
+      await adminApiRequest(token, "POST", `/api/admin/team/${m.id}/notice-email`, { email: value.trim() });
+      setNote({ kind: "ok", text: value.trim() ? `${m.name} will get copies of notices for their churches at ${value.trim()}.` : `${m.name} will no longer get notice copies.` });
+      onChanged();
+    } catch (err) {
+      setNote({ kind: "error", text: friendlyError(err) });
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function add(e: React.FormEvent) {
     e.preventDefault();
     setNote(null);
@@ -278,7 +295,7 @@ function TeamCard({ token, team, selfId, onChanged }: { token: string; team: Mem
     <Card>
       <CardHeader>
         <CardTitle className="text-base">Administrator team</CardTitle>
-        <CardDescription>Everyone signs in with their own email, password and authenticator code. Only owners can see this section.</CardDescription>
+        <CardDescription>Everyone signs in with their own email, password and authenticator code. Only owners can see this section. "Notice copies" is where a facilitator receives a copy of each internal notice for the churches assigned to them.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="divide-y rounded-md border" data-testid="list-admin-team">
@@ -287,6 +304,10 @@ function TeamCard({ token, team, selfId, onChanged }: { token: string; team: Mem
               <div className="min-w-0">
                 <div className="text-sm font-medium">{m.name} {m.id === selfId && <span className="text-muted-foreground font-normal">(you)</span>}</div>
                 <div className="text-xs text-muted-foreground break-all">{m.email} · last sign-in {when(m.lastSignInAt)}</div>
+                <div className="text-xs text-muted-foreground break-all" data-testid={`text-notice-email-${m.email}`}>
+                  Notice copies: {m.noticeEmail || "none"}{" "}
+                  {m.status !== "removed" && <button type="button" className="underline" disabled={!!busy} onClick={() => setNoticeEmail(m)}>change</button>}
+                </div>
                 <div className="mt-1 flex gap-1.5">
                   <Badge variant="outline">{m.role === "owner" ? "Owner" : "Administrator"}</Badge>
                   <Badge variant={m.status === "active" ? "secondary" : "outline"}>{m.status}</Badge>

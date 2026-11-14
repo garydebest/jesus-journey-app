@@ -271,6 +271,28 @@ await test("activity log records sign-ins, account changes and survey actions wi
   assert.ok(opening.detail && !/^wave /.test(opening.detail), "detail names the church and survey");
 });
 
+await test("facilitators: list, assign, unassign, owner-only notice email", async () => {
+  const f = await get("/api/admin/facilitators", memberToken);
+  assert.equal(f.status, 200);
+  const member = f.json.facilitators.find((x: any) => x.name === "Max Member");
+  assert.ok(member, "active member is listed");
+  assert.ok(!("noticeEmail" in member), "notice emails are not exposed to every admin");
+  const { rows: ch } = await pool.query(`SELECT id FROM churches LIMIT 1`);
+  const before = (await pool.query(`SELECT assigned_admin_id FROM churches WHERE id = $1`, [ch[0].id])).rows[0].assigned_admin_id;
+  const set = await call("PATCH", `/api/admin/churches/${ch[0].id}/facilitator`, { adminId: member.id }, memberToken);
+  assert.equal(set.status, 200, JSON.stringify(set.json));
+  assert.equal(set.json.church.assignedAdminId, member.id);
+  assert.equal((await call("PATCH", `/api/admin/churches/${ch[0].id}/facilitator`, { adminId: "nobody" }, memberToken)).status, 400);
+  const list = await get("/api/admin/churches", memberToken);
+  assert.equal(list.json.churches.find((g: any) => g.church.id === ch[0].id).church.assignedAdminId, member.id);
+  assert.equal((await call("PATCH", `/api/admin/churches/${ch[0].id}/facilitator`, { adminId: null }, memberToken)).json.church.assignedAdminId, null);
+  await pool.query(`UPDATE churches SET assigned_admin_id = $2 WHERE id = $1`, [ch[0].id, before]);
+  assert.equal((await post(`/api/admin/team/${member.id}/notice-email`, { email: "max@notices.test" }, memberToken)).status, 403);
+  assert.equal((await post(`/api/admin/team/${member.id}/notice-email`, { email: "max@notices.test" }, ownerToken)).status, 200);
+  const team = await get("/api/admin/team", ownerToken);
+  assert.equal(team.json.team.find((x: any) => x.id === member.id).noticeEmail, "max@notices.test");
+});
+
 await test("sign out ends the session", async () => {
   assert.equal((await post("/api/admin/logout", {}, memberToken)).status, 200);
   assert.equal((await get("/api/admin/overview", memberToken)).status, 401);

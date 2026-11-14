@@ -31,6 +31,8 @@ export const churches = pgTable("churches", {
   // after six months without a sign-in, with a notice 14 days before.
   lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
   unusedWarningSentAt: timestamp("unused_warning_sent_at", { withTimezone: true }),
+  // Facilitator (an admin_users id) responsible for this church. Null = unassigned.
+  assignedAdminId: text("assigned_admin_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
 });
 

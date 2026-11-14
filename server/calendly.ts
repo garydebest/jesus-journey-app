@@ -11,6 +11,7 @@ import { storage } from "./storage";
 import { onDebriefBooked } from "./journey";
 import { sendEmailDetailed } from "./mailer";
 import { internalNotificationsEmail } from "./journeyConfig";
+import { getFacilitator } from "./adminAccounts";
 import type { SurveyWave } from "@shared/schema";
 
 export function verifyCalendlySignature(rawBody: Buffer, header: string | undefined, key: string, toleranceSeconds = 300): { valid: boolean; reason?: string } {
@@ -59,9 +60,17 @@ async function findWave(p: any): Promise<SurveyWave | undefined> {
   return closed[0];
 }
 
-async function notifyInternal(subject: string, lines: string[]) {
+async function notifyInternal(subject: string, lines: string[], wave?: SurveyWave) {
+  const church = wave ? await storage.getChurchById(wave.churchId) : undefined;
+  const facilitator = church ? await getFacilitator(church.assignedAdminId).catch(() => null) : null;
+  if (church) subject = `${subject} — ${church.name}${facilitator ? ` — ${facilitator.firstName}` : ""}`;
   const text = lines.join("\n");
-  await sendEmailDetailed({ to: internalNotificationsEmail(), subject, text, html: `<p>${lines.map((l) => l.replace(/&/g, "&amp;").replace(/</g, "&lt;")).join("<br>")}</p>` });
+  const html = `<p>${lines.map((l) => l.replace(/&/g, "&amp;").replace(/</g, "&lt;")).join("<br>")}</p>`;
+  const to = internalNotificationsEmail();
+  await sendEmailDetailed({ to, subject, text, html });
+  if (facilitator?.noticeEmail && facilitator.noticeEmail.toLowerCase() !== to.toLowerCase()) {
+    await sendEmailDetailed({ to: facilitator.noticeEmail, subject, text, html });
+  }
 }
 
 export type CalendlyOutcome = "ignored" | "booked" | "rescheduled" | "canceled" | "unmatched";
@@ -97,7 +106,7 @@ export async function handleCalendlyEvent(body: any): Promise<CalendlyOutcome> {
     await notifyInternal("Calendly debrief canceled", [
       `${who} canceled the Debriefing Call that was set for ${when}.`,
       wave ? "The debrief date was cleared, so the church can book again from its dashboard." : "It could not be matched to a church survey.",
-    ]);
+    ], wave);
     return "canceled";
   }
   return "ignored";

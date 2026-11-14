@@ -248,6 +248,9 @@ export function renderClientEmail(type: ClientEmailType, c: TemplateContext): Re
 
 export interface InternalContext {
   churchName: string;
+  /** Assigned facilitator; appended to the subject so the shared mailbox can be filtered by person. */
+  facilitatorName?: string | null;
+  facilitatorFirstName?: string | null;
   waveLabel: string | null;
   primaryContact: string;
   coordinator: string | null;
@@ -287,9 +290,10 @@ const INTERNAL_ACTION: Record<InternalEmailType, string> = {
 };
 
 export function renderInternalEmail(type: InternalEmailType, c: InternalContext): RenderedEmail {
-  const subject = `[Jesus Journey] ${INTERNAL_SUBJECT[type]} — ${c.churchName}`;
+  const subject = `[Jesus Journey] ${INTERNAL_SUBJECT[type]} — ${c.churchName}${c.facilitatorFirstName ? ` — ${c.facilitatorFirstName}` : ""}`;
   const rows = [
     ["Church", c.churchName],
+    ["Facilitator", c.facilitatorName ?? "Not yet assigned"],
     ["Survey", c.waveLabel ?? "—"],
     ["Primary contact", c.primaryContact],
     ["Survey Coordinator", c.coordinator ?? "Not yet recorded"],

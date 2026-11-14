@@ -29,6 +29,7 @@ interface AdminChurch {
   growthPlanInterestAt?: string | null;
   lastSignInAt?: string | null;
   unusedWarningSentAt?: string | null;
+  assignedAdminId?: string | null;
 }
 
 interface AdminWaveEntry {
@@ -123,7 +124,13 @@ export function AdminOverview() {
   const [forceClosing, setForceClosing] = useState(false);
   const [forceCloseId, setForceCloseId] = useState<string | null>(null);
   const accountCategory = (g: AdminChurchGroup) => g.church.isDemo ? "demo" : g.waves.some(e => e.wave.paymentStatus === "paid") || g.legacySnapshots.length > 0 ? "customers" : "registered";
-  const visibleGroups = groups.filter(g => accountFilter === "all" || accountCategory(g) === accountFilter);
+  const [facilitators, setFacilitators] = useState<{ id: string; name: string }[]>([]);
+  const [myAdminId, setMyAdminId] = useState<string | null>(null);
+  const [mineOnly, setMineOnly] = useState(false);
+  const [savingFacilitatorId, setSavingFacilitatorId] = useState<string | null>(null);
+  const visibleGroups = groups
+    .filter(g => accountFilter === "all" || accountCategory(g) === accountFilter)
+    .filter(g => !mineOnly || (!!myAdminId && g.church.assignedAdminId === myAdminId));
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [reportChurch, setReportChurch] = useState<AdminChurch | null>(null);
@@ -169,6 +176,26 @@ export function AdminOverview() {
   useEffect(() => {
     if (token) loadChurches();
   }, [token, loadChurches]);
+
+  useEffect(() => {
+    if (!token) return;
+    adminApiRequest(token, "GET", "/api/admin/facilitators").then(r => r.json()).then(j => setFacilitators(j.facilitators ?? [])).catch(() => {});
+    adminApiRequest(token, "GET", "/api/admin/me").then(r => r.json()).then(j => setMyAdminId(j?.id ?? null)).catch(() => {});
+  }, [token]);
+
+  async function handleAssignFacilitator(churchId: string, adminId: string) {
+    if (!token) return;
+    setSavingFacilitatorId(churchId);
+    setError(null);
+    try {
+      await adminApiRequest(token, "PATCH", `/api/admin/churches/${churchId}/facilitator`, { adminId: adminId || null });
+      setGroups(gs => gs.map(g => g.church.id === churchId ? { ...g, church: { ...g.church, assignedAdminId: adminId || null } } : g));
+    } catch (err: any) {
+      setError(String(err?.message ?? "Couldn't save the facilitator."));
+    } finally {
+      setSavingFacilitatorId(null);
+    }
+  }
 
   async function handleForceClose(waveId: string) {
     setForceClosing(true);
@@ -370,6 +397,11 @@ export function AdminOverview() {
           <p className="text-sm text-muted-foreground">These are account registrations, not sign-in records. Registering does not purchase a survey or activate a participant code.</p>
           <div className="flex flex-wrap gap-2">
             {[["customers", "Customers & historical records"], ["registered", "Registered, no purchase"], ["demo", "Demo"], ["all", "All accounts"]].map(([value, label]) => <Button key={value} size="sm" variant={accountFilter === value ? "default" : "outline"} aria-pressed={accountFilter === value} onClick={() => setAccountFilter(value)}>{label} ({groups.filter(g => value === "all" || accountCategory(g) === value).length})</Button>)}
+            {myAdminId && (
+              <Button size="sm" variant={mineOnly ? "default" : "outline"} aria-pressed={mineOnly} onClick={() => setMineOnly(v => !v)} data-testid="button-filter-my-churches">
+                My churches ({groups.filter(g => g.church.assignedAdminId === myAdminId).length})
+              </Button>
+            )}
           </div>
         </div>
         {error && (
@@ -405,7 +437,26 @@ export function AdminOverview() {
                       </div>
                     )}
                   </div>
+                  <div className="flex flex-col items-start sm:items-end gap-2">
                   <Badge variant="secondary">{church.isDemo ? `${waves.length} demo survey` : `${waves.filter(e => e.wave.paymentStatus === "paid").length} purchased${waves.some(e => e.wave.paymentStatus !== "paid") ? ` · ${waves.filter(e => e.wave.paymentStatus !== "paid").length} unpaid` : ""}`}</Badge>
+                  {!church.isDemo && (
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                      Facilitator
+                      <select
+                        aria-label={`Facilitator for ${church.name}`}
+                        className="h-8 rounded-md border border-input bg-background px-2 text-base md:text-sm text-foreground"
+                        value={church.assignedAdminId ?? ""}
+                        disabled={savingFacilitatorId === church.id}
+                        onChange={(e) => handleAssignFacilitator(church.id, e.target.value)}
+                        data-testid={`select-facilitator-${church.id}`}
+                      >
+                        <option value="">Not assigned</option>
+                        {facilitators.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                        {church.assignedAdminId && !facilitators.some(f => f.id === church.assignedAdminId) && <option value={church.assignedAdminId}>Removed administrator</option>}
+                      </select>
+                    </label>
+                  )}
+                  </div>
                 </div>
 
                 {legacySnapshots.length > 0 && (

@@ -12,6 +12,7 @@
 
 import { scheduledDeletionDate } from "./unusedAccounts";
 import { storage } from "./storage";
+import { getFacilitator } from "./adminAccounts";
 import type { Church, SurveyWave } from "@shared/schema";
 import { requiredResponsesForClose } from "@shared/schema";
 import { acceptsResponses, isDemoChurch } from "@shared/surveyAccess";
@@ -161,8 +162,11 @@ export async function sendInternalEmail(type: InternalEmailType, church: Church,
   const count = wave && wave.status !== "closed" ? await storage.countResponsesByWave(wave.id) : null;
   const snapshot = wave?.status === "closed" ? await storage.getSnapshotByWave(wave.id) : undefined;
   const target = wave ? requiredResponsesForClose(wave.minSampleSize) : 0;
+  const facilitator = await getFacilitator(church.assignedAdminId).catch(() => null);
   const email = renderInternalEmail(type, {
     churchName: church.name,
+    facilitatorName: facilitator?.name ?? null,
+    facilitatorFirstName: facilitator?.firstName ?? null,
     waveLabel: wave?.label ?? null,
     primaryContact: `${church.primaryContactName} <${church.primaryContactEmail}>`,
     coordinator: church.surveyCoordinatorEmail ? `${church.surveyCoordinatorName ?? ""} <${church.surveyCoordinatorEmail}>`.trim() : null,
@@ -174,6 +178,18 @@ export async function sendInternalEmail(type: InternalEmailType, church: Church,
   });
   const result = await sendEmailDetailed({ to, subject: email.subject, html: email.html, text: email.text });
   await storage.finishEmailEvent(claim.id, { status: result.status, providerMessageId: result.messageId, errorMessage: result.error });
+  // A copy to the assigned facilitator's own mailbox (same idempotency slot, so never duplicated).
+  if (facilitator?.noticeEmail && facilitator.noticeEmail.toLowerCase() !== to.toLowerCase()) {
+    const copyClaim = await storage.claimEmailEvent({
+      churchId: church.id, waveId: wave?.id ?? null, eventType: type,
+      recipientEmail: facilitator.noticeEmail, recipientRole: "internal",
+      idempotencyKey: `${type}:${wave?.id ?? church.id}:${slot}:facilitator`, triggeredBy: "system",
+    });
+    if (copyClaim) {
+      const copy = await sendEmailDetailed({ to: facilitator.noticeEmail, subject: email.subject, html: email.html, text: email.text });
+      await storage.finishEmailEvent(copyClaim.id, { status: copy.status, providerMessageId: copy.messageId, errorMessage: copy.error });
+    }
+  }
   return { recipient: to, role: "internal", status: result.status };
 }
 
