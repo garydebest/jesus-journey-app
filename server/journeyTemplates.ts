@@ -36,6 +36,7 @@ export const INTERNAL_EMAIL_TYPES = [
   "internal_growth_interest",
   "internal_delivery_failed",
   "internal_new_signup",
+  "internal_followup_draft_ready",
 ] as const;
 export type InternalEmailType = (typeof INTERNAL_EMAIL_TYPES)[number];
 
@@ -65,6 +66,7 @@ export const EMAIL_TYPE_LABELS: Record<ClientEmailType | InternalEmailType, stri
   internal_debrief_completed: "Internal: debrief completed",
   internal_growth_interest: "Internal: Growth Plan interest",
   internal_delivery_failed: "Internal: email delivery failed",
+  internal_followup_draft_ready: "Internal: debrief follow-up draft",
 };
 
 export interface TemplateContext {
@@ -273,6 +275,7 @@ const INTERNAL_SUBJECT: Record<InternalEmailType, string> = {
   internal_growth_interest: "Growth Plan interest",
   internal_delivery_failed: "Email delivery failed",
   internal_new_signup: "New account registered",
+  internal_followup_draft_ready: "Debrief follow-up draft ready",
 };
 
 const INTERNAL_ACTION: Record<InternalEmailType, string> = {
@@ -287,6 +290,7 @@ const INTERNAL_ACTION: Record<InternalEmailType, string> = {
   internal_growth_interest: "The church asked about the separate paid Growth Plan. Please follow up about fit, timing, and next steps.",
   internal_delivery_failed: "A client-journey email could not be delivered. Check the email history in the admin view and resend if needed.",
   internal_new_signup: "A church registered an account. No survey has been purchased yet. They were sent the welcome email with the free Discovery call link. If no survey is purchased and nobody signs in for six months, the account is deleted automatically (with a notice 14 days before).",
+  internal_followup_draft_ready: "A debrief follow-up email draft needs your attention (details below). Nothing has been sent to the church: a facilitator reviews, edits and sends it from the admin view."
 };
 
 export function renderInternalEmail(type: InternalEmailType, c: InternalContext): RenderedEmail {

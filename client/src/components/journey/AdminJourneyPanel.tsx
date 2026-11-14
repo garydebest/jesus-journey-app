@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { adminApiRequest } from "@/lib/adminAuth";
+import { DebriefFollowupCard } from "./DebriefFollowupCard";
 
 export interface AdminJourneyWave {
   id: string; status: string; paymentStatus?: string;
@@ -119,6 +120,8 @@ export function AdminJourneyPanel({ token, churchName, wave, isDemo, onChanged }
           </Button>
         </>}
       </div>
+
+      {closed && <DebriefFollowupCard token={token} waveId={wave.id} isDemo={isDemo} onSent={() => window.setTimeout(loadEvents, 500)} />}
 
       <div className="space-y-2">
         <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Email history</h4>
