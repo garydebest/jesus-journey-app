@@ -74,6 +74,9 @@ jobs:
       - name: Admin-entered church survey with a custom price (stubbed Stripe)
         if: matrix.suite == 'full'
         run: npx --no-install tsx script/manual-survey-qa.ts
+      - name: Owner-only response limit override
+        if: matrix.suite == 'full'
+        run: npx --no-install tsx script/response-limit-override-qa.ts
       - name: Debrief follow-up drafts from Fathom (stubbed AI)
         if: matrix.suite == 'full'
         run: npx --no-install tsx script/debrief-followup-qa.ts

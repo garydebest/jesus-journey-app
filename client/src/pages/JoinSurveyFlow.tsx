@@ -181,7 +181,7 @@ function JoinSurveyContent({ code, isDemo }: { code: string; isDemo: boolean }) 
           <JJLogo className="h-12 w-20 mx-auto" />
           <h1 className="text-lg font-semibold" data-testid="text-survey-full">This survey is full</h1>
           <p className="text-sm text-muted-foreground">
-            This survey has reached the maximum number of responses for your church's plan, so it can't accept more
+            This survey has reached its maximum number of responses, so it can't accept more
             responses. Thank you for your willingness to take part. Please let your church's survey coordinator know.
           </p>
           <Button variant="outline" onClick={() => setLocation("/")} data-testid="button-full-home">

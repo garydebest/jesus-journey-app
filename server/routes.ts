@@ -36,7 +36,7 @@ import * as adminAccounts from "./adminAccounts";
 import { recordChurchSignIn, runUnusedAccountSweep, scheduledDeletionDate, sendSignupEmails } from "./unusedAccounts";
 import { z } from "zod";
 import { requestPasswordReset, completePasswordReset, changePassword, createAccountSetupLink, PasswordResetError } from "./passwordReset";
-import { PRICING_TIERS, RESPONSE_LIMIT_MESSAGE, priceCentsForTier, publicPricingList, responseLimitForTier, tierForAdults } from "./pricing";
+import { PRICING_TIERS, RESPONSE_LIMIT_MESSAGE, priceCentsForTier, publicPricingList, responseLimitForTier, responseLimitForWave, tierForAdults } from "./pricing";
 import { createCheckoutSession, retrieveCheckoutSession, verifyStripeWebhookSignature, isStripeConfigured, sessionHasAutomaticTax, sessionMatchesWavePrice } from "./stripe";
 import { REGION_CURRENCY, regionForRequest } from "./currency";
 import { createCustomCheckout, formatPrice, isAdminCustomStripeWave, newPaymentLinkToken, openCustomCheckout, paymentLinkUrl, sendManualSurveyEmail } from "./manualSurvey";
@@ -62,14 +62,20 @@ function sanitizeChurch(church: { passwordHash?: string; [k: string]: any }): Re
 function sanitizeWave(wave: any) {
   if (!wave) return wave;
   // The payment-link token and internal pricing note are admin-only.
-  const { paymentLinkToken: _token, adminNote: _note, ...rest } = wave;
-  return { ...rest, joinCode: wave.paymentStatus === "paid" ? wave.joinCode : null, responseLimit: responseLimitForTier(wave.sizeTier) };
+  const { paymentLinkToken: _token, adminNote: _note, responseLimitOverride: _override, ...rest } = wave;
+  return { ...rest, joinCode: wave.paymentStatus === "paid" ? wave.joinCode : null, responseLimit: responseLimitForWave(wave) };
 }
 
 /** Admin view of a wave: adds the internal note and the stable payment link. */
 function adminWave(wave: any) {
   if (!wave) return wave;
-  return { ...sanitizeWave(wave), adminNote: wave.adminNote ?? null, paymentLinkUrl: wave.paymentStatus === "unpaid" ? paymentLinkUrl(wave) : null };
+  return {
+    ...sanitizeWave(wave),
+    adminNote: wave.adminNote ?? null,
+    paymentLinkUrl: wave.paymentStatus === "unpaid" ? paymentLinkUrl(wave) : null,
+    responseLimitOverride: wave.responseLimitOverride ?? null,
+    planResponseLimit: responseLimitForTier(wave.sizeTier),
+  };
 }
 
 export async function registerRoutes(httpServer: Server, app: Express) {
@@ -632,7 +638,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     }
     // Tell people up front if the purchased tier is already full, rather than
     // only after they have completed the survey. Saving re-checks under a lock.
-    const limit = responseLimitForTier(wave.sizeTier);
+    const limit = responseLimitForWave(wave);
     if (limit !== null && await storage.countResponsesByWave(wave.id) >= limit) {
       return res.status(409).json({ message: RESPONSE_LIMIT_MESSAGE, code: "RESPONSE_LIMIT_REACHED" });
     }
@@ -1030,6 +1036,10 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       let action: string;
       if (req.method === "POST" && sub === "close") action = "Closed survey";
       else if (req.method === "PATCH" && sub === "journey") action = `Updated survey journey (${Object.keys((req.body ?? {}) as object).join(", ") || "no fields"})`;
+      else if (req.method === "PATCH" && sub === "response-limit") {
+        const b = (req.body ?? {}) as { mode?: string; limit?: unknown };
+        action = b.mode === "plan" ? "Set response limit to the plan default" : b.mode === "none" ? "Removed the response limit" : `Set response limit to ${String(b.limit)}`;
+      }
       else if (req.method === "POST" && sub === "payment-link") action = "Copied survey payment link";
       else if (req.method === "POST" && sub === "mark-paid") action = `Marked survey paid outside Stripe (${String((req.body as any)?.method ?? "")})`;
       else if (req.method === "POST" && sub === "emails/resend") action = `Re-sent email (${String((req.body as any)?.type ?? "")})`;
@@ -1388,7 +1398,29 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     if (update.debriefCompletedAt && !wave.debriefCompletedAt) void onDebriefCompleted(wave.id);
     // First time a debrief date is recorded for a closed survey: email the church its Survey Review (sent once).
     if (update.debriefBookedAt && !wave.debriefBookedAt && wave.status === "closed") void onDebriefBooked(wave.id);
-    res.json({ wave: sanitizeWave(updated) });
+    res.json({ wave: adminWave(updated) });
+  });
+
+  // Owner-only: change a survey's response limit regardless of the tier
+  // purchased. Allowed any time before the survey closes, including after it
+  // has launched; the new limit applies to the next participant who joins.
+  app.patch("/api/admin/waves/:id/response-limit", requireAdminAuth, requireAdminOwner, async (req, res) => {
+    const wave = await storage.getWaveById(String(req.params.id));
+    if (!wave) return res.status(404).json({ message: "Wave not found" });
+    if (isDemoChurch(wave.churchId)) return res.status(403).json({ message: "The shared demo is read-only." });
+    if (wave.status === "closed") return res.status(409).json({ message: "This survey is closed, so its response limit can no longer change." });
+    const body = (req.body ?? {}) as { mode?: string; limit?: unknown };
+    let override: number | null;
+    if (body.mode === "plan") override = null;
+    else if (body.mode === "none") override = 0;
+    else if (body.mode === "custom") {
+      const n = Number(body.limit);
+      if (!Number.isInteger(n) || n < 1 || n > 100000) return res.status(400).json({ message: "Enter a whole number of responses from 1 to 100,000." });
+      override = n;
+    } else return res.status(400).json({ message: "Choose the plan limit, a custom limit, or no limit." });
+    const updated = await storage.setWaveResponseLimitOverride(wave.id, override);
+    const responses = await storage.countResponsesByWave(wave.id);
+    res.json({ wave: adminWave(updated), responses });
   });
 
   app.get("/api/admin/waves/:id/emails", requireAdminAuth, async (req, res) => {

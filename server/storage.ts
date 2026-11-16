@@ -170,6 +170,7 @@ export function ensureBootstrapped(): Promise<void> {
       await ensureColumn("survey_waves", "payment_method", "payment_method TEXT");
       await ensureColumn("survey_waves", "admin_note", "admin_note TEXT");
       await ensureColumn("survey_waves", "payment_link_token", "payment_link_token TEXT UNIQUE");
+      await ensureColumn("survey_waves", "response_limit_override", "response_limit_override INTEGER");
       await pool.query(`CREATE TABLE IF NOT EXISTS church_email_events (
         id TEXT PRIMARY KEY,
         church_id TEXT NOT NULL REFERENCES churches(id),
@@ -247,6 +248,7 @@ export interface IStorage {
   confirmWavePlan(waveId: string, churchId: string, plan: SurveyPlan): Promise<SurveyWave>;
   getResponseBreakdown(waveId: string): Promise<ResponseBreakdown>;
   updateWaveJourney(id: string, data: WaveJourneyUpdate): Promise<SurveyWave | undefined>;
+  setWaveResponseLimitOverride(id: string, override: number | null): Promise<SurveyWave | undefined>;
   setGrowthPlanInterest(churchId: string, optIn: boolean): Promise<Church | undefined>;
 
   // Client-journey email audit
@@ -464,6 +466,11 @@ export class DatabaseStorage implements IStorage {
     }
     if (Object.keys(updates).length === 0) return this.getWaveById(id);
     const rows = await db.update(surveyWaves).set(updates).where(eq(surveyWaves.id, id)).returning();
+    return rows[0];
+  }
+
+  async setWaveResponseLimitOverride(id: string, override: number | null): Promise<SurveyWave | undefined> {
+    const rows = await db.update(surveyWaves).set({ responseLimitOverride: override }).where(eq(surveyWaves.id, id)).returning();
     return rows[0];
   }
 
