@@ -39,6 +39,10 @@ export function ensureSessionTable(): Promise<void> {
       )`);
       await pool.query(`CREATE INDEX IF NOT EXISTS auth_sessions_church_idx ON auth_sessions (church_id)`);
       await pool.query(`CREATE INDEX IF NOT EXISTS auth_sessions_admin_idx ON auth_sessions (admin_user_id)`);
+      // Deny-by-default like every other public table: the app connects as the
+      // table owner, so RLS does not affect it, but Supabase's public API cannot
+      // read sessions even if grants change later.
+      await pool.query(`ALTER TABLE auth_sessions ENABLE ROW LEVEL SECURITY`);
       await purgeExpiredSessions();
     })().catch((err) => {
       tableReady = null;
