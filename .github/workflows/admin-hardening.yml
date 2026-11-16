@@ -28,7 +28,7 @@ jobs:
       ADMIN_USERNAME: admin
       NODE_ENV: test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: security/readiness-2026-10-10
       - uses: actions/setup-node@v7

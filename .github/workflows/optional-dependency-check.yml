@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: actions/setup-node@v7
@@ -42,7 +42,7 @@ jobs:
           fs.writeFileSync('optional-dependency-report.json',JSON.stringify(report,null,2));
           if(suspiciousSource.length)throw new Error('Native-driver source references require review');
           NODE
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: optional-dependency-evidence
