@@ -13,6 +13,7 @@ import type { WaveAggregateSummary } from "@shared/aggregate";
 import type { DebriefingReport } from "@shared/debriefing/types";
 import { ManualSurveyDialog } from "@/components/admin/ManualSurveyDialog";
 import { AdminJourneyPanel, journeyBadge, type AdminJourneyWave } from "@/components/journey/AdminJourneyPanel";
+import { ResponseLimitCard, type ResponseLimitWave } from "@/components/journey/ResponseLimitCard";
 
 interface AdminChurch {
   isDemo?: boolean;
@@ -126,6 +127,7 @@ export function AdminOverview() {
   const accountCategory = (g: AdminChurchGroup) => g.church.isDemo ? "demo" : g.waves.some(e => e.wave.paymentStatus === "paid") || g.legacySnapshots.length > 0 ? "customers" : "registered";
   const [facilitators, setFacilitators] = useState<{ id: string; name: string }[]>([]);
   const [myAdminId, setMyAdminId] = useState<string | null>(null);
+  const [myRole, setMyRole] = useState<string | null>(null);
   const [savingFacilitatorId, setSavingFacilitatorId] = useState<string | null>(null);
   // "mine" is its own view: every church assigned to me, whatever its category.
   const visibleGroups = accountFilter === "mine"
@@ -180,7 +182,7 @@ export function AdminOverview() {
   useEffect(() => {
     if (!token) return;
     adminApiRequest(token, "GET", "/api/admin/facilitators").then(r => r.json()).then(j => setFacilitators(j.facilitators ?? [])).catch(() => {});
-    adminApiRequest(token, "GET", "/api/admin/me").then(r => r.json()).then(j => setMyAdminId(j?.id ?? null)).catch(() => {});
+    adminApiRequest(token, "GET", "/api/admin/me").then(r => r.json()).then(j => { setMyAdminId(j?.id ?? null); setMyRole(j?.role ?? null); }).catch(() => {});
   }, [token]);
 
   async function handleAssignFacilitator(churchId: string, adminId: string) {
@@ -772,6 +774,15 @@ export function AdminOverview() {
                 <span className="text-right">{detailChurch?.surveyCoordinatorEmail ? `${detailChurch.surveyCoordinatorName ?? ""} ${detailChurch.surveyCoordinatorEmail}` : "Not named"}</span>
               </div>
               {detailChurch?.growthPlanInterestAt && <p className="text-xs">Growth Plan interest registered {new Date(detailChurch.growthPlanInterestAt).toLocaleDateString()}.</p>}
+              {token && detailChurch && myRole === "owner" && (
+                <ResponseLimitCard key={`limit-${detailWaveEntry.wave.id}`} token={token} isDemo={!!detailChurch.isDemo}
+                  wave={detailWaveEntry.wave as ResponseLimitWave} responseCount={detailWaveEntry.responseCount}
+                  onChanged={(w) => {
+                    const merged = { ...detailWaveEntry, wave: { ...detailWaveEntry.wave, ...w } };
+                    setDetailWaveEntry(merged);
+                    setGroups((gs) => gs.map((g) => ({ ...g, waves: g.waves.map((e) => e.wave.id === w.id ? merged : e) })));
+                  }} />
+              )}
               {token && detailChurch && (
                 <AdminJourneyPanel key={detailWaveEntry.wave.id} token={token} churchName={detailChurch.name} isDemo={!!detailChurch.isDemo}
                   wave={detailWaveEntry.wave as AdminJourneyWave}

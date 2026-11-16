@@ -3,7 +3,7 @@ import { count, eq } from "drizzle-orm";
 import { db } from "./storage";
 import { aggregateSnapshots, churches, debriefingReports, respondents, responses, surveyWaves, requiredResponsesForClose, type InsertResponse } from "@shared/schema";
 import { acceptsResponses, isDemoChurch } from "@shared/surveyAccess";
-import { RESPONSE_LIMIT_MESSAGE, responseLimitForTier } from "./pricing";
+import { RESPONSE_LIMIT_MESSAGE, responseLimitForWave } from "./pricing";
 import { computeWaveAggregate } from "@shared/aggregate";
 import { buildDebriefingReport } from "@shared/debriefing/engine";
 import { generateChurchReportPdf } from "./pdfReport";
@@ -90,7 +90,7 @@ export async function saveChurchResponse(waveId: string, data: Omit<InsertRespon
     const [wave] = await tx.select().from(surveyWaves).where(eq(surveyWaves.id, waveId)).for("update");
     if (!wave || wave.status === "closed") throw new SurveyCloseError(410, "This survey is now closed");
     if (isDemoChurch(wave.churchId) || !acceptsResponses(wave)) throw new SurveyCloseError(403, "This survey is not accepting responses.");
-    const limit = responseLimitForTier(wave.sizeTier);
+    const limit = responseLimitForWave(wave);
     if (limit !== null) {
       const [{ n }] = await tx.select({ n: count() }).from(responses).where(eq(responses.waveId, waveId));
       if (Number(n) >= limit) throw new SurveyCloseError(409, RESPONSE_LIMIT_MESSAGE, "RESPONSE_LIMIT_REACHED");

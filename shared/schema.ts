@@ -115,6 +115,10 @@ export const surveyWaves = pgTable("survey_waves", {
   paymentMethod: text("payment_method"),
   adminNote: text("admin_note"), // internal reason for the custom price; never shown to the church
   paymentLinkToken: text("payment_link_token").unique(), // stable /pay/<token> link for admin-entered Stripe surveys
+  // Owner-set response limit (November 2026). null = the purchased tier's
+  // limit; 0 = no limit; a positive number = that many responses. Can change
+  // at any time before closing; checked live on every join and save.
+  responseLimitOverride: integer("response_limit_override"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
 }, (t) => [index("survey_waves_church_id_idx").on(t.churchId)]);
 

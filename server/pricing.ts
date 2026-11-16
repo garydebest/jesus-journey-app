@@ -27,7 +27,17 @@ export function responseLimitForTier(tier: string | null | undefined): number | 
   return PRICING_TIERS[tier as SizeTier].max;
 }
 
-export const RESPONSE_LIMIT_MESSAGE = "This survey has reached the maximum number of responses for your church's plan, so it can't accept more responses. Please let your church's survey coordinator know.";
+/**
+ * The limit that actually applies to a survey: the owner's override when set
+ * (0 = no limit), otherwise the purchased tier's limit.
+ */
+export function responseLimitForWave(wave: { sizeTier?: string | null; responseLimitOverride?: number | null }): number | null {
+  const o = wave.responseLimitOverride;
+  if (typeof o === "number" && Number.isFinite(o)) return o > 0 ? o : null;
+  return responseLimitForTier(wave.sizeTier);
+}
+
+export const RESPONSE_LIMIT_MESSAGE = "This survey has reached its maximum number of responses, so it can't accept more. Please let your church's survey coordinator know.";
 
 /** The Standard Plan range for a church's total adults (16+). */
 export function tierForAdults(adults: number): SizeTier {

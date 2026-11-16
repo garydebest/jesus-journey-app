@@ -200,7 +200,7 @@ export function PanelYourSurveys(props: Props) {
           </div>
           <Progress value={Math.min(100, count / Math.max(1, target) * 100)} aria-label="Progress toward the 50% response target" />
           {current.responseLimit && count >= current.responseLimit && <p role="status" className="text-sm font-medium text-destructive" data-testid="text-response-limit-reached">
-            This survey has reached its limit of {current.responseLimit.toLocaleString()} respondents for your Standard Plan tier. New participants will be told the survey is full.
+            This survey has reached its limit of {current.responseLimit.toLocaleString()} respondents. New participants will be told the survey is full.
           </p>}
           <p className="text-sm text-muted-foreground">{reached ? "The 50% minimum is reached. You can close when ready, or keep collecting." : `${Math.max(0, target - count)} more responses needed to reach the 50% minimum.`} {isDemo ? "All figures here are simulated." : "Counts refresh every 30 seconds."}</p>
           <div className="flex flex-wrap gap-2">
