@@ -65,6 +65,8 @@ def from_report_rows(report_rows):
             if isinstance(v, (int, float)) and 1 <= v <= 5:
                 r[c] = int(v); answered += 1
         r["full_form"] = answered == len(CODES)
+        # Core Leaders Review (Nov 2026): responses that came in through the leader code.
+        r["leader"] = src.get("core_leader") is True
         out.append(r)
     return out
 

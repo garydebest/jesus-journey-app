@@ -145,7 +145,7 @@ def church_pdf(path, name, sel, B, L):
     s.append(KeepTogether([P("Where do we go from here?", H2), wn_box, Spacer(1, 14), P(E("" if withheld else f"How to read this: strengths and opportunities are based on the {sel['n_full']} people in the Believing, Trusting and Jesus Centered stages, who answered all 63 statements. Lines are chosen and ordered by comparing beliefs with beliefs and practices with practices, because beliefs always run ahead of practice.{note}"), SMALL), Spacer(1, 6), P(E(SURVEY_COPYRIGHT), SMALL)]))
     d = doc(path, f"{name}: Survey Review"); d.build(s, onFirstPage=footer(f"{name}  \u2022  Survey Review"), onLaterPages=footer(f"{name}  \u2022  Survey Review"))
 
-def facilitator_pdf(path, name, rows, sel, B, L):
+def facilitator_pdf(path, name, rows, sel, B, L, leaders_section=None):
     full = [r for r in rows if r["stage"] >= 3 and r.get("full_form", True)]
     s = [P("Facilitator's Report", H1), P(E(name), SUBT),
          P(E("This report mirrors the church's Survey Review line by line. For each line it shows what it is based on, the key numbers and the page in the full church report where the church can see the same data." if B.PAGES else "This report mirrors the church's Survey Review line by line. For each line it shows what it is based on and the key numbers. This church received the combined short-form and full-survey report, so there are no page references."), BODY), Spacer(1, 4),
@@ -187,6 +187,8 @@ def facilitator_pdf(path, name, rows, sel, B, L):
     s.append(KeepTogether([P("Where do we go from here?", H2),
                            P(E("As the church sees it in its Survey Review. These steps are the same for every church."), SMALL), Spacer(1, 4),
                            where_next_box(L)]))
+    # Core Leaders Review surveys only: leaders vs congregation (render_leaders_pdf.comparison_flowables).
+    if leaders_section: s.extend(leaders_section)
     s.append(KeepTogether([P("Notes for the facilitator", H2), ListFlowable([ListItem(P(E(t)), leftIndent=12) for t in [
         *L.FAC_NOTES,
         "Stage lines need at least 10 people in each stage compared. They compare each pathway's rise with this church's typical rise across all 16 pathways.",

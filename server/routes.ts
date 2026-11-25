@@ -8,13 +8,13 @@ import { storage, OrientationRequiredError, ORIENTATION_REQUIRED_MESSAGE } from 
 import { bookingConfig } from "./journeyConfig";
 import { onWavePaid, onOrientationCompleted, onSurveyActivated, onReportsReady, onDebriefBooked, onDebriefCompleted, onGrowthPlanInterest, runJourneySweep, adminResend, RESENDABLE } from "./journey";
 import { EMAIL_TYPE_LABELS, type ClientEmailType } from "./journeyTemplates";
-import { adminManualSurveySchema, insertChurchSchema, insertWaveSchema, updateChurchContactSchema, ITEM_CODES, requiredResponsesForClose } from "@shared/schema";
+import { adminManualSurveySchema, insertChurchSchema, insertWaveSchema, updateChurchContactSchema, ITEM_CODES, requiredResponsesForClose, CORE_LEADERS_MINIMUM } from "@shared/schema";
 import { TIMELINE_PHASES, computeTimelineDates, defaultClosesAt } from "@shared/timeline";
 import { buildTimelineIcs } from "./ics";
 import { closeSurvey, saveChurchResponse, SurveyCloseError } from "./closeSurvey";
 import { fetchReportPdf } from "./reportStorage";
 import { renderDebriefingPdfBuffer } from "./debriefingPdf";
-import { SURVEY_REVIEW_FILENAME, FACILITATOR_FILENAME } from "./surveyReviewPdf";
+import { SURVEY_REVIEW_FILENAME, FACILITATOR_FILENAME, LEADERS_REVIEW_FILENAME, LEADERS_FACILITATOR_FILENAME, generateLeadersReviewPdfs } from "./surveyReviewPdf";
 import { projectReportForDisplay } from "@shared/debriefing/reportProjection";
 import { projectChurchPdf } from "./churchPdfProjection";
 import {
@@ -62,8 +62,14 @@ function sanitizeChurch(church: { passwordHash?: string; [k: string]: any }): Re
 function sanitizeWave(wave: any) {
   if (!wave) return wave;
   // The payment-link token and internal pricing note are admin-only.
-  const { paymentLinkToken: _token, adminNote: _note, responseLimitOverride: _override, ...rest } = wave;
-  return { ...rest, joinCode: wave.paymentStatus === "paid" ? wave.joinCode : null, responseLimit: responseLimitForWave(wave) };
+  const { paymentLinkToken: _token, adminNote: _note, responseLimitOverride: _override, leaderJoinCode: _leader, ...rest } = wave;
+  return {
+    ...rest,
+    joinCode: wave.paymentStatus === "paid" ? wave.joinCode : null,
+    // The church sees its leader code only while the Core Leaders round is on.
+    leaderJoinCode: wave.paymentStatus === "paid" && wave.coreLeadersEnabled ? wave.leaderJoinCode ?? null : null,
+    responseLimit: responseLimitForWave(wave),
+  };
 }
 
 /** Admin view of a wave: adds the internal note and the stable payment link. */
@@ -75,6 +81,22 @@ function adminWave(wave: any) {
     paymentLinkUrl: wave.paymentStatus === "unpaid" ? paymentLinkUrl(wave) : null,
     responseLimitOverride: wave.responseLimitOverride ?? null,
     planResponseLimit: responseLimitForTier(wave.sizeTier),
+    coreLeadersEnabled: wave.coreLeadersEnabled === true,
+    leaderJoinCode: wave.leaderJoinCode ?? null,
+  };
+}
+
+const leaderReviewsInProgress = new Set<string>();
+
+/** Admin-only Core Leaders status for one survey. */
+async function coreLeadersStatus(wave: { id: string; status: string; coreLeadersEnabled?: boolean | null }) {
+  const review = await storage.getLeaderReviewByWave(wave.id);
+  // Raw responses are gone once a survey closes, so the count then comes from the saved review.
+  const leaderResponseCount = wave.status === "closed" ? review?.respondentCount ?? 0 : await storage.countLeaderResponsesByWave(wave.id);
+  return {
+    leaderResponseCount,
+    leaderMinimum: CORE_LEADERS_MINIMUM,
+    leaderReview: review ? { respondentCount: review.respondentCount, generatedAt: review.generatedAt } : null,
   };
 }
 
@@ -628,8 +650,9 @@ export async function registerRoutes(httpServer: Server, app: Express) {
   });
   app.get("/api/join/:code", async (req, res) => {
     if (isParticipantDemoCode(req.params.code)) return res.json(PARTICIPANT_DEMO_META);
-    const wave = await storage.getWaveByJoinCode(String(req.params.code));
-    if (!wave) return res.status(404).json({ message: "No survey found with that code" });
+    const resolved = await storage.resolveJoinCode(String(req.params.code));
+    if (!resolved) return res.status(404).json({ message: "No survey found with that code" });
+    const { wave } = resolved;
     if (wave.status === "closed") {
       return res.status(410).json({ message: "This survey is now closed" });
     }
@@ -661,8 +684,9 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       return res.status(400).json({ message: "Invalid response data", errors: parsed.error.flatten() });
     }
     const { joinCode, items, journeyPre, journeyPost, spiritualChange, demographics, comment } = parsed.data;
-    const wave = await storage.getWaveByJoinCode(joinCode);
-    if (!wave) return res.status(404).json({ message: "No survey found with that code" });
+    const resolved = await storage.resolveJoinCode(joinCode);
+    if (!resolved) return res.status(404).json({ message: "No survey found with that code" });
+    const { wave, isCoreLeader } = resolved;
     if (wave.status === "closed") return res.status(410).json({ message: "This survey is now closed" });
     if (isDemoChurch(wave.churchId)) return res.status(403).json({ message: "The demo does not collect real responses." });
     if (!acceptsResponses(wave)) {
@@ -691,6 +715,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
       childrenInHousehold: demographics?.children?.length ? JSON.stringify(demographics.children) : null,
       raceEthnicity: encodeEthnicity(demographics?.ethnicity),
       commentText: comment ?? null,
+      isCoreLeader,
     } as any);
     } catch (err) {
       if (err instanceof SurveyCloseError) return res.status(err.status).json({ message: err.message, code: err.code });
@@ -1040,6 +1065,8 @@ export async function registerRoutes(httpServer: Server, app: Express) {
         const b = (req.body ?? {}) as { mode?: string; limit?: unknown };
         action = b.mode === "plan" ? "Set response limit to the plan default" : b.mode === "none" ? "Removed the response limit" : `Set response limit to ${String(b.limit)}`;
       }
+      else if (req.method === "PATCH" && sub === "core-leaders") action = (req.body as any)?.enabled ? "Turned on the Core Leaders round" : "Turned off the Core Leaders round";
+      else if (req.method === "POST" && sub === "core-leaders/generate") action = "Generated the Core Leaders Review";
       else if (req.method === "POST" && sub === "payment-link") action = "Copied survey payment link";
       else if (req.method === "POST" && sub === "mark-paid") action = `Marked survey paid outside Stripe (${String((req.body as any)?.method ?? "")})`;
       else if (req.method === "POST" && sub === "emails/resend") action = `Re-sent email (${String((req.body as any)?.type ?? "")})`;
@@ -1123,6 +1150,7 @@ export async function registerRoutes(httpServer: Server, app: Express) {
                   hasDebriefingReportPdf: !!debriefing,
                   hasSurveyReviewPdf: !!debriefing?.surveyReviewPdfPath,
                   hasFacilitatorPdf: !!debriefing?.facilitatorPdfPath,
+                  ...await coreLeadersStatus(w),
                 };
               }),
           );
@@ -1422,6 +1450,70 @@ export async function registerRoutes(httpServer: Server, app: Express) {
     const responses = await storage.countResponsesByWave(wave.id);
     res.json({ wave: adminWave(updated), responses });
   });
+
+  // -------------------------------------------------------------------
+  // Core Leaders Review. The owner switches the round on per survey; that
+  // gives the survey a second join code for core leaders. Once at least
+  // CORE_LEADERS_MINIMUM leaders have answered, an administrator generates a
+  // preliminary review of just their answers while the survey stays open.
+  // The leaders' answers remain in the survey and in the final reports.
+  // -------------------------------------------------------------------
+  app.patch("/api/admin/waves/:id/core-leaders", requireAdminAuth, requireAdminOwner, async (req, res) => {
+    const wave = await storage.getWaveById(String(req.params.id));
+    if (!wave) return res.status(404).json({ message: "Wave not found" });
+    if (isDemoChurch(wave.churchId)) return res.status(403).json({ message: "The shared demo is read-only." });
+    if (wave.status === "closed") return res.status(409).json({ message: "This survey is closed, so the Core Leaders round can no longer change." });
+    const enabled = (req.body as { enabled?: unknown })?.enabled;
+    if (typeof enabled !== "boolean") return res.status(400).json({ message: "Choose on or off." });
+    const updated = await storage.setWaveCoreLeaders(wave.id, enabled);
+    res.json({ wave: adminWave(updated), ...await coreLeadersStatus(updated!) });
+  });
+
+  app.post("/api/admin/waves/:id/core-leaders/generate", requireAdminAuth, async (req, res) => {
+    const wave = await storage.getWaveById(String(req.params.id));
+    if (!wave) return res.status(404).json({ message: "Wave not found" });
+    if (isDemoChurch(wave.churchId)) return res.status(403).json({ message: "The shared demo is read-only." });
+    if (!wave.coreLeadersEnabled) return res.status(409).json({ message: "Turn on the Core Leaders round for this survey first." });
+    if (wave.status === "closed") return res.status(409).json({ message: "This survey is closed. Its leader answers are now part of the final reports." });
+    if (leaderReviewsInProgress.has(wave.id)) return res.status(409).json({ message: "The Core Leaders Review is already being prepared. Please wait a moment." });
+    leaderReviewsInProgress.add(wave.id);
+    try {
+      const rows = (await storage.getResponsesByWave(wave.id)).filter(row => row.isCoreLeader);
+      if (rows.length < CORE_LEADERS_MINIMUM) {
+        return res.status(409).json({ message: `The Core Leaders Review needs at least ${CORE_LEADERS_MINIMUM} leader responses. So far there are ${rows.length}.` });
+      }
+      const church = await storage.getChurchById(wave.churchId);
+      const result = await generateLeadersReviewPdfs({ waveId: wave.id, churchName: church?.name ?? "Your Church", rows });
+      if (!result.ok || !result.surveyReviewKey || !result.facilitatorKey) {
+        console.error("Core Leaders Review failed", wave.id, result.error);
+        return res.status(503).json({ message: "The Core Leaders Review could not be prepared. Nothing has changed in the survey; please try again." });
+      }
+      await storage.upsertLeaderReview({
+        waveId: wave.id, churchId: wave.churchId, respondentCount: rows.length,
+        reviewPdfPath: result.surveyReviewKey, facilitatorPdfPath: result.facilitatorKey, summaryJson: result.summaryJson ?? null,
+      });
+      res.json(await coreLeadersStatus(wave));
+    } finally {
+      leaderReviewsInProgress.delete(wave.id);
+    }
+  });
+
+  for (const [route, field, filename] of [
+    ["leaders-review.pdf", "reviewPdfPath", LEADERS_REVIEW_FILENAME],
+    ["leaders-facilitator.pdf", "facilitatorPdfPath", LEADERS_FACILITATOR_FILENAME],
+  ] as const) {
+    app.get(`/api/admin/waves/:id/${route}`, requireAdminAuth, async (req, res) => {
+      const review = await storage.getLeaderReviewByWave(String(req.params.id));
+      const key = review?.[field];
+      if (!key) return res.status(404).json({ message: "The Core Leaders Review has not been generated for this survey" });
+      const pdf = await fetchReportPdf(key);
+      if (!pdf) return res.status(503).json({ message: "The saved report could not be loaded. Please try again." });
+      res.setHeader("Cache-Control", "private, no-store");
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.send(pdf);
+    });
+  }
 
   app.get("/api/admin/waves/:id/emails", requireAdminAuth, async (req, res) => {
     const events = await storage.getEmailEventsByWave(String(req.params.id));

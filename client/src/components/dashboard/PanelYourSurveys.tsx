@@ -13,7 +13,7 @@ import { safeDemographicCounts, DEMOGRAPHIC_MIN_N } from "@shared/demographicPol
 import { NextStepPanel, deriveJourneyState } from "@/components/journey/NextStepPanel";
 
 export interface WaveWithMeta {
-  id: string; label: string; joinCode: string | null; status: string; paymentStatus?: string;
+  id: string; label: string; joinCode: string | null; leaderJoinCode?: string | null; status: string; paymentStatus?: string;
   minSampleSize: number; opensAt: string | null; closesAt: string | null; closedAt?: string | null;
   responseCount?: number;
   /** Most respondents the purchased tier accepts; null/undefined = no limit. */
@@ -193,6 +193,13 @@ export function PanelYourSurveys(props: Props) {
               try { await navigator.clipboard.writeText(current.joinCode ?? ""); setCopied(true); } catch { setLocalError("Copy the code shown here manually."); }
             }}>{copied ? "Copied" : "Copy code"}</Button>
           </div>
+          {current.leaderJoinCode && <div className="rounded-lg border border-dashed p-4 flex flex-wrap justify-between items-center gap-3" data-testid="leader-code-panel">
+            <div><p className="text-xs uppercase tracking-wide text-muted-foreground">Core leaders' code</p><p className="font-mono text-xl tracking-widest mt-1" data-testid="text-church-leader-code">{current.leaderJoinCode}</p>
+              <p className="mt-1 text-xs text-muted-foreground max-w-md">Give this code only to your core leaders. Their answers count toward this survey and are also gathered into a separate Core Leaders Review.</p></div>
+            <Button variant="outline" disabled={!active || isDemo} onClick={async () => {
+              try { await navigator.clipboard.writeText(current.leaderJoinCode ?? ""); } catch { setLocalError("Copy the code shown here manually."); }
+            }}>Copy leaders' code</Button>
+          </div>}
           <div id="survey-progress" className="grid grid-cols-3 gap-3 scroll-mt-24">
             <div><p className="text-2xl font-semibold tabular-nums">{count}</p><p className="text-xs text-muted-foreground">{current.responseLimit ? `Responses (limit ${current.responseLimit.toLocaleString()})` : "Responses"}</p></div>
             <div><p className="text-2xl font-semibold tabular-nums">{target}</p><p className="text-xs text-muted-foreground">50% target of {total}</p></div>

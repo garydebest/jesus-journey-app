@@ -23,7 +23,15 @@ def main():
     name = payload.get("church_name") or "Your Church"
     sel = B.select(rows)
     RP.church_pdf(Path(payload["church_out"]), name, sel, B, L)
-    RP.facilitator_pdf(Path(payload["facilitator_out"]), name, rows, sel, B, L)
+    leaders_section = None
+    if payload.get("leaders_comparison"):
+        # The Core Leaders Review was switched on for this survey: compare leaders with the congregation.
+        import leaders as LD
+        import render_leaders_pdf as RL
+        cmp = LD.compare(rows)
+        if cmp:
+            leaders_section = RL.comparison_flowables(cmp, LD)
+    RP.facilitator_pdf(Path(payload["facilitator_out"]), name, rows, sel, B, L, leaders_section=leaders_section)
     summary = json.loads(json.dumps({k: v for k, v in sel.items()}, default=str))
     print(json.dumps({"ok": True, "summary": summary}))
 

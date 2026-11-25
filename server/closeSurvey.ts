@@ -50,7 +50,9 @@ export async function closeSurvey(waveId: string, force = false, reports = rende
       });
       const debriefPdf = await reports.debrief(waveId, debrief);
       if (!debriefPdf.ok || !debriefPdf.storageKey) throw new Error(debriefPdf.error ?? "Debriefing PDF was not saved");
-      const review = await reports.surveyReview({ waveId, churchName: church?.name ?? "Your Church", rows });
+      const review = await reports.surveyReview({ waveId, churchName: church?.name ?? "Your Church", rows,
+        // The leaders-and-congregation section is added only when this survey ran a Core Leaders round.
+        leadersComparison: wave.coreLeadersEnabled === true });
       if (!review.ok || !review.surveyReviewKey || !review.facilitatorKey) throw new Error(review.error ?? "Survey Review PDFs were not saved");
 
       // No snapshot is exposed before every required PDF is saved and verified.
@@ -90,6 +92,9 @@ export async function saveChurchResponse(waveId: string, data: Omit<InsertRespon
     const [wave] = await tx.select().from(surveyWaves).where(eq(surveyWaves.id, waveId)).for("update");
     if (!wave || wave.status === "closed") throw new SurveyCloseError(410, "This survey is now closed");
     if (isDemoChurch(wave.churchId) || !acceptsResponses(wave)) throw new SurveyCloseError(403, "This survey is not accepting responses.");
+    // The leader code stops working the moment the Core Leaders round is switched off.
+    if (data.isCoreLeader && !wave.coreLeadersEnabled) throw new SurveyCloseError(404, "No survey found with that code");
+    // Leader responses count toward the purchased limit like any other response.
     const limit = responseLimitForWave(wave);
     if (limit !== null) {
       const [{ n }] = await tx.select({ n: count() }).from(responses).where(eq(responses.waveId, waveId));

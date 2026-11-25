@@ -14,6 +14,7 @@ import type { DebriefingReport } from "@shared/debriefing/types";
 import { ManualSurveyDialog } from "@/components/admin/ManualSurveyDialog";
 import { AdminJourneyPanel, journeyBadge, type AdminJourneyWave } from "@/components/journey/AdminJourneyPanel";
 import { ResponseLimitCard, type ResponseLimitWave } from "@/components/journey/ResponseLimitCard";
+import { CoreLeadersCard, type CoreLeadersWave } from "@/components/journey/CoreLeadersCard";
 
 interface AdminChurch {
   isDemo?: boolean;
@@ -57,8 +58,13 @@ interface AdminWaveEntry {
     paymentMethod?: string | null;
     adminNote?: string | null;
     paymentLinkUrl?: string | null;
+    coreLeadersEnabled?: boolean;
+    leaderJoinCode?: string | null;
   };
   responseCount: number;
+  leaderResponseCount?: number;
+  leaderMinimum?: number;
+  leaderReview?: { respondentCount: number; generatedAt: string } | null;
   hasReport: boolean;
   hasReportPdf: boolean;
   hasCommentsReportPdf: boolean;
@@ -781,6 +787,21 @@ export function AdminOverview() {
                     const merged = { ...detailWaveEntry, wave: { ...detailWaveEntry.wave, ...w } };
                     setDetailWaveEntry(merged);
                     setGroups((gs) => gs.map((g) => ({ ...g, waves: g.waves.map((e) => e.wave.id === w.id ? merged : e) })));
+                  }} />
+              )}
+              {token && detailChurch && (
+                <CoreLeadersCard key={`leaders-${detailWaveEntry.wave.id}`} token={token} isDemo={!!detailChurch.isDemo} isOwner={myRole === "owner"}
+                  wave={detailWaveEntry.wave as CoreLeadersWave} status={detailWaveEntry}
+                  onChanged={(w, st) => {
+                    const merged = {
+                      ...detailWaveEntry,
+                      wave: w ? { ...detailWaveEntry.wave, ...w } : detailWaveEntry.wave,
+                      ...(st.leaderResponseCount !== undefined ? { leaderResponseCount: st.leaderResponseCount } : {}),
+                      ...(st.leaderMinimum !== undefined ? { leaderMinimum: st.leaderMinimum } : {}),
+                      ...(st.leaderReview !== undefined ? { leaderReview: st.leaderReview } : {}),
+                    };
+                    setDetailWaveEntry(merged);
+                    setGroups((gs) => gs.map((g) => ({ ...g, waves: g.waves.map((e) => e.wave.id === merged.wave.id ? merged : e) })));
                   }} />
               )}
               {token && detailChurch && (

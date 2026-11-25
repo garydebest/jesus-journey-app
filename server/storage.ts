@@ -15,6 +15,7 @@ import {
   surveyTimelinePhases,
   debriefingReports,
   legacySnapshots,
+  leaderReviews,
   churchEmailEvents,
   type ChurchEmailEvent,
   type Church,
@@ -29,6 +30,7 @@ import {
   type SurveyTimelinePhase,
   type DebriefingReportRow,
   type LegacySnapshotRow,
+  type LeaderReviewRow,
 } from "@shared/schema";
 
 const connectionString = process.env.DATABASE_URL;
@@ -171,6 +173,22 @@ export function ensureBootstrapped(): Promise<void> {
       await ensureColumn("survey_waves", "admin_note", "admin_note TEXT");
       await ensureColumn("survey_waves", "payment_link_token", "payment_link_token TEXT UNIQUE");
       await ensureColumn("survey_waves", "response_limit_override", "response_limit_override INTEGER");
+      // Core Leaders Review (November 2026).
+      await ensureColumn("survey_waves", "core_leaders_enabled", "core_leaders_enabled BOOLEAN NOT NULL DEFAULT false");
+      await ensureColumn("survey_waves", "leader_join_code", "leader_join_code TEXT UNIQUE");
+      await ensureColumn("responses", "is_core_leader", "is_core_leader BOOLEAN NOT NULL DEFAULT false");
+      await pool.query(`CREATE TABLE IF NOT EXISTS leader_reviews (
+        id TEXT PRIMARY KEY,
+        wave_id TEXT NOT NULL UNIQUE REFERENCES survey_waves(id),
+        church_id TEXT NOT NULL REFERENCES churches(id),
+        respondent_count INTEGER NOT NULL,
+        review_pdf_path TEXT NOT NULL,
+        facilitator_pdf_path TEXT NOT NULL,
+        summary_json TEXT,
+        generated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`);
+      // Deny-by-default like the other public tables; the app connects as the table owner.
+      await pool.query(`ALTER TABLE leader_reviews ENABLE ROW LEVEL SECURITY`);
       await pool.query(`CREATE TABLE IF NOT EXISTS church_email_events (
         id TEXT PRIMARY KEY,
         church_id TEXT NOT NULL REFERENCES churches(id),
@@ -190,6 +208,18 @@ export function ensureBootstrapped(): Promise<void> {
     })();
   }
   return bootstrapped;
+}
+
+// Five-character code not used as any survey's church or leader join code.
+async function uniqueWaveCode(): Promise<string> {
+  let code = "";
+  for (let attempts = 0; attempts < 10; attempts++) {
+    code = genCode(5);
+    const existing = await db.select({ id: surveyWaves.id }).from(surveyWaves)
+      .where(sql`${surveyWaves.joinCode} = ${code} OR ${surveyWaves.leaderJoinCode} = ${code}`);
+    if (existing.length === 0) break;
+  }
+  return code;
 }
 
 function genCode(len = 4): string {
@@ -234,6 +264,13 @@ export interface IStorage {
   markWavePaidOutsideStripe(id: string, method: "offline" | "complimentary"): Promise<SurveyWave | undefined>;
   getWaveById(id: string): Promise<SurveyWave | undefined>;
   getWaveByJoinCode(code: string): Promise<SurveyWave | undefined>;
+  // Church join code, or the Core Leaders code when that round is switched on.
+  resolveJoinCode(code: string): Promise<{ wave: SurveyWave; isCoreLeader: boolean } | undefined>;
+  setWaveCoreLeaders(id: string, enabled: boolean): Promise<SurveyWave | undefined>;
+  countLeaderResponsesByWave(waveId: string): Promise<number>;
+  getLeaderReviewByWave(waveId: string): Promise<LeaderReviewRow | undefined>;
+  getAllLeaderReviews(): Promise<LeaderReviewRow[]>;
+  upsertLeaderReview(data: Omit<LeaderReviewRow, "id" | "generatedAt">): Promise<LeaderReviewRow>;
   getWavesByChurch(churchId: string): Promise<SurveyWave[]>;
   getAllWaves(): Promise<SurveyWave[]>;
   updateWaveStatus(id: string, status: schema.WaveStatus): Promise<SurveyWave | undefined>;
@@ -346,12 +383,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createWave(churchId: string, data: InsertWave, priceCents: number, currency: string, extra: WaveCreateExtras = {}): Promise<SurveyWave> {
-    let joinCode = "";
-    for (let attempts = 0; attempts < 10; attempts++) {
-      joinCode = genCode(5);
-      const existing = await db.select().from(surveyWaves).where(eq(surveyWaves.joinCode, joinCode));
-      if (existing.length === 0) break;
-    }
+    const joinCode = await uniqueWaveCode();
     const rows = await db
       .insert(surveyWaves)
       .values({
@@ -466,6 +498,47 @@ export class DatabaseStorage implements IStorage {
     }
     if (Object.keys(updates).length === 0) return this.getWaveById(id);
     const rows = await db.update(surveyWaves).set(updates).where(eq(surveyWaves.id, id)).returning();
+    return rows[0];
+  }
+
+  async setWaveCoreLeaders(id: string, enabled: boolean): Promise<SurveyWave | undefined> {
+    const current = (await db.select().from(surveyWaves).where(eq(surveyWaves.id, id)))[0];
+    if (!current) return undefined;
+    // The leader code is kept when switched off so turning it back on gives
+    // leaders the same code; it only works while the round is on.
+    const leaderJoinCode = current.leaderJoinCode ?? (enabled ? await uniqueWaveCode() : null);
+    const rows = await db.update(surveyWaves).set({ coreLeadersEnabled: enabled, leaderJoinCode })
+      .where(eq(surveyWaves.id, id)).returning();
+    return rows[0];
+  }
+
+  async countLeaderResponsesByWave(waveId: string): Promise<number> {
+    const rows = await db.select({ n: sql<number>`count(*)::int` }).from(responses)
+      .where(and(eq(responses.waveId, waveId), eq(responses.isCoreLeader, true)));
+    return Number(rows[0]?.n ?? 0);
+  }
+
+  async getLeaderReviewByWave(waveId: string): Promise<LeaderReviewRow | undefined> {
+    const rows = await db.select().from(leaderReviews).where(eq(leaderReviews.waveId, waveId));
+    return rows[0];
+  }
+
+  async getAllLeaderReviews(): Promise<LeaderReviewRow[]> {
+    return db.select().from(leaderReviews);
+  }
+
+  async upsertLeaderReview(data: Omit<LeaderReviewRow, "id" | "generatedAt">): Promise<LeaderReviewRow> {
+    const rows = await db.insert(leaderReviews).values({ id: randomUUID(), ...data })
+      .onConflictDoUpdate({
+        target: leaderReviews.waveId,
+        set: {
+          respondentCount: data.respondentCount,
+          reviewPdfPath: data.reviewPdfPath,
+          facilitatorPdfPath: data.facilitatorPdfPath,
+          summaryJson: data.summaryJson,
+          generatedAt: new Date(),
+        },
+      }).returning();
     return rows[0];
   }
 
@@ -602,6 +675,16 @@ export class DatabaseStorage implements IStorage {
   async getWaveByJoinCode(code: string): Promise<SurveyWave | undefined> {
     const rows = await db.select().from(surveyWaves).where(eq(surveyWaves.joinCode, code.toUpperCase()));
     return rows[0];
+  }
+
+  async resolveJoinCode(code: string): Promise<{ wave: SurveyWave; isCoreLeader: boolean } | undefined> {
+    const upper = code.trim().toUpperCase();
+    const church = await this.getWaveByJoinCode(upper);
+    if (church) return { wave: church, isCoreLeader: false };
+    const rows = await db.select().from(surveyWaves).where(eq(surveyWaves.leaderJoinCode, upper));
+    const wave = rows[0];
+    if (!wave || !wave.coreLeadersEnabled) return undefined;
+    return { wave, isCoreLeader: true };
   }
 
   async getWavesByChurch(churchId: string): Promise<SurveyWave[]> {

@@ -37,6 +37,9 @@ export function toReportRow(row: ResponseRow): Record<string, unknown> {
   out.children_in_household = parseChildren(row.childrenInHousehold);
   out.race_ethnicity = ethnicityLabels(row.raceEthnicity);
   out.comment_text = row.commentText;
+  // Read only by the Survey Review engine (Core Leaders Review and the final
+  // leaders-and-congregation comparison); never shown per respondent.
+  out.core_leader = row.isCoreLeader === true;
   return out;
 }
 
