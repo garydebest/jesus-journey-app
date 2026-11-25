@@ -19,7 +19,7 @@ const moduleDir = resolveModuleDir(
 );
 const REPORT_ENGINE_DIR = path.resolve(moduleDir, "report-engine");
 
-export interface SurveyReviewParams { waveId: string; churchName: string; rows: ResponseRow[] }
+export interface SurveyReviewParams { waveId: string; churchName: string; rows: ResponseRow[]; leadersComparison?: boolean }
 export interface SurveyReviewResult {
   ok: boolean;
   surveyReviewKey?: string;
@@ -30,14 +30,18 @@ export interface SurveyReviewResult {
 
 export const SURVEY_REVIEW_FILENAME = "Survey-Review.pdf";
 export const FACILITATOR_FILENAME = "Facilitators-Report.pdf";
+export const LEADERS_REVIEW_FILENAME = "Core-Leaders-Review.pdf";
+export const LEADERS_FACILITATOR_FILENAME = "Core-Leaders-Facilitators-Report.pdf";
 
-export async function generateSurveyReviewPdfs({ waveId, churchName, rows }: SurveyReviewParams): Promise<SurveyReviewResult> {
+/** Runs one of the Survey Review renderers and saves its two PDFs under the given storage names. */
+async function renderPair(script: string, payload: Record<string, unknown>, waveId: string, rows: ResponseRow[],
+  names: { church: string; facilitator: string }, churchName: string): Promise<SurveyReviewResult> {
   const directory = await mkdtemp(path.join(tmpdir(), "jj-review-"));
-  const churchOut = path.join(directory, "survey-review.pdf");
+  const churchOut = path.join(directory, "church.pdf");
   const facilitatorOut = path.join(directory, "facilitator.pdf");
   try {
     const summary = await new Promise<unknown>((resolve, reject) => {
-      const proc = spawn("python3", ["generate_survey_review.py"], { cwd: REPORT_ENGINE_DIR, stdio: ["pipe", "pipe", "pipe"] });
+      const proc = spawn("python3", [script], { cwd: REPORT_ENGINE_DIR, stdio: ["pipe", "pipe", "pipe"] });
       let stdout = "", stderr = "";
       const timeout = setTimeout(() => { proc.kill("SIGKILL"); reject(new Error("Survey Review generation timed out")); }, 120_000);
       proc.stdout.on("data", d => { stdout = (stdout + d.toString()).slice(-2_000_000); });
@@ -52,13 +56,11 @@ export async function generateSurveyReviewPdfs({ waveId, churchName, rows }: Sur
         } catch (error) { reject(error instanceof Error ? error : new Error(String(error))); }
       });
       proc.stdin.on("error", error => { clearTimeout(timeout); proc.kill("SIGKILL"); reject(error); });
-      proc.stdin.end(JSON.stringify({ church_name: churchName, rows: rows.map(toReportRow), church_out: churchOut, facilitator_out: facilitatorOut,
-        // Every church receives the 38-page full report, so page references always apply.
-        full_report_layout: true }));
+      proc.stdin.end(JSON.stringify({ church_name: churchName, rows: rows.map(toReportRow), church_out: churchOut, facilitator_out: facilitatorOut, ...payload }));
     });
-    const review = await persistReportPdf(waveId, churchOut, `${waveId}-survey-review.pdf`);
+    const review = await persistReportPdf(waveId, churchOut, names.church);
     if (!review.ok) return { ok: false, error: review.error };
-    const facilitator = await persistReportPdf(waveId, facilitatorOut, `${waveId}-facilitator.pdf`);
+    const facilitator = await persistReportPdf(waveId, facilitatorOut, names.facilitator);
     if (!facilitator.ok) return { ok: false, error: facilitator.error };
     return { ok: true, surveyReviewKey: review.storageKey, facilitatorKey: facilitator.storageKey, summaryJson: JSON.stringify(summary) };
   } catch (error: any) {
@@ -66,4 +68,21 @@ export async function generateSurveyReviewPdfs({ waveId, churchName, rows }: Sur
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+}
+
+export async function generateSurveyReviewPdfs({ waveId, churchName, rows, leadersComparison }: SurveyReviewParams): Promise<SurveyReviewResult> {
+  return renderPair("generate_survey_review.py", {
+    // Every church receives the 38-page full report, so page references always apply.
+    full_report_layout: true,
+    leaders_comparison: leadersComparison === true,
+  }, waveId, rows, { church: `${waveId}-survey-review.pdf`, facilitator: `${waveId}-facilitator.pdf` }, churchName);
+}
+
+/**
+ * Core Leaders Review: the leader-code responses of a survey that is still
+ * open. Nothing is closed or deleted; regenerating overwrites the same files.
+ */
+export async function generateLeadersReviewPdfs({ waveId, churchName, rows }: SurveyReviewParams): Promise<SurveyReviewResult> {
+  return renderPair("generate_leaders_review.py", {}, waveId, rows,
+    { church: `${waveId}-leaders-review.pdf`, facilitator: `${waveId}-leaders-facilitator.pdf` }, churchName);
 }
